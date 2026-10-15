@@ -36,15 +36,10 @@ h1,h2,h3,h4{margin:0;font-weight:600}
 .topbar nav a.active{background:rgba(255,255,255,.18);color:#fff}
 .topbar .afab-last{font-size:12px;color:rgba(255,255,255,.8);white-space:nowrap;border-left:1px solid rgba(255,255,255,.2);padding-left:14px}
 .topbar .afab-last b{color:#fff}
+.topbar .userbox{color:#fff;border-left:1px solid rgba(255,255,255,.2);padding-left:14px}
+.topbar .userbox select{color:var(--text)}
 
-/* ---- 화면 제목 줄 (G2) ---- */
-.titlebar{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.titlebar h1{font-size:18px}
-.titlebar .sub{color:var(--muted);font-size:12.5px}
-.titlebar .spacer{flex:1}
-.search{display:flex;align-items:center;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
-.search input{border:0;background:transparent;outline:0;width:260px}
-.search .hint{font-size:11px;color:var(--muted);white-space:nowrap}
+/* ---- 사용자/권한 (G3, 상단 메뉴 바 우측) ---- */
 .userbox{display:flex;align-items:center;gap:8px;font-size:12.5px}
 .userbox select{border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:#fff}
 .toggle{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:12.5px;color:var(--muted)}
@@ -58,7 +53,7 @@ h1,h2,h3,h4{margin:0;font-weight:600}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 @media(max-width:1100px){.grid3,.grid4{grid-template-columns:1fr 1fr}}
-@media(max-width:760px){.grid2,.grid3,.grid4{grid-template-columns:1fr}.search input{width:140px}.page{padding:12px}}
+@media(max-width:760px){.grid2,.grid3,.grid4{grid-template-columns:1fr}.page{padding:12px}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:14px}
 .card-h{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .card-h h2{font-size:14.5px}
@@ -128,7 +123,18 @@ body.notes .note{display:inline-block}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
 .filters select,.filters input{border:1px solid var(--line-strong);border-radius:7px;padding:5px 8px;background:#fff}
 .filters label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
-.grid-wrap{overflow:auto;max-height:66vh;border:1px solid var(--line);border-radius:8px;position:relative}
+.card-h .filters{margin-bottom:0}
+.editbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;background:var(--accent-soft);border:1px solid #b9d3f5;border-radius:8px;padding:6px 10px;margin-bottom:8px}
+.editbar[hidden]{display:none}
+.grid .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.grid .dot.ok{background:var(--ok)}.grid .dot.bad{background:var(--danger)}.grid .dot.warn{background:#e6b800}
+.grid th.sticky .btn{margin-left:6px;vertical-align:middle;font-weight:500}
+.grid td.sticky .rowsel,.grid th.sticky #selAll{margin:0 6px 0 0;vertical-align:middle}
+.grid tbody tr.sel td{background:#fff8e1}
+.grid td.keyin{cursor:text;text-decoration:underline dotted var(--line-strong);text-underline-offset:3px}
+.grid td.keyin:hover{background:var(--soft)}
+.grid td .cell-in{border:1px solid var(--accent);border-radius:5px;padding:2px 6px;width:120px;font:inherit}
+.grid-wrap{overflow:auto;max-height:calc(100vh - 270px);border:1px solid var(--line);border-radius:8px;position:relative}
 .grid{border-collapse:separate;border-spacing:0;font-size:12.3px;min-width:100%}
 .grid th,.grid td{padding:5px 8px;border-bottom:1px solid var(--line);border-right:1px solid #eef1f5;white-space:nowrap;background:#fff}
 .grid thead th{background:var(--soft);color:var(--muted);font-weight:600;font-size:11.5px;position:sticky;z-index:2;cursor:pointer;user-select:none}

@@ -20,7 +20,7 @@ const COLUMNS = [
   {key:'model', label:'Model', group:'기본', src:'자동'},
   {key:'axle', label:'Axle', group:'기본', src:'자동'},
   {key:'cab', label:'Cab', group:'기본', src:'자동'},
-  {key:'option', label:'Option', group:'기본', src:'자동'},
+  {key:'option', label:'Option', group:'기본', src:'입력'},
   {key:'changeability_date', label:'Changeability Date', group:'일정', src:'AFAB'},
   {key:'pm', label:'PM', group:'일정', src:'AFAB'},
   {key:'original_pm', label:'Original PM', group:'일정', src:'AFAB'},

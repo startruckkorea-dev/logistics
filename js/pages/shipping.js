@@ -41,15 +41,23 @@ PAGES.shipping = {
 
     // 선박별 현황: B/L · Shipping · Pl. arrival · ETA 선사 · ATA · TSC 입고일(Key-in) · 대수
     const dash = ()=>mk('span', {class:'muted'}, '—');
+    // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영. TSC 입고일은 Key-in만(차량 마스터 미반영).
+    const applyToVehicles = (y, voyKey, vehKey, label, val)=>{
+      y[voyKey] = val;
+      const vs = VEHICLES.filter(v=>v.vessel===y.vessel);
+      vs.forEach(v=>{ v[vehKey] = val; if(vehKey==='ata') v.eta_delta = (val && v.planned_arrival)? diffDays(parseD(val), parseD(v.planned_arrival)) : null; if(vehKey==='eta_from_eukor_pirt') v.eta_mismatch = (val && v.planned_arrival)? Math.abs(diffDays(parseD(v.planned_arrival), parseD(val)))>7 : false; });
+      toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(vs.length)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History(출처: 수동) 기록`);
+    };
+    const vIn = (y, voyKey, vehKey, label, type, ph)=>mk('input', {type, class:'tsc-in editor-only', value:y[voyKey]||'', placeholder:ph||'', title:`${label} 입력 → 차량 마스터 반영`, onclick:e=>e.stopPropagation(), onchange:e=>applyToVehicles(y, voyKey, vehKey, label, e.target.value.trim())});
     const rows = VOYAGES.map(y=>{ const vs=moving.filter(v=>v.vessel===y.vessel); const mis = (y.eta_carrier && Math.abs(diffDays(parseD(y.pl),parseD(y.eta_carrier)))>7);
-      const tsc = mk('input', {type:'date', class:'tsc-in editor-only', title:'TSC 입고일 수기 입력 (Key-in)', onclick:e=>e.stopPropagation(), onchange:e=>describe('TSC 입고일 입력', `${y.vessel} · TSC Arrival Date ${e.target.value||'(삭제)'} → 해당 선박 차량의 tsc_arrival_date에 일괄 저장하고 Vehicle_History(출처: 수동)에 기록합니다.`)});
+      const tsc = mk('input', {type:'date', class:'tsc-in editor-only', title:'TSC 입고일 수기 입력 (Key-in) — 차량 마스터에는 반영하지 않음', onclick:e=>e.stopPropagation(), onchange:e=>describe('TSC 입고일 입력', `${y.vessel} · TSC Arrival Date ${e.target.value||'(삭제)'} → 해당 선박 차량의 tsc_arrival_date에 일괄 저장하고 Vehicle_History(출처: 수동)에 기록합니다. (차량 마스터 열에는 반영하지 않음)`)});
       return mk('tr', {'data-vessel':y.vessel},
         mk('td', null, mk('b', null, y.vessel), mk('div', {class:'muted small'}, `${y.carrier} · ${y.kind==='transit'?'운송중':'선적 예정'}`)),
-        mk('td', {class:'mono'}, y.bl || mk('span', {class:'muted'}, '미확정')),
+        mk('td', {class:'mono'}, vIn(y, 'bl', 'bl_no', 'B/L No', 'text', '미확정'), mk('span', {class:'viewer-only'}, y.bl || mk('span', {class:'muted'}, '미확정'))),
         mk('td', {class:'mono'}, y.shipping, y.kind==='scheduled'? mk('div', {class:'muted small'}, '예정') : null),
         mk('td', {class:'mono'}, y.pl),
-        mk('td', {class:'mono'}, y.eta_carrier || dash(), mis? [' ', mk('span', {class:'pill warn', title:'Pl.arrival 대비 7일 초과'}, '불일치')] : null),
-        mk('td', {class:'mono'}, y.eta_final || mk('span', {class:'muted'}, '미입력')),
+        mk('td', {class:'mono'}, vIn(y, 'eta_carrier', 'eta_from_eukor_pirt', 'ETA From EUKOR/PIRT', 'date'), mk('span', {class:'viewer-only'}, y.eta_carrier || dash()), mis? [' ', mk('span', {class:'pill warn', title:'Pl.arrival 대비 7일 초과'}, '불일치')] : null),
+        mk('td', {class:'mono'}, vIn(y, 'eta_final', 'ata', 'ATA', 'date'), mk('span', {class:'viewer-only'}, y.eta_final || mk('span', {class:'muted'}, '미입력'))),
         mk('td', null, tsc, mk('span', {class:'viewer-only muted'}, '미입력')),
         mk('td', {class:'num'}, mk('b', null, vs.length))); });
     const vessels = mk('div', {class:'card'},

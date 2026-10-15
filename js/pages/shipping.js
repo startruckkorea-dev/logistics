@@ -41,12 +41,11 @@ PAGES.shipping = {
 
     // 선박별 현황: B/L · Shipping · Pl. arrival · ETA 선사 · ATA · TSC 입고일(Key-in) · 대수
     const dash = ()=>mk('span', {class:'muted'}, '—');
-    // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영. TSC 입고일은 Key-in만(차량 마스터 미반영).
+    // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영(Store). TSC 입고일은 Key-in만(차량 마스터 미반영).
     const applyToVehicles = (y, voyKey, vehKey, label, val)=>{
-      y[voyKey] = val;
-      const vs = VEHICLES.filter(v=>v.vessel===y.vessel);
-      vs.forEach(v=>{ v[vehKey] = val; if(vehKey==='ata') v.eta_delta = (val && v.planned_arrival)? diffDays(parseD(val), parseD(v.planned_arrival)) : null; if(vehKey==='eta_from_eukor_pirt') v.eta_mismatch = (val && v.planned_arrival)? Math.abs(diffDays(parseD(v.planned_arrival), parseD(val)))>7 : false; });
-      toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(vs.length)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History(출처: 수동) 기록`);
+      Store.voyages.update(y.id, {[voyKey]: val});
+      const n = Store.voyages.applyToVehicles(y.vessel, vehKey, val);
+      toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(n)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History(출처: 수동) 기록`);
     };
     const vIn = (y, voyKey, vehKey, label, type, ph)=>mk('input', {type, class:'tsc-in editor-only', value:y[voyKey]||'', placeholder:ph||'', title:`${label} 입력 → 차량 마스터 반영`, onclick:e=>e.stopPropagation(), onchange:e=>applyToVehicles(y, voyKey, vehKey, label, e.target.value.trim())});
     const rows = VOYAGES.map(y=>{ const vs=moving.filter(v=>v.vessel===y.vessel); const mis = (y.eta_carrier && Math.abs(diffDays(parseD(y.pl),parseD(y.eta_carrier)))>7);

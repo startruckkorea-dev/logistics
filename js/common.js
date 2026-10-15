@@ -81,7 +81,7 @@ const NOTES = {
 
 // ---- 전역 상태 ----
 const PAGES = {};
-const state = { role:'Editor', user:'정물류', notes:false, hiddenCols:new Set(DEFAULT_HIDDEN_COLS) };
+const state = { role:'Editor', user: USERS.find(u=>u.role==='Editor').name, notes:false, hiddenCols:new Set(DEFAULT_HIDDEN_COLS) };
 function isEditor(){ return state.role==='Editor'; }
 
 // ---- 문자열 헬퍼 ----

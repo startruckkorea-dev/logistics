@@ -17,7 +17,8 @@ function route(){
 }
 window.addEventListener('hashchange', route);
 window.addEventListener('DOMContentLoaded', ()=>{
-  el('roleSel').onchange = e=>{ state.role=e.target.value; state.user = state.role==='Editor'?'정물류':'박대표'; document.body.classList.toggle('viewer', state.role!=='Editor'); el('userName').textContent=state.user; route(); toast(`역할 전환: ${state.role}`, state.role==='Editor'?'입력·반영·확정 버튼이 표시됩니다.':'Viewer에게는 입력·반영·확정 버튼이 보이지 않습니다.'); };
+  el('userName').textContent = state.user; // 초기 사용자명: USERS 기준 (common.js state)
+  el('roleSel').onchange = e=>{ state.role=e.target.value; const u = USERS.find(x=>x.role===state.role); if(u) state.user = u.name; document.body.classList.toggle('viewer', state.role!=='Editor'); el('userName').textContent=state.user; route(); toast(`역할 전환: ${state.role}`, state.role==='Editor'?'입력·반영·확정 버튼이 표시됩니다.':'Viewer에게는 입력·반영·확정 버튼이 보이지 않습니다.'); };
   document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeDrawer(); closeModal(); } });
   el('drawer-bg').onclick = closeDrawer; el('modal-bg').addEventListener('click', e=>{ if(e.target===el('modal-bg')) closeModal(); });
   route();

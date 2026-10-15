@@ -223,6 +223,25 @@ const AFAB_MAP = [
   ['AC','Subkat.','sub_cat','코드','✓'],['AD','Fahrzeugwert','vehicle_value_eur','독일식→숫자','✓'],['AE','Auftragswert mit Steuer','order_value_eur','독일식→숫자','✓'],['AF','GLT-BAT-Soll-AO','glt_bat_soll','날짜','△'],
 ];
 
+// ---- AFAB 변경점 (샘플, 시연 파일 SDISP_2026-10-07.xlsx 기준) — AFAB 업로드 화면 3단계에서 참조 ----
+const CHANGES = (function(){
+  const vs = VEHICLES.filter(v=>v.in_afab_today);
+  const changed = [
+    {v:vs.find(v=>v.vessel==='Eukor Pioneer'), f:'vessel', old:'Morning Lady', impact:'단계 유지(In Transit) · 선박별 현황 이동'},
+    {v:vs.find(v=>v.current_status==='Ordered(Changeable)'&&v.pm==='2027-02'), f:'pm', old:'2027-02', nw:'2027-03', impact:'original_pm 보존 · KUFRI Production 2027-02 → 2027-03 이동 · Order 분류 유지'},
+    {v:vs.find(v=>v.current_status==='In Production'&&v.pm==='2026-10'), f:'planned_arrival', old:'', nw:'2026-12-05', impact:'입항 예정월 2027-01 → 2026-12 (ETA Final 미입력 시)'},
+    {v:vs.find(v=>v.current_status==='In Transit'&&v.vessel==='Glovis Sunrise'), f:'invoice', old:'', impact:'In Transit (Invoiced) 표기'},
+    {v:vs.find(v=>v.current_status==='Ordered(Changeable)'&&v.pm==='2026-12'), f:'changeability_date', old:'2026-10-20', impact:'D-day 알림 재계산'},
+  ].filter(c=>c.v).map(c=>({comm:c.v.commission_no, model:c.v.model_classification, field:c.f, old:c.old, nw:c.nw||c.v[c.f], impact:c.impact}));
+  const added = [
+    {comm:'071006201', baumuster:'96340312', type:'2863 LSDNA6x2 F 16', pm:'2027-07', mapped:true},
+    {comm:'071006204', baumuster:'96340312', type:'2863 LSDNA6x2 F 16', pm:'2027-07', mapped:true},
+    {comm:'071006207', baumuster:'96340610', type:'2863 LSDNRA6x2 F 16', pm:'2027-07', mapped:false},
+  ];
+  const removed = VEHICLES.filter(v=>['Ordered(Changeable)','Ordered(Fixed)','In Production'].includes(v.current_status)&&!v.in_afab_today).slice(0,2).map(v=>({comm:v.commission_no, model:v.model_classification, stage:v.current_status, pm:v.pm}));
+  return {changed, added, removed, unchanged: AFAB_UPLOADS[0].rows-changed.length-added.length};
+})();
+
 // ---- Settings (기준값) ----
 const SETTINGS = [
   {key:'stock_level_days', value:'60 / 183 / 365 / 730', desc:'Stock level 구간(일): <2 months / <6 months / <1 year / <2 years / >2 years'},

@@ -141,7 +141,7 @@ function startCellEdit(td, comm, key){
   let done = false;
   const finish = save=>{ if(done) return; done = true;
     const val = inp.value.trim();
-    if(save && val!==before){ v[key]=val; toast('Key-in 저장', `${comm} · ${keyinLabel(key)}: ${val||'(삭제)'} → Vehicles 갱신 · Vehicle_History(출처: 수동) 기록`); }
+    if(save && val!==before){ Store.vehicles.update(comm, {[key]: val}); toast('Key-in 저장', `${comm} · ${keyinLabel(key)}: ${val||'(삭제)'} → Vehicles 갱신 · Vehicle_History(출처: 수동) 기록`); }
     setKeyinCell(td, save? val : before); };
   inp.onkeydown = e=>{ if(e.key==='Enter') finish(true); else if(e.key==='Escape') finish(false); e.stopPropagation(); };
   inp.onblur = ()=>finish(true);
@@ -149,13 +149,6 @@ function startCellEdit(td, comm, key){
   td.replaceChildren(inp, optionDatalist()); inp.focus(); inp.select();
 }
 function selectedVehicles(){ return [...EDIT.sel].map(c=>VEHICLE_BY_COMM[c]).filter(Boolean); }
-function applyModelMaster(v, m){
-  Object.assign(v, { vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead,
-    baumuster:m.prefix+' '+m.suffix, bm:m.prefix+'-'+m.code2 });
-  v.model_classification = [v.gen,v.model,v.axle,v.cab,v.option].filter(Boolean).join(' ');
-  v.dms_model_name = [v.vehicle,v.model,v.axle,v.cab].join(' ');
-  v.model_key = [v.vehicle,v.model,v.axle,v.cab].join('|');
-}
 function openModelChange(){
   const vs = selectedVehicles(); if(!vs.length) return;
   const by = countBy(vs, v=>v.model);
@@ -169,7 +162,7 @@ function openModelChange(){
   el('modal-body').replaceChildren(body);
   el('modal-foot').replaceChildren(
     mk('button', {class:'btn', onclick: closeModal}, '취소'),
-    mk('button', {class:'btn primary', onclick: ()=>{ const m = MODEL_MASTER.find(x=>x.prefix===sel.value); if(!m) return; vs.forEach(v=>applyModelMaster(v, m)); closeModal(); renderGrid();
+    mk('button', {class:'btn primary', onclick: ()=>{ const m = MODEL_MASTER.find(x=>x.prefix===sel.value); if(!m) return; vs.forEach(v=>Store.vehicles.applyModelMaster(v.commission_no, m)); closeModal(); renderGrid();
       toast(`오더 변경 ${num(vs.length)}건`, `→ ${m.model} ${m.axle} ${m.cab}${m.option?' '+m.option:''} · Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록 · 대시보드·KUFRI 즉시 반영`); }}, '변경'));
 }
 function openBulkKeyin(){
@@ -185,7 +178,8 @@ function openBulkKeyin(){
     mk('button', {class:'btn', onclick: closeModal}, '취소'),
     mk('button', {class:'btn primary', onclick: ()=>{ const changed = KEYIN_COLS.filter(k=>inputs[k].value.trim()!=='');
       if(!changed.length){ toast('입력값 없음', '하나 이상의 열에 값을 입력하세요.'); return; }
-      vs.forEach(v=>changed.forEach(k=>{ v[k]=inputs[k].value.trim(); })); closeModal(); renderGrid();
+      const patch = {}; changed.forEach(k=>{ patch[k]=inputs[k].value.trim(); });
+      Store.vehicles.updateMany(vs.map(v=>v.commission_no), patch); closeModal(); renderGrid();
       toast(`Key-in 일괄 입력 ${num(vs.length)}건`, `열: ${changed.map(keyinLabel).join(' · ')} → Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, '적용'));
 }
 function openColSettings(){

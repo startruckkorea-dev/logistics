@@ -15,23 +15,7 @@ PAGES.afab = {
     renderStep();
   }
 };
-const CHANGES = (function(){
-  const vs = VEHICLES.filter(v=>v.in_afab_today);
-  const changed = [
-    {v:vs.find(v=>v.vessel==='Eukor Pioneer'), f:'vessel', old:'Morning Lady', impact:'단계 유지(In Transit) · 선박별 현황 이동'},
-    {v:vs.find(v=>v.current_status==='Ordered(Changeable)'&&v.pm==='2027-02'), f:'pm', old:'2027-02', nw:'2027-03', impact:'original_pm 보존 · KUFRI Production 2027-02 → 2027-03 이동 · Order 분류 유지'},
-    {v:vs.find(v=>v.current_status==='In Production'&&v.pm==='2026-10'), f:'planned_arrival', old:'', nw:'2026-12-05', impact:'입항 예정월 2027-01 → 2026-12 (ETA Final 미입력 시)'},
-    {v:vs.find(v=>v.current_status==='In Transit'&&v.vessel==='Glovis Sunrise'), f:'invoice', old:'', impact:'In Transit (Invoiced) 표기'},
-    {v:vs.find(v=>v.current_status==='Ordered(Changeable)'&&v.pm==='2026-12'), f:'changeability_date', old:'2026-10-20', impact:'D-day 알림 재계산'},
-  ].filter(c=>c.v).map(c=>({comm:c.v.commission_no, model:c.v.model_classification, field:c.f, old:c.old, nw:c.nw||c.v[c.f], impact:c.impact}));
-  const added = [
-    {comm:'071006201', baumuster:'96340312', type:'2863 LSDNA6x2 F 16', pm:'2027-07', mapped:true},
-    {comm:'071006204', baumuster:'96340312', type:'2863 LSDNA6x2 F 16', pm:'2027-07', mapped:true},
-    {comm:'071006207', baumuster:'96340610', type:'2863 LSDNRA6x2 F 16', pm:'2027-07', mapped:false},
-  ];
-  const removed = VEHICLES.filter(v=>['Ordered(Changeable)','Ordered(Fixed)','In Production'].includes(v.current_status)&&!v.in_afab_today).slice(0,2).map(v=>({comm:v.commission_no, model:v.model_classification, stage:v.current_status, pm:v.pm}));
-  return {changed, added, removed, unchanged: 677-changed.length-added.length};
-})();
+// CHANGES(변경점 샘플)는 data.js에 선언 — 여기서는 참조만
 function renderStep(){
   const steps = ['파일 선택','검증','변경점 확인','반영'];
   el('stepper').innerHTML = steps.map((s,i)=>`<div class="step ${i+1<AF.step?'done':''} ${i+1===AF.step?'cur':''}"><span class="n">${i+1<AF.step?'✓':i+1}</span>${s}${i===0?note('A1'):''}</div>`).join('');

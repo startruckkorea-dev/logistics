@@ -38,22 +38,22 @@ const MODEL_MASTER = [
   {prefix:'96340110', code2:'5AA', suffix:'LSDNA4x2', type_desc:'1853 LSDNA4x2 F 16', vehicle:'Tractor',   gen:'MP5',     model:'1853LS',     axle:'4x2', cab:'S5F', option:'',         lead:2, w:150, active:true},
   {prefix:'96340410', code2:'6AC', suffix:'LSDNA6x2', type_desc:'2663 LSDNA6x2 F 16', vehicle:'Tractor',   gen:'MP5',     model:'2663LS',     axle:'6x2', cab:'S5F', option:'6900WB',   lead:3, w:174, active:true},
   {prefix:'99040010', code2:'9EA', suffix:'LS 6x2',   type_desc:'eActros 600 LS 6x2',  vehicle:'Tractor',   gen:'eActros', model:'eActros600', axle:'6x2', cab:'S5F', option:'',         lead:4, w:20,  active:true},
-  {prefix:'96302110', code2:'3AA', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Heavy-MDT', gen:'MP5',     model:'2135L',      axle:'4x2', cab:'C3H', option:'',         lead:2, w:150, active:true},
-  {prefix:'96302111', code2:'3AB', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Heavy-MDT', gen:'MP5',     model:'2135L',      axle:'4x2', cab:'M',   option:'',         lead:2, w:80,  active:true},
-  {prefix:'96302210', code2:'3BA', suffix:'L 6x2',    type_desc:'2540 L 6x2 F 16',     vehicle:'Heavy-MDT', gen:'MP5',     model:'2540L',      axle:'6x2', cab:'C3H', option:'',         lead:3, w:60,  active:true},
-  {prefix:'96302310', code2:'3BB', suffix:'L 6x2',    type_desc:'2545 L 6x2 F 16',     vehicle:'Heavy-MDT', gen:'MP5',     model:'2545L',      axle:'6x2', cab:'C3M', option:'',         lead:3, w:57,  active:true},
-  {prefix:'96303110', code2:'4AA', suffix:'L 6x2',    type_desc:'3253 L 6x2 F 16',     vehicle:'HDT-Rigid', gen:'MP5',     model:'3253L',      axle:'6x2', cab:'B5F', option:'',         lead:4, w:100, active:true},
-  {prefix:'96303210', code2:'4BA', suffix:'L 8x4',    type_desc:'4153 L 8x4 F 16',     vehicle:'HDT-Rigid', gen:'MP5',     model:'4153L',      axle:'8x4', cab:'B5F', option:'',         lead:5, w:80,  active:true},
-  {prefix:'96303310', code2:'4AB', suffix:'L 6x2',    type_desc:'2553 L 6x2 F 16',     vehicle:'HDT-Rigid', gen:'MP5',     model:'2553L',      axle:'6x2', cab:'C3M', option:'',         lead:4, w:60,  active:true},
-  {prefix:'96303410', code2:'4AC', suffix:'L 6x2',    type_desc:'3263 L 6x2 F 16',     vehicle:'HDT-Rigid', gen:'MP5',     model:'3263L',      axle:'6x2', cab:'S5F', option:'',         lead:4, w:64,  active:true},
+  {prefix:'96302110', code2:'3AA', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'2135L',      axle:'4x2', cab:'C3H', option:'',         lead:2, w:150, active:true},
+  {prefix:'96302111', code2:'3AB', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'2135L',      axle:'4x2', cab:'M',   option:'',         lead:2, w:80,  active:true},
+  {prefix:'96302210', code2:'3BA', suffix:'L 6x2',    type_desc:'2540 L 6x2 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'2540L',      axle:'6x2', cab:'C3H', option:'',         lead:3, w:60,  active:true},
+  {prefix:'96302310', code2:'3BB', suffix:'L 6x2',    type_desc:'2545 L 6x2 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'2545L',      axle:'6x2', cab:'C3M', option:'',         lead:3, w:57,  active:true},
+  {prefix:'96303110', code2:'4AA', suffix:'L 6x2',    type_desc:'3253 L 6x2 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'3253L',      axle:'6x2', cab:'B5F', option:'',         lead:4, w:100, active:true},
+  {prefix:'96303210', code2:'4BA', suffix:'L 8x4',    type_desc:'4153 L 8x4 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'4153L',      axle:'8x4', cab:'B5F', option:'',         lead:5, w:80,  active:true},
+  {prefix:'96303310', code2:'4AB', suffix:'L 6x2',    type_desc:'2553 L 6x2 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'2553L',      axle:'6x2', cab:'C3M', option:'',         lead:4, w:60,  active:true},
+  {prefix:'96303410', code2:'4AC', suffix:'L 6x2',    type_desc:'3263 L 6x2 F 16',     vehicle:'Rigid',     gen:'MP5',     model:'3263L',      axle:'6x2', cab:'S5F', option:'',         lead:4, w:64,  active:true},
   {prefix:'96304110', code2:'5KA', suffix:'K 8x4',    type_desc:'4148 K 8x4 F 16',     vehicle:'Tipper',    gen:'MP5',     model:'4148K',      axle:'8x4', cab:'M',   option:'',         lead:4, w:100, active:true},
   {prefix:'96304210', code2:'5KB', suffix:'K 6x4',    type_desc:'3348 K 6x4 F 16',     vehicle:'Tipper',    gen:'MP5',     model:'3348K',      axle:'6x4', cab:'M',   option:'',         lead:4, w:50,  active:true},
   {prefix:'96304310', code2:'5KC', suffix:'K 8x4',    type_desc:'4153 K 8x4 F 16',     vehicle:'Tipper',    gen:'MP5',     model:'4153K',      axle:'8x4', cab:'B5F', option:'',         lead:5, w:35,  active:true},
-  {prefix:'96305110', code2:'8BA', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'Rigid(BB)', gen:'MP5',     model:'4440',       axle:'8x4', cab:'C3H', option:'Export',   lead:5, w:60,  active:true},
-  {prefix:'96305111', code2:'8BB', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'Rigid(BB)', gen:'MP5',     model:'4440',       axle:'8x4', cab:'L',   option:'Domestic', lead:5, w:41,  active:true},
+  {prefix:'96305110', code2:'8BA', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'BB',        gen:'MP5',     model:'4440',       axle:'8x4', cab:'C3H', option:'Export',   lead:5, w:60,  active:true},
+  {prefix:'96305111', code2:'8BB', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'BB',        gen:'MP5',     model:'4440',       axle:'8x4', cab:'L',   option:'Domestic', lead:5, w:41,  active:true},
   {prefix:'96340510', code2:'7AC', suffix:'LSDNA6x2', type_desc:'2863 LSDNA6x2 F 17',  vehicle:'Tractor',   gen:'MP5',     model:'2863LS',     axle:'6x2', cab:'S5F', option:'ProCabin', lead:3, w:0,   active:false},
 ];
-const VEHICLE_TYPES = ['Tractor','Heavy-MDT','HDT-Rigid','Tipper','Rigid(BB)'];
+const VEHICLE_TYPES = ['Tractor','Tipper','Rigid','BB']; // 10/15 No.16: 4종 통일 (Heavy-MDT·HDT-Rigid → Rigid, Rigid(BB) → BB)
 const COLORS = ['9147','7350','3589','5361','9040','1636','9134','7755'];
 const COLOR_NAMES = {'9147':'Arctic White','7350':'Silver Grey','3589':'Jupiter Red','5361':'Steel Blue','9040':'Obsidian Black','1636':'Sun Yellow','9134':'Alpine White','7755':'Tenorite Grey'};
 const SAP_CODES = ['ZCBC','ZSHP','ZVIB','ZPDY','ZIVB','ZGOR'];
@@ -143,7 +143,7 @@ function makeVehicle(p, m){
   v.eta_mismatch = (pl && etaC) ? Math.abs(diffDays(pl, etaC))>7 : false;
   // ---- 신규 열 (data-dictionary v2_1_2) ----
   v.bm = m.prefix+'-'+m.code2;                                   // BM = Baumuster Code1 - Baumuster Code2 (예 96302210-7AA)
-  v.series = m.gen==='eActros' ? 'eActros' : (m.vehicle==='Tipper'||m.vehicle==='Rigid(BB)') ? 'Arocs' : 'Actros'; // 값 형식 Actros/Arocs/eActros (가짜값: 차종 기준)
+  v.series = m.gen==='eActros' ? 'eActros' : (m.vehicle==='Tipper'||m.vehicle==='BB') ? 'Arocs' : 'Actros'; // 값 형식 Actros/Arocs/eActros (가짜값: 차종 기준)
   v.spec = [v.vehicle, v.series, v.model, v.axle, v.cab].join(' '); // Vehicle + Series + Model + Axle + Cab
   v.eta_from_tdd = tdd ? fmtD(addD(tdd,75)) : '';                 // TDD Calc + 75일
   v.color_name = COLOR_NAMES[v.color_code]||'';                   // 색상 코드 → 이름

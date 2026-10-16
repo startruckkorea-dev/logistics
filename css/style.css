@@ -128,6 +128,22 @@ body.notes .note{display:inline-block}
 .editbar[hidden]{display:none}
 .grid .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .grid .dot.ok{background:var(--ok)}.grid .dot.bad{background:var(--danger)}.grid .dot.warn{background:#e6b800}
+.grid .dot.r{float:right;margin:5px 0 0 8px}
+.grid td.pend{background:#fff8e1;box-shadow:inset 3px 0 0 var(--warn)}
+.grid th .colvis{margin:0 5px 0 0;vertical-align:middle}
+.grid th.hid,.grid td.hid{opacity:.45;background:#f3f4f6;min-width:0}
+.grid th .cf{border:1px solid transparent;background:transparent;color:var(--muted);font-size:9px;margin-left:4px;cursor:pointer;padding:1px 4px;border-radius:4px;vertical-align:middle}
+.grid th .cf:hover{border-color:var(--line-strong);background:#fff}
+.grid th .cf.on{color:#fff;background:var(--accent);border-color:var(--accent)}
+.colfilter{position:fixed;z-index:80;background:#fff;border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);width:280px;padding:8px 10px;font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+.colfilter .cf-h{display:flex;align-items:center;gap:6px}
+.colfilter .cf-h .x{margin-left:auto;border:0;background:transparent;font-size:18px;color:var(--muted);cursor:pointer}
+.colfilter input[type=text]{border:1px solid var(--line-strong);border-radius:6px;padding:4px 8px;font:inherit}
+.colfilter .cf-tools,.colfilter .cf-foot{display:flex;gap:6px}
+.colfilter .cf-foot{justify-content:flex-end;border-top:1px solid var(--line);padding-top:6px}
+.colfilter .cf-list{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.colfilter .cf-list label{display:flex;gap:6px;align-items:center;padding:2px 0;cursor:pointer}
+.colfilter .cf-list label span:nth-child(2){flex:1}
 .grid th.sticky .btn{margin-left:6px;vertical-align:middle;font-weight:500}
 .grid td.sticky .rowsel,.grid th.sticky #selAll{margin:0 6px 0 0;vertical-align:middle}
 .grid tbody tr.sel td{background:#fff8e1}

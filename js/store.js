@@ -8,15 +8,28 @@ const Store = {
       Object.assign(v, patch); return v;
     },
     updateMany(comms, patch){ return comms.map(c=>Store.vehicles.update(c, patch)).filter(Boolean); },
+    // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
+    modelMasterPatch(m){
+      const p = { vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead,
+        baumuster:m.prefix+' '+m.suffix, bm:m.prefix+'-'+m.code2 };
+      p.model_classification = [p.gen,p.model,p.axle,p.cab,p.option].filter(Boolean).join(' ');
+      p.dms_model_name = [p.vehicle,p.model,p.axle,p.cab].join(' ');
+      p.model_key = [p.vehicle,p.model,p.axle,p.cab].join('|');
+      return p;
+    },
     // Model_Master 행의 모델 속성을 차량에 일괄 적용 + 파생 모델명 재계산
     applyModelMaster(comm, m){
       const v = VEHICLE_BY_COMM[comm]; if(!v) return null;
-      Object.assign(v, { vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead,
-        baumuster:m.prefix+' '+m.suffix, bm:m.prefix+'-'+m.code2 });
-      v.model_classification = [v.gen,v.model,v.axle,v.cab,v.option].filter(Boolean).join(' ');
-      v.dms_model_name = [v.vehicle,v.model,v.axle,v.cab].join(' ');
-      v.model_key = [v.vehicle,v.model,v.axle,v.cab].join('|');
+      Object.assign(v, Store.vehicles.modelMasterPatch(m));
       return v;
+    },
+  },
+  history: {
+    // Vehicle_History에 변경 이력 행 추가 (최신순 유지). 추가한 건수를 반환.
+    add(rows){
+      rows.forEach(r=>VEHICLE_HISTORY.push(r));
+      VEHICLE_HISTORY.sort((a,b)=> a.changed_at<b.changed_at?1:-1);
+      return rows.length;
     },
   },
   voyages: {

@@ -16,11 +16,11 @@ const COLUMNS = [
   {key:'bm', label:'BM', group:'기본', src:'자동'},
   {key:'vin_no', label:'Vin No', group:'기본', src:'AFAB'},
   {key:'vehicle', label:'Vehicle', group:'기본', src:'자동'},
-  {key:'series', label:'Series', group:'기본', src:'자동'},
-  {key:'model', label:'Model', group:'기본', src:'자동'},
+  {key:'series', label:'Model', group:'기본', src:'자동'},   // 10/15 No.3: SAM 기준 라벨 (기존 Series → Model)
+  {key:'model', label:'Type', group:'기본', src:'자동'},     // 10/15 No.3: SAM 기준 라벨 (기존 Model → Type)
   {key:'axle', label:'Axle', group:'기본', src:'자동'},
   {key:'cab', label:'Cab', group:'기본', src:'자동'},
-  {key:'option', label:'Option', group:'기본', src:'입력'},
+  {key:'option', label:'Option', group:'기본', src:'자동'},   // 10/15 No.5: Model_Master에서 자동 반영 (수동 입력 제외)
   {key:'changeability_date', label:'Changeability Date', group:'일정', src:'AFAB'},
   {key:'pm', label:'PM', group:'일정', src:'AFAB'},
   {key:'original_pm', label:'Original PM', group:'일정', src:'AFAB'},
@@ -43,6 +43,7 @@ const COLUMNS = [
   {key:'import_license', label:'Import License', group:'통관', src:'입력'},
   {key:'ref_commission_no', label:'Ref Commission No', group:'기본', src:'입력'},
   {key:'option_remarks', label:'Option Note', group:'메모', src:'입력', memo:true},
+  {key:'order_note', label:'Order Note', group:'메모', src:'입력', memo:true}, // 10/15 No.10: Option Note 다음 순서
   {key:'b1_factory_order', label:'B1 Factory Order', group:'선적', src:'입력'},
   {key:'sales_month', label:'Sales Month', group:'통관', src:'입력'},
   {key:'model_classification', label:'Model Classification', group:'사양', src:'자동'},
@@ -50,7 +51,6 @@ const COLUMNS = [
   {key:'spec', label:'Spec', group:'사양', src:'자동'},
   {key:'sub_cat', label:'Sub Cat', group:'사양', src:'AFAB'},
   {key:'fleet_co', label:'Fleet C/O', group:'선적', src:'입력'},
-  {key:'order_note', label:'Order Note', group:'메모', src:'입력', memo:true},
   // ---- 사전 제외 열 (뒤쪽 배치) ----
   {key:'order_date', label:'Order Date', group:'일정', src:'AFAB'},
   {key:'invoice_no', label:'Invoice No.', group:'선적', src:'AFAB'},
@@ -64,14 +64,14 @@ const COLUMNS = [
   {key:'baumuster', label:'Baumuster', group:'사양', src:'AFAB'},
 ];
 const GROUPS = ['기본','일정','선적','통관','사양','메모'];
-const DEFAULT_HIDDEN_COLS = ['original_pm']; // 사전 주석: 'Original PM'은 숨기기 기능으로 구현 (열 설정에서 다시 표시 가능)
+const DEFAULT_HIDDEN_COLS = ['original_pm']; // 사전 주석: 'Original PM'은 숨기기 기능으로 구현 (편집 모드 열 머리글 체크박스로 다시 표시 가능)
 const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // 그리드 바로가기 버튼(이름 = 열 라벨) → 이동할 열 key. current_status는 맨 처음으로
 
 // 설계 노트 (목업 전용)
 const NOTES = {
   G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. UI 한국어, 필드명은 기존 엑셀 영문',
-  D1:'차량 주문·재고 흐름: 카드 8종 한 줄 Ordered(Changeable) → Ordered(Fixed) → In Production → Shipment scheduled → In Transit → Arrival(당월 도착 예정) → Stock(Bonded + OH) → Sold(YTD) + 하단 오더 분류 2상자(중복 허용). 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 한 행, 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외)', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)',
-  L1:'단계 칩 필터(10단계 + Cancelled)', L2:'Order 분류 열, 차종/모델/생산월/입항월/텍스트 필터, 정렬', L3:'Comm No. 기준 한 행에 전체 50열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 설정(사용자별 표시·순서·고정)', L5:'출처 배지(AFAB/자동/입력)', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
+  D1:'차량 주문·재고 흐름: 카드 8종 한 줄 Ordered(Changeable) → Ordered(Fixed) → In Production → Shipment scheduled → In Transit → Arrival(당월 도착 예정) → Stock(Bonded + OH) → Sold(YTD). 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 한 행, 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외)', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)',
+  L1:'단계 칩 필터(10단계 + Cancelled)', L2:'열 필터(PM · ATA · Type · Vessel) · 텍스트 필터, 정렬', L3:'Comm No. 기준 한 행에 전체 50열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지(AFAB/자동/입력)', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
   S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC 입고일(Key-in)·대수) + 선사 스케줄 일괄 업데이트. ETA 불일치 카드·탭은 제외',
   K1:'기준월 선택(최근 5개월 월말 마감 + 현재) → 요약 카드(Total Stock + 연식 MY24~27 대수·비율) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
@@ -135,7 +135,7 @@ function openVehicle(comm){
   const field = (c)=>{
     const val = v[c.key];
     let inner;
-    if(c.key==='current_status') inner = stagePill(val); else if(c.key==='order_class') inner = classPill(val);
+    if(c.key==='current_status') inner = stagePill(val);
     else if(c.src==='입력' && editable) inner = `<input value="${esc(val)}" data-f="${c.key}" placeholder="${c.key.includes('date')?'YYYY-MM-DD': c.key==='sales_month'?'YYYY-MM':''}">`;
     else if(editable) inner = `<input value="${esc(c.num?num(val):val)}" readonly title="${c.src==='AFAB'?'AFAB 업로드로만 갱신됩니다':'시스템 계산 값입니다'}">`;
     else inner = `<span>${esc(c.num?num(val):val)||'<span class="muted">—</span>'}</span>`;
@@ -160,7 +160,7 @@ function openVehicle(comm){
     ${hist.map(h=>`<tr><td class="mono">${h.changed_at}</td><td class="mono">${h.field}</td><td class="muted">${esc(h.old_value)||'—'}</td><td><b>${esc(h.new_value)||'—'}</b></td><td>${esc(h.changed_by)}</td><td>${statusPill('neutral',h.source)}</td></tr>`).join('')}
     <tr><td class="mono">2026-09-15 10:00</td><td class="mono">(전체)</td><td class="muted">—</td><td>초기 적재</td><td>이관 스크립트</td><td>${statusPill('neutral','이관')}</td></tr>
     </tbody></table></div>`;
-  const head = `<div><h2>${esc(v.commission_no)} ${stagePill(v.current_status)} ${classPill(v.order_class)}</h2>
+  const head = `<div><h2>${esc(v.commission_no)} ${stagePill(v.current_status)}</h2>
     <div class="meta">${esc(v.model_classification)} · ${esc(v.vehicle)} · VIN ${esc(v.vin_no)||'미부여'} · 수정 ${esc(v.modified)} (${esc(v.modified_by)})</div>
     <div class="btn-group" style="margin-top:8px">
       <button class="btn primary sm editor-only" onclick="describe('저장', 'Graph PATCH(If-Match ETag)로 입력 필드만 저장하고 Vehicle_History에 before/after를 기록합니다. 충돌 시 재조회 후 알림.')">저장</button>

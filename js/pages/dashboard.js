@@ -4,8 +4,6 @@ PAGES.dashboard = {
   title:'대시보드', sub:'차량 주문·재고 흐름 · 기준일 '+TODAY_S,
   render(root){
     const byStage = countBy(VEHICLES, v=>v.current_status);
-    const byCls = countBy(VEHICLES, v=>v.order_class);
-    const fixedPm = countBy(VEHICLES.filter(v=>v.order_class==='Fixed order'), v=>v.pm);
     const year = BASE_YM.slice(0,4);
 
     // D1 카드 8종: Ordered(Changeable) → Ordered(Fixed) → In Production → Shipment scheduled → In Transit → Arrival(당월 도착 예정) → Stock(Bonded + OH) → Sold(YTD)
@@ -30,10 +28,7 @@ PAGES.dashboard = {
         mk('span', {class:'stage-box cancel', style:'padding:4px 10px;display:inline-flex;gap:8px;align-items:center', 'data-stage':'Cancelled'}, mk('span', {class:'n num', style:'font-size:16px'}, byStage['Cancelled']||0), mk('span', {class:'l', style:'margin:0'}, 'Cancelled'))),
       mk('div', {class:'flow'}, cards.map((c,i)=>mk('div', {class:'stage-box', style:`--c:${c.color}`, 'data-href':c.href, title:'클릭 → '+c.to},
         mk('div', {class:'n num'}, num(c.n)), mk('div', {class:'l'}, c.label), mk('div', {class:'s'}, c.sub), i<cards.length-1? mk('span', {class:'arrow'}, '›') : null))),
-      mk('div', {class:'cls-row'},
-        mk('div', {class:'cls-box', 'data-cls':'Order (Changeable)'}, mk('div', {class:'n num'}, num(byCls['Order (Changeable)']||0)), mk('div', null, mk('div', {class:'l'}, 'Order (Changeable)'), mk('div', {class:'s'}, `PM(final) ≥ 당월+2 (${ymAdd(BASE_YM,2)} 이후) · 미선적·배편 미확정`))),
-        mk('div', {class:'cls-box', 'data-cls':'Fixed order'}, mk('div', {class:'n num'}, num(byCls['Fixed order']||0)), mk('div', null, mk('div', {class:'l'}, 'Fixed order'), mk('div', {class:'s'}, `PM(final) 당월+익월 · ${BASE_YM.slice(5)}월 ${fixedPm[BASE_YM]||0} · ${ymAdd(BASE_YM,1).slice(5)}월 ${fixedPm[ymAdd(BASE_YM,1)]||0}`)))),
-      mk('div', {class:'muted small', style:'margin-top:8px'}, '오더 분류는 단계와 중복 허용(Ordered·In Production 중 미선적·배편 미확정 오더 대상). 카드 클릭 시 관련 목록으로 이동합니다.'));
+      mk('div', {class:'muted small', style:'margin-top:8px'}, '카드 클릭 시 관련 목록으로 이동합니다.'));
 
     // D2 월별 추이: 당해 1월 ~ 익년 12월 24개월 한 행
     const months = []; for(let i=0;i<24;i++) months.push(ymAdd(year+'-01', i));
@@ -81,7 +76,7 @@ PAGES.dashboard = {
     const stock = stockVs;
 
     // D6 연식별 재고 (신규): 세로 누적 막대, 연식 최신순(왼쪽부터), 누적 = Tractor / Rigid(HDT+MDT) / Tipper / BB(Export+Domestic)
-    const vGroup = v=> v.vehicle==='Tractor'?'Tractor' : (v.vehicle==='HDT-Rigid'||v.vehicle==='Heavy-MDT')?'Rigid' : v.vehicle==='Tipper'?'Tipper' : 'BB';
+    const vGroup = v=> v.vehicle; // Vehicle 값 4종(Tractor · Rigid · Tipper · BB)과 동일
     const myCats = [...new Set(stock.map(v=>v.model_year))].sort((a,b)=>Number(b.slice(2))-Number(a.slice(2)));
     const groups = [{name:'Tractor', key:'Tractor', color:SERIES[0]}, {name:'Rigid (HDT + MDT)', key:'Rigid', color:SERIES[1]}, {name:'Tipper', key:'Tipper', color:SERIES[2]}, {name:'BB (Export + Domestic)', key:'BB', color:SERIES[3]}];
     const myChart = stackChartEl({cats:myCats, series:groups.map(g=>({name:g.name, color:g.color, values:myCats.map(my=>stock.filter(v=>v.model_year===my && vGroup(v)===g.key).length)}))});

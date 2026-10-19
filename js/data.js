@@ -82,7 +82,7 @@ function makeVehicle(p, m){
   const s=p.stage;
   const v={ current_status:s, status_override:'', status_reason:'', vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option,
     baumuster:m.prefix+' '+m.suffix, model_in_afab:m.type_desc, lead_time:m.lead, color_code:pick(COLORS), sub_cat: m.vehicle==='Tipper'?'KIP':(m.vehicle==='Tractor'?'SZM':'LKW'),
-    vessel:'', bl_no:'', invoice_no:'', import_license:'', sap_code:'', b1_factory_order:'', sap_b1_flag:'', fleet_co:'', option_remarks:'', tires:'', order_note:'', tm_memo:'' };
+    vessel:'', bl_no:'', import_license:'', b1_factory_order:'', fleet_co:'', option_remarks:'', tires:'', order_note:'' };
   let orderD=null, pm='', tdd=null, prodDone=null, exf=null, ship=null, inv=null, pl=null, etaC=null, etaF=null, cust=null, saleD=null, chg=null;
   const seaChain=()=>{ ship=addD(etaF,-ri(40,60)); pl=addD(etaF,-ri(0,6)); etaC=addD(pl,ri(-2,3)); inv=addD(ship,2); exf=addD(ship,-ri(5,15)); prodDone=addD(exf,-ri(1,4)); tdd=addD(prodDone,-ri(1,8)); pm=ymOf(tdd); orderD=addD(tdd,-ri(100,240)); v.vessel=pick(VESSEL_PAST); v.bl_no=(rnd()<0.5?'EUKO':'MOLU')+pick(['HAM','BRV'])+ymOf(ship).slice(2,4)+ymOf(ship).slice(5,7)+String(ri(100,999)); };
   if(s==='Sold'){ saleD=randDate('2025-01-01','2026-09-30'); etaF=addD(saleD,-ri(5,200)); cust=addD(etaF,ri(3,40)); if(cust>saleD) cust=addD(saleD,-1); seaChain(); }
@@ -103,10 +103,10 @@ function makeVehicle(p, m){
   else if(s==='Cancelled'){ pm=ymAdd('2025-06', ri(0,18)); tdd=ymDiff(pm,BASE_YM)<=0? randDateInMonth(pm):null; orderD=addD(parseD(pm+'-01'),-ri(100,240)); v.status_override='Cancelled'; v.status_reason=pick(['고객 주문 취소','사양 변경으로 재발주','AFAB 목록 제외 → Cancelled 확정']); }
   if(!chg) chg=addD(orderD, ri(45,90));
   // 날짜 문자열
-  v.order_date=fmtD(orderD); v.changeability_date=fmtD(chg); v.pm=pm;
+  v.changeability_date=fmtD(chg); v.pm=pm; // 10/19: order_date 필드 제거 (orderD는 changeability_date 계산에만 사용)
   v.original_pm = (s==='Ordered'||s==='In Production') && rnd()<0.12 ? ymAdd(pm,-1) : pm;
   v.tdd_calc=fmtD(tdd); v.production_done=fmtD(prodDone); v.dispatch=fmtD(exf); v.shipping=fmtD(ship); v.invoice=fmtD(inv);
-  v.invoice_no = inv? '90'+String(ri(10000000,99999999)) : '';
+  if(inv) ri(10000000,99999999); // 10/19: invoice_no 필드 제거 — 이후 가짜값의 난수 순서를 바꾸지 않기 위해 난수 소비만 유지
   v.planned_arrival=fmtD(pl); v.eta_from_eukor_pirt=fmtD(etaC); v.ata=fmtD(etaF); v.customs_clearance_date=fmtD(cust); v.sales_month=ymOf(saleD);
   v.import_license = cust? ymOf(cust).replace('-','').slice(2)+'-'+String(ri(100000,999999))+'M' : '';
   v.afab_editable = (s==='Ordered'||s==='In Production') ? (chg>TODAY?'J':'N') : (s==='Cancelled'?'B':'N');
@@ -116,21 +116,15 @@ function makeVehicle(p, m){
   v.vin_no = v._new ? '' : `WDB${m.prefix.slice(0,5)}${ri(0,9)}${myL}L${String(ri(100000,999999))}`;
   v.engine_no = v.vin_no? '47191'+String(ri(100000000,999999999)) : '';
   v.vehicle_value_eur = ri(95,165)*1000+ri(0,999); v.order_value_eur = Math.round(v.vehicle_value_eur*1.19);
-  // SAP·플래그
-  if(ship && ship<=TODAY) { v.sap_code = s==='Sold'?'ZPDY': s==='OH Stock'?'ZCBC': s==='Bonded Stock'?'ZVIB':'ZSHP'; v.b1_factory_order='B1-'+String(ri(10000,99999)); }
-  if(s==='OH Stock'||s==='Sold') v.sap_b1_flag='O';
+  // 플래그 (10/19: sap_code · sap_b1_flag 필드 제거)
+  if(ship && ship<=TODAY) { v.b1_factory_order='B1-'+String(ri(10000,99999)); }
   if(rnd()<0.1) v.fleet_co='O';
   // 메모
   if(rnd()<0.25) v.option_remarks=pick(['Retarder','Hydraulic kit','Retarder, PTO','Roof spoiler','Alcoa wheels']);
   if(rnd()<0.2) v.tires=pick(['Michelin 315/80R22.5','Continental 315/70R22.5','Hankook 385/65R22.5']);
   if(rnd()<0.08) v.order_note=pick(['Jan. 2027 오더 업데이트 (9/19)','고객 요청 생산월 연기','색상 변경 요청 접수','딜러 선판매 예약']);
-  if(rnd()<0.3) v.tm_memo=pick(['AN / 2.846','AR / 3.077 / 스탠다드','Single reduction / 프리미엄','10t / 엔트리','AN / (주)대한물류','9t / 한진택배 납품']);
-  // 파생
-  const arrived = etaF && etaF<=TODAY;
-  const refD = saleD || TODAY;
-  v.days_in_stock = arrived ? Math.max(0, diffDays(refD, etaF)) : 0;
-  v.stock_level = !arrived ? 'Intransit' : v.days_in_stock<60?'<2 months': v.days_in_stock<183?'<6 months': v.days_in_stock<365?'<1 year': v.days_in_stock<730?'<2 years':'>2 years';
-  v.stock_age_optimus = !arrived ? 'Not shipped' : v.days_in_stock>365?'Age>1Year': v.days_in_stock>183?'Age6-12months':'Age<6months';
+  if(rnd()<0.3) rnd(); // 10/19: tm_memo 필드 제거 — 이후 가짜값의 난수 순서를 바꾸지 않기 위해 난수 소비만 유지 (pick 1회분)
+  // 파생 (10/19: days_in_stock · stock_level · stock_age_optimus 제거)
   v.model_year = v.vin_no ? 'MY'+MY_FROM_LETTER[v.vin_no[9]] : 'MY'+MY_FROM_LETTER[myL];
   v.model_classification = [v.gen,v.model,v.axle,v.cab,v.option].filter(Boolean).join(' ');
   v.dms_model_name = [v.vehicle,v.model,v.axle,v.cab].join(' ');
@@ -215,10 +209,10 @@ const AFAB_UPLOADS = [
 const AFAB_MAP = [
   ['A','Auftragsnummer','commission_no','키','✓'],['B','Baumuster','baumuster(접두 8자리) → Model_Master','매핑','✓'],['C','Fahrzeug-Ident-Nr. (FIN)','vin','텍스트','✓'],
   ['D','Einsatzland','—','공란','✗'],['E','Vehicle-Ident-Nr. (VIN)','— (FIN 사용)','공란','✗'],['F','Motor-Nr.','engine_no','텍스트','✓'],['G','Ä','afab_editable','J/N/B','✓'],
-  ['H','WB','wb_flag','W','△'],['I','RT/ST','rt_st','코드','△'],['J','Fahrzeugtyp','type_desc','텍스트','✓'],['K','Bestelldatum','order_date','날짜','✓'],
+  ['H','WB','wb_flag','W','△'],['I','RT/ST','rt_st','코드','△'],['J','Fahrzeugtyp','type_desc','텍스트','✓'],['K','Bestelldatum','— (10/19 제외)','미사용','✗'],
   ['L','Änderbarkeitsdatum','changeability_date','날짜 → D-day 알림','✓'],['M','GLT-Gew.','glt_gew','날짜(희소)','△'],['N','LT-Quote','pm_final (월). 변경 시 original_pm 보존','날짜→월','✓'],
   ['O','GLT-Err.','tdd_cal','날짜','✓'],['P','GLT-Ist','production_done','날짜','✓'],['Q','Versand','exfactory_date (공장 출고)','날짜','✓'],['R','Abgangsdatum','shipping_date','날짜','✓'],
-  ['S','Rg.-Datum','invoice_date','날짜','✓'],['T','Rg.-Nr.','invoice_no','텍스트','✓'],['U','Gepl. Ankunftsdatum','pl_arrival_afab','날짜','✓'],['V','Schiffsname','vessel','텍스트','✓'],
+  ['S','Rg.-Datum','invoice_date','날짜','✓'],['T','Rg.-Nr.','— (10/19 제외)','미사용','✗'],['U','Gepl. Ankunftsdatum','pl_arrival_afab','날짜','✓'],['V','Schiffsname','vessel','텍스트','✓'],
   ['W','Lack 1','color','코드','✓'],['X','Lackzus. 1','—','공란','✗'],['Y','Lack 2','color2','코드','△'],['Z','Lackzus. 2','color2_add','코드','△'],['AA','Lack 3','color3','코드','△'],['AB','Lackzus. 3','color3_add','코드','△'],
   ['AC','Subkat.','sub_cat','코드','✓'],['AD','Fahrzeugwert','vehicle_value_eur','독일식→숫자','✓'],['AE','Auftragswert mit Steuer','order_value_eur','독일식→숫자','✓'],['AF','GLT-BAT-Soll-AO','glt_bat_soll','날짜','△'],
 ];
@@ -244,8 +238,6 @@ const CHANGES = (function(){
 
 // ---- Settings (기준값) ----
 const SETTINGS = [
-  {key:'stock_level_days', value:'60 / 183 / 365 / 730', desc:'Stock level 구간(일): <2 months / <6 months / <1 year / <2 years / >2 years'},
-  {key:'optimus_age_days', value:'183 / 365', desc:'OPTIMUS 재고 연령 구간(일)'},
   {key:'stock_months_normal', value:'≤ 2.0', desc:'재고월수 판정 — 정상 (제안값, 확정 필요)'},
   {key:'stock_months_warn', value:'≤ 3.0', desc:'재고월수 판정 — 주의 (제안값, 확정 필요). 초과 시 위험'},
   {key:'alert_dday', value:'7 / 30', desc:'Changeability D-day 알림 기준(일)'},

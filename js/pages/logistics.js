@@ -35,7 +35,7 @@ function filtered(){
   let rows = VEHICLES.filter(v=>
     (!LF.stage || v.current_status===LF.stage) &&
     FILTER_COLS.every(k=> !LF.col[k] || LF.col[k].has(filterVal(v,k))) &&
-    (!qq || [v.commission_no,v.vin_no,v.bl_no,v.vessel,v.model,v.engine_no,v.invoice_no,v.order_note,v.tm_memo].some(x=>x&&String(x).toLowerCase().includes(qq))));
+    (!qq || [v.commission_no,v.vin_no,v.bl_no,v.vessel,v.model,v.engine_no,v.order_note].some(x=>x&&String(x).toLowerCase().includes(qq))));
   const k=LF.sort, d=LF.dir;
   rows.sort((a,b)=>{ const x=a[k], y=b[k]; if(x===y) return 0; if(x===''||x==null) return 1; if(y===''||y==null) return -1; return (x>y?1:-1)*d; });
   return rows;
@@ -60,7 +60,6 @@ function pendingVal(v, key){ const p = EDIT.pending[v.commission_no]; return (p 
 function cellHtml(c, v){
   const val = pendingVal(v, c.key);
   if(c.key==='current_status') return stagePill(val);
-  if(c.key==='stock_level') return val==='Intransit'? `<span class="muted">${val}</span>` : val;
   // 상태점은 셀 오른쪽 끝에 표시 (10/15 No.7)
   if(c.key==='model'){ const ok = String(val||'').slice(0,4)===String(v.model_in_afab||'').slice(0,4); return `${esc(val)}<span class="dot r ${ok?'ok':'bad'}" title="${ok?'Model In AFAB 앞 4글자 일치':'Model In AFAB 앞 4글자 불일치: '+esc(v.model_in_afab)}"></span>`; }
   if(c.key==='changeability_date'){
@@ -252,7 +251,7 @@ function openAddOrder(){
   const f = (l, inner)=>`<div class="f"><div class="k">${l}</div><div class="v">${inner}</div></div>`;
   openModal('오더 생성 '+note('L7'), `<div class="callout">AFAB에 아직 없는 오더(예: 구두 확정 오더, 특수 사양)를 수동 등록합니다. 이후 AFAB 업로드에서 같은 Commission No.가 들어오면 AFAB 필드가 덮어쓰고 출처가 AFAB로 바뀝니다.</div>
     <div class="fields">${f('Commission No. *','<input id="addComm" placeholder="예) 071009999">')}${f('Baumuster (8자리) *',`<select>${MODEL_MASTER.filter(m=>m.active).map(m=>`<option>${m.prefix} — ${m.type_desc} (${m.model} ${m.axle} ${m.cab})</option>`).join('')}</select>`)}
-    ${f('PM *','<input placeholder="YYYY-MM" value="2027-03">')}${f('Order Date','<input value="'+TODAY_S+'">')}${f('Color Code',`<select>${COLORS.map(c=>`<option>${c} ${COLOR_NAMES[c]}</option>`).join('')}</select>`)}${f('Order Note','<input placeholder="메모">')}</div>
+    ${f('PM *','<input placeholder="YYYY-MM" value="2027-03">')}${f('Color Code',`<select>${COLORS.map(c=>`<option>${c} ${COLOR_NAMES[c]}</option>`).join('')}</select>`)}${f('Order Note','<input placeholder="메모">')}</div>
     <div class="muted small" style="margin-top:8px">* 필수. 단계는 규칙 판정(Ordered), 모델 속성은 Model_Master 매핑으로 자동 채워집니다. Commission No.는 중복 생성할 수 없습니다.</div>
     <div class="small" id="addErr" style="color:var(--danger);margin-top:6px;font-weight:600" hidden></div>`,
     `<button class="btn" onclick="closeModal()">취소</button><button class="btn primary" id="addSave">저장</button>`);

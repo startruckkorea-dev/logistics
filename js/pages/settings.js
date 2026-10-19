@@ -22,7 +22,7 @@ function drawSettings(){
       <dt>실시간 정의</dt><dd>① 저장 즉시 모든 집계 재계산(단일 데이터 스토어) ② 다른 사용자 화면 60초 이내 자동 갱신 ③ 수식 수작업 없음</dd>
       <dt>엑셀 파싱·내보내기</dt><dd>브라우저 SheetJS (서버 불필요) · 내보내기는 다운로드 + /Exports/ 저장</dd>
       <dt>연결 상태 (목업)</dt><dd>${statusPill('neutral','로그인 미연동')} ${statusPill('neutral','Graph 미연동')} ${statusPill('neutral','SharePoint 미연동')} <span class="muted small">— 이 목업은 하드코딩 데이터만 사용</span></dd>
-      <dt>열린 질문</dt><dd class="muted">GitHub Pages 공개 범위(Private Pages) · Entra 앱 등록 담당자 · 통관 데이터 출처 · SAP 코드 의미 · 선사 ETA 수신 방식 (§15)</dd></dl>`;
+      <dt>열린 질문</dt><dd class="muted">GitHub Pages 공개 범위(Private Pages) · Entra 앱 등록 담당자 · 통관 데이터 출처 · 선사 ETA 수신 방식 (§15)</dd></dl>`;
   } else if(ST.tab==='model'){
     b.innerHTML = `${adminNote}<div class="card-h"><h2>모델 마스터 (Model_Master)</h2><span class="desc">baumuster_prefix(8자리) + type_desc → vehicle · gen · model · axle · cab · option · dms_model_name · lead_time</span><span class="spacer"></span><button class="btn primary sm editor-only" onclick="describe('모델 추가','Model_Master에 행 추가. 매핑 없는 Baumuster로 등록된 차량은 저장 즉시 자동 재매핑됩니다.')">＋ 모델 추가</button></div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Baumuster Code1</th><th>Baumuster Code2</th><th>Model In AFAB</th><th>Gen</th><th>Vehicle</th><th>Model</th><th>Axle</th><th>Cab</th><th>Option</th><th class="num">리드타임(월)</th><th class="num">실적 중앙값</th><th class="num">차량 수</th><th>Active</th></tr></thead><tbody>

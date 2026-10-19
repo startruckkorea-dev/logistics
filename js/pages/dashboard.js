@@ -6,31 +6,31 @@ PAGES.dashboard = {
     const byStage = countBy(VEHICLES, v=>v.current_status);
     const year = BASE_YM.slice(0,4);
 
-    // D1 카드 8종: Ordered(Changeable) → Ordered(Fixed) → In Production → Shipment scheduled → In Transit → Arrival(당월 도착 예정) → Stock(Bonded + OH) → Sold(YTD)
+    // D1 카드 7종 (10/19 No.10~13: 한글 카드명 · Cancelled 카드 삭제 · In Production + Shipment scheduled → 확정 재고(Factory Stock) · 카드별 아이콘)
+    // 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 당월 입항 예정 → 재고(Bonded + OH) → 판매(YTD)
     const transit = VEHICLES.filter(v=>v.current_status==='In Transit');
     const moving = VEHICLES.filter(v=>v.current_status==='In Transit'||v.current_status==='Shipment scheduled');
     const arrival = moving.filter(v=>expectedArrivalYm(v)===BASE_YM);
     const stockVs = VEHICLES.filter(v=>v.current_status==='Bonded Stock'||v.current_status==='OH Stock');
     const soldYtd = VEHICLES.filter(v=>v.current_status==='Sold'&&v.sales_month.startsWith(year));
+    const factoryStages = ['In Production','Shipment scheduled'];
     const cards = [
-      {label:'Ordered(Changeable)', n:byStage['Ordered(Changeable)']||0, color:STAGE_COLOR['Ordered(Changeable)'], sub:`PM ≥ ${ymAdd(BASE_YM,2)} · 신규 ${VEHICLES.filter(v=>v.current_status==='Ordered(Changeable)'&&!v.vin_no).length}`, href:'#/logistics?stage=Ordered(Changeable)', to:'Logistics 목록 (Ordered(Changeable))'},
-      {label:'Ordered(Fixed)', n:byStage['Ordered(Fixed)']||0, color:STAGE_COLOR['Ordered(Fixed)'], sub:`PM ${ymAdd(BASE_YM,1)} · 신규 ${VEHICLES.filter(v=>v.current_status==='Ordered(Fixed)'&&!v.vin_no).length}`, href:'#/logistics?stage=Ordered(Fixed)', to:'Logistics 목록 (Ordered(Fixed))'},
-      {label:'In Production', n:byStage['In Production']||0, color:STAGE_COLOR['In Production'], sub:`생산월 경과 ${VEHICLES.filter(v=>v.current_status==='In Production'&&v.pm<BASE_YM).length} 포함`, href:'#/logistics?stage=In%20Production', to:'Logistics 목록 (In Production)'},
-      {label:'Shipment scheduled', n:byStage['Shipment scheduled']||0, color:STAGE_COLOR['Shipment scheduled'], sub:`선박 ${new Set(VEHICLES.filter(v=>v.current_status==='Shipment scheduled').map(v=>v.vessel)).size}척 배정`, href:'#/logistics?stage=Shipment%20scheduled', to:'Logistics 목록 (Shipment scheduled)'},
-      {label:'In Transit', n:transit.length, color:STAGE_COLOR['In Transit'], sub:`Shipped / Invoiced · ${new Set(transit.map(v=>v.vessel)).size}척`, href:'#/logistics?stage=In%20Transit', to:'Logistics 목록 (In Transit)'},
-      {label:`Arrival (${BASE_YM.slice(5)}월 도착 예정)`, n:arrival.length, color:'var(--st-sched)', sub:`ATA → ETA → Pl. arrival 기준 · 선박 ${new Set(arrival.map(v=>v.vessel)).size}척`, href:'#/shipping', to:'선적·입항'},
-      {label:'Stock (Bonded + OH)', n:stockVs.length, color:STAGE_COLOR['Bonded Stock'], sub:`Bonded ${num(byStage['Bonded Stock']||0)} · OH ${num(byStage['OH Stock']||0)}`, href:'#/stock', to:'재고현황'},
-      {label:`Sold (${year} YTD)`, n:soldYtd.length, color:STAGE_COLOR['Sold'], sub:`전월 ${num(byMonth('sales_month')[ymAdd(BASE_YM,-1)]||0)} · 누적 ${num(byStage['Sold']||0)}`, href:'#/logistics?stage=Sold', to:'Logistics 목록 (Sold)'},
+      {label:'수정 가능 주문', icon:'changeable', n:byStage['Ordered(Changeable)']||0, color:STAGE_COLOR['Ordered(Changeable)'], sub:`Ordered(Changeable) · PM ≥ ${ymAdd(BASE_YM,2)} · 신규 ${VEHICLES.filter(v=>v.current_status==='Ordered(Changeable)'&&!v.vin_no).length}`, href:'#/logistics?stage=Ordered(Changeable)', to:'Logistics 목록 (Ordered(Changeable))'},
+      {label:'확정 주문', icon:'fixed', n:byStage['Ordered(Fixed)']||0, color:STAGE_COLOR['Ordered(Fixed)'], sub:`Ordered(Fixed) · PM ${ymAdd(BASE_YM,1)} · 신규 ${VEHICLES.filter(v=>v.current_status==='Ordered(Fixed)'&&!v.vin_no).length}`, href:'#/logistics?stage=Ordered(Fixed)', to:'Logistics 목록 (Ordered(Fixed))'},
+      {label:'확정 재고 (Factory Stock)', icon:'factory', n:factoryStages.reduce((a,s)=>a+(byStage[s]||0),0), color:STAGE_COLOR['In Production'], sub:`In Production ${num(byStage['In Production']||0)} · Shipment scheduled ${num(byStage['Shipment scheduled']||0)}`, href:'#/logistics?stage='+encodeURIComponent(factoryStages.join(',')), to:'Logistics 목록 (In Production + Shipment scheduled)'},
+      {label:'운송 중', icon:'transit', n:transit.length, color:STAGE_COLOR['In Transit'], sub:`In Transit · Shipped / Invoiced · ${new Set(transit.map(v=>v.vessel)).size}척`, href:'#/logistics?stage=In%20Transit', to:'Logistics 목록 (In Transit)'},
+      {label:`당월 입항 예정 (${BASE_YM.slice(5)}월)`, icon:'arrival', n:arrival.length, color:'var(--st-sched)', sub:`ATA → ETA → Pl. arrival 기준 · 선박 ${new Set(arrival.map(v=>v.vessel)).size}척`, href:'#/shipping', to:'선적·입항'},
+      {label:'재고 (보세 + 통관)', icon:'stock', n:stockVs.length, color:STAGE_COLOR['Bonded Stock'], sub:`Bonded ${num(byStage['Bonded Stock']||0)} · OH ${num(byStage['OH Stock']||0)}`, href:'#/stock', to:'재고현황'},
+      {label:`판매 (${year} YTD)`, icon:'sold', n:soldYtd.length, color:STAGE_COLOR['Sold'], sub:`Sold · 전월 ${num(byMonth('sales_month')[ymAdd(BASE_YM,-1)]||0)} · 누적 ${num(byStage['Sold']||0)}`, href:'#/logistics?stage=Sold', to:'Logistics 목록 (Sold)'},
     ];
     const flow = mk('div', {class:'card'},
       mk('div', {class:'card-h'}, mk('h2', null, '차량 주문·재고 흐름'), noteEl('D1'),
-        mk('span', {class:'desc'}, `8개 지표 · Ordered(Changeable) → Ordered(Fixed) → In Production → Shipment scheduled → In Transit → Arrival → Stock → Sold · 전체 ${num(VEHICLES.length - (byStage['Cancelled']||0))} (+ Cancelled ${byStage['Cancelled']||0})`), mk('span', {class:'spacer'}),
-        mk('span', {class:'stage-box cancel', style:'padding:4px 10px;display:inline-flex;gap:8px;align-items:center', 'data-stage':'Cancelled'}, mk('span', {class:'n num', style:'font-size:16px'}, byStage['Cancelled']||0), mk('span', {class:'l', style:'margin:0'}, 'Cancelled'))),
+        mk('span', {class:'desc'}, `7개 지표 · 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 당월 입항 예정 → 재고 → 판매 · 전체 ${num(VEHICLES.length - (byStage['Cancelled']||0))} (Cancelled 제외)`)),
       mk('div', {class:'flow'}, cards.map((c,i)=>mk('div', {class:'stage-box', style:`--c:${c.color}`, 'data-href':c.href, title:'클릭 → '+c.to},
-        mk('div', {class:'n num'}, num(c.n)), mk('div', {class:'l'}, c.label), mk('div', {class:'s'}, c.sub), i<cards.length-1? mk('span', {class:'arrow'}, '›') : null))),
+        cardIcon(c.icon), mk('div', {class:'n num'}, num(c.n)), mk('div', {class:'l'}, c.label), mk('div', {class:'s'}, c.sub), i<cards.length-1? mk('span', {class:'arrow'}, '›') : null))),
       mk('div', {class:'muted small', style:'margin-top:8px'}, '카드 클릭 시 관련 목록으로 이동합니다.'));
 
-    // D2 월별 추이: 당해 1월 ~ 익년 12월 24개월 한 행
+    // D2 월별 추이: 당해 1월 ~ 익년 12월 24개월 중 당월 기준 이전 5개월~이후 6개월(12개월)만 표시, 나머지는 가로 스크롤 (10/19 No.14)
     const months = []; for(let i=0;i<24;i++) months.push(ymAdd(year+'-01', i));
     const baseIdx = months.indexOf(BASE_YM);
     const prod = byMonth('pm', v=>v.current_status!=='Cancelled');
@@ -38,13 +38,13 @@ PAGES.dashboard = {
     const sales = byMonth('sales_month');
     const recent6 = months.slice(baseIdx-5, baseIdx+1).map(m=>sales[m]||0); const avg6 = Math.round(recent6.reduce((a,b)=>a+b,0)/6);
     const salesVals = months.map((m,i)=> i<=baseIdx ? (sales[m]||0) : avg6);
-    const chart = barChartEl({months, baseIdx, series:[
+    const chart = barChartEl({months, baseIdx, visible:12, scrollTo:Math.max(0, baseIdx-5), series:[
       {name:'Production (PM final)', color:'var(--s4)', values:months.map(m=>prod[m]||0)},
       {name:'Arrival (ATA / 예정)', color:'var(--s1)', values:months.map(m=>arr[m]||0)},
       {name:'Sales (판매 / 계획)', color:'var(--s3)', values:salesVals},
     ]});
     const trend = mk('div', {class:'card'},
-      mk('div', {class:'card-h'}, mk('h2', null, '월별 생산 / 입항 / 판매 추이'), noteEl('D2'), mk('span', {class:'desc'}, `${monEn(months[0])} ${months[0].slice(0,4)} ~ ${monEn(months[23])} ${months[23].slice(0,4)} (24개월) · 기준월 ${monEn(BASE_YM)} ${year} 강조, 이후 음영`)),
+      mk('div', {class:'card-h'}, mk('h2', null, '월별 생산 / 입항 / 판매 추이'), noteEl('D2'), mk('span', {class:'desc'}, `${monEn(months[0])} ${months[0].slice(0,4)} ~ ${monEn(months[23])} ${months[23].slice(0,4)} (24개월) · 당월 기준 이전 5개월~이후 6개월 표시, 나머지는 가로 스크롤 · 기준월 ${monEn(BASE_YM)} ${year} 강조, 이후 음영`)),
       chart,
       mk('div', {class:'muted small', style:'margin-top:6px'}, `Sales 계획 = 최근 6개월 평균(당월 포함) ${avg6}대. KUFRI에서 입력한 sales_plan이 있으면 그 값을 사용.`));
 
@@ -86,6 +86,7 @@ PAGES.dashboard = {
 
     root.innerHTML = `<div class="grid2"><div id="d3slot"></div>${pipe}</div>`;
     root.prepend(flow, trend);
+    scrollChartTo(trend); // 화면에 붙은 뒤 당월-5개월이 왼쪽 끝에 오도록 스크롤
     el('d3slot').replaceWith(ships);
     root.append(myCard);
     root.addEventListener('click', e=>{
@@ -96,4 +97,19 @@ PAGES.dashboard = {
     });
   }
 };
+// 카드 아이콘 (10/19 No.13): 인라인 SVG(선 아이콘) · 색은 카드 색(--c)
+const CARD_ICON_PATHS = {
+  changeable: ['M4 20h4L18 10l-4-4L4 16v4z', 'M12.5 7.5l4 4'],                                   // 연필 (수정 가능 주문)
+  fixed: ['M7 3h10v18H7z', 'M9.5 3v2h5V3', 'M9.5 12.5l2 2 3.5-4'],                                // 체크된 주문서 (확정 주문)
+  factory: ['M3 21V10l5 3v-3l5 3v-3l5 3v8H3z', 'M16 10V4h3v9', 'M7 17h2M11 17h2M15 17h2'],         // 공장 (확정 재고)
+  transit: ['M3 16l2 4h14l2-4', 'M4 16l1-4h14l1 4', 'M8 12V8h8v4', 'M12 5v3', 'M2 20c2-1 4-1 6 0s4 1 6 0 4-1 6 0'], // 선박 (운송 중)
+  arrival: ['M9 2l5-1 3 3-1 4 3 3-1 5-4 5-5 1-2-4 2-4-3-4 1-4z', 'M8.2 22.3a1 .8 0 1 0 2 0a1 .8 0 1 0-2 0'], // 한국 지도 (당월 입항 예정)
+  stock: ['M3 21V9l9-5 9 5v12H3z', 'M8 21v-7h8v7', 'M8 17.5h8', 'M11 10h2'],                         // 보세창고 (재고)
+  sold: ['M3 12l9-9h9v9l-9 9-9-9z', 'M15.5 7.5h.5', 'M10 14l2 2 4-4'],                               // 판매 태그 (판매)
+};
+function cardIcon(kind){
+  const svg = mkSvg('svg', {class:'ic', viewBox:'0 0 24 24', 'aria-hidden':'true', fill:'none', stroke:'currentColor', 'stroke-width':'1.6', 'stroke-linecap':'round', 'stroke-linejoin':'round'});
+  (CARD_ICON_PATHS[kind]||[]).forEach(d=>svg.append(mkSvg('path', {d})));
+  return svg;
+}
 function byMonth(field, filter){ const m={}; VEHICLES.forEach(v=>{ if(filter&&!filter(v)) return; const k=(v[field]||'').slice(0,7); if(k) m[k]=(m[k]||0)+1; }); return m; }

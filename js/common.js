@@ -64,9 +64,9 @@ const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // �
 // 설계 노트 (목업 전용)
 const NOTES = {
   G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. UI 한국어, 필드명은 기존 엑셀 영문',
-  D1:'차량 주문·재고 흐름: 카드 8종 한 줄 Ordered(Changeable) → Ordered(Fixed) → In Production → Shipment scheduled → In Transit → Arrival(당월 도착 예정) → Stock(Bonded + OH) → Sold(YTD). 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 한 행, 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외)', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)',
-  L1:'단계 칩 필터(10단계 + Cancelled)', L2:'열 필터(PM · ATA · Type · Vessel) · 텍스트 필터, 정렬', L3:'Comm No. 기준 한 행에 전체 43열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지(AFAB/자동/입력)', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
-  S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC 입고일(Key-in)·대수) + 선사 스케줄 일괄 업데이트. ETA 불일치 카드·탭은 제외',
+  D1:'차량 주문·재고 흐름: 카드 7종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit) → 당월 입항 예정(Arrival) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘, Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 기준 이전 5개월~이후 6개월(12개월)만 표시, 나머지는 가로 스크롤. 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외)', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)',
+  L1:'단계 칩 필터(10단계 + Cancelled)', L2:'열 필터(모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 43열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지(AFAB/자동/입력)', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
+  S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC 입고일(Key-in)·대수) + 선사 스케줄 일괄 업데이트. ETA 불일치 카드·탭·표시는 제외',
   K1:'기준월 선택(최근 5개월 월말 마감 + 현재) → 요약 카드(Total Stock + 연식 MY24~27 대수·비율) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
   P1:'연도·차종 선택, 판매계획 입력 모드(Editor), 범례(실적/확정/계획)', P2:'모델 그룹 접기, 행 = Production/Arrival/Sales/OH Stock/In Transit/재고월수, 기준월 열 강조', P3:'전체 합계 + Fixed Order', P4:'계획 확정·시나리오(2차)·Kufri Excel',
@@ -140,8 +140,6 @@ function openVehicle(comm){
     <div class="f"><div class="k">MY ${srcBadge('자동')}</div><div class="v">${esc(v.model_year)} <span class="muted small">(VIN 10번째 자리)</span></div></div>
     <div class="f"><div class="k">Model Classification ${srcBadge('자동')}</div><div class="v">${esc(v.model_classification)}</div></div>
     <div class="f"><div class="k">DMS Model Name ${srcBadge('자동')}</div><div class="v">${esc(v.dms_model_name)}</div></div>
-    <div class="f"><div class="k">ETA 차이 (ETA Final − Pl.arrival) ${srcBadge('자동')}</div><div class="v">${v.eta_delta==null?'—':(v.eta_delta>0?'+':'')+v.eta_delta+'일'}</div></div>
-    <div class="f"><div class="k">선사 ETA 불일치 (>7일) ${srcBadge('자동')}</div><div class="v">${v.eta_mismatch? statusPill('warn','불일치'):'<span class="muted">—</span>'}</div></div>
     <div class="f"><div class="k">Changeability D-day ${srcBadge('자동')}</div><div class="v">${v.changeability_dday==null?'—':'D-'+v.changeability_dday}</div></div>
     <div class="f"><div class="k">AFAB 금일 존재 ${srcBadge('자동')}</div><div class="v">${v.in_afab_today? statusPill('ok','있음') : (['Ordered(Changeable)','Ordered(Fixed)','In Production','Shipment scheduled','In Transit'].includes(v.current_status)? statusPill('warn','없음 — 확인 필요'):'<span class="muted">해당 없음</span>')}</div></div>
     <div class="f"><div class="k">Status override ${srcBadge('입력')}</div><div class="v">${editable?`<select data-f="status_override"><option value="">(자동 판정)</option>${['Cancelled','Rejected','Sold','OH Stock','Bonded Stock','In Transit','Shipment scheduled','In Production','Ordered(Fixed)','Ordered(Changeable)','Ordered(Dummy)'].map(s=>`<option ${v.status_override===s?'selected':''}>${s}</option>`).join('')}</select>`:esc(v.status_override||'—')}</div></div>
@@ -212,9 +210,12 @@ function legendEl(items){ return mk('div', {class:'legend'}, items.map(it=>mk('s
 const MON_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function monEn(ym){ return MON_EN[Number(ym.slice(5,7))-1]||ym; }
 function barChartEl(opts){
-  // opts: {months:[ym], series:[{name,color,values:[]}], baseIdx, width, height}
-  const W=opts.width||1200, H=opts.height||300, padL=42, padR=10, padT=20, padB=40;
-  const n=opts.months.length, gw=(W-padL-padR)/n, plotH=H-padT-padB;
+  // opts: {months:[ym], series:[{name,color,values:[]}], baseIdx, width, height, visible, scrollTo}
+  // visible: 한 화면에 보일 월 수(나머지는 가로 스크롤) · scrollTo: 처음에 왼쪽 끝에 올 월 index (10/19 No.14)
+  const n=opts.months.length, vis = (opts.visible && opts.visible<n)? opts.visible : null;
+  // visible 지정 시 viewBox 폭을 n/visible배로 늘려(월당 폭·글자 크기는 그대로) SVG를 그만큼 넓게 표시하고 래퍼를 가로 스크롤
+  const W=(opts.width||1200)*(vis? n/vis : 1), H=opts.height||300, padL=42, padR=10, padT=20, padB=40;
+  const gw=(W-padL-padR)/n, plotH=H-padT-padB;
   const max=Math.max(1,...opts.series.flatMap(s=>s.values));
   const nice=Math.ceil(max/10)*10;
   const y=v=>padT+plotH*(1-v/nice);
@@ -232,8 +233,16 @@ function barChartEl(opts){
   opts.months.forEach((m,i)=>{ const cx=padL+i*gw+gw/2; svg.append(mkSvg('text', {class:i===opts.baseIdx?'base-m':'', x:cx, y:H-padB+15, 'text-anchor':'middle'}, monEn(m)));
     if(i===0 || m.endsWith('-01')) svg.append(mkSvg('text', {class:'yr', x:cx, y:H-padB+30, 'text-anchor':'middle'}, m.slice(0,4))); });
   const legend = legendEl([...opts.series.map(s=>({name:s.name, color:s.color})), ...(opts.baseIdx!=null?[{name:'기준월', color:'#ffe0a8', border:'#e08a00'},{name:'기준월 이후(계획·예정)', color:'#eef1f5', border:'#d3dae3'}]:[])]);
+  if(vis){
+    // 초기 스크롤 위치(scrollTo 월이 왼쪽 끝)는 화면에 붙은 뒤 scrollChartTo()로 맞춘다
+    svg.style.width = (n/vis*100).toFixed(1)+'%';
+    const wrap = mk('div', {class:'chart-scroll'}, svg);
+    wrap.dataset.scrollFrac = ((padL + (opts.scrollTo||0)*gw)/W).toFixed(4); // 스크롤 위치 = SVG 전체 폭 × 비율
+    return mk('div', null, wrap, legend);
+  }
   return mk('div', null, svg, legend);
 }
+function scrollChartTo(root){ const go=()=>qa('.chart-scroll', root).forEach(w=>{ w.scrollLeft = w.scrollWidth * Number(w.dataset.scrollFrac||0); }); go(); requestAnimationFrame(go); }
 
 // ---- SVG 세로 누적 막대 차트 (DOM 버전) ----
 function stackChartEl(opts){

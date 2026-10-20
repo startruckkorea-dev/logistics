@@ -26,7 +26,7 @@ PAGES.logistics = {
       <div class="grid-wrap" id="gridwrap"></div>
       <div class="pager" id="pager"></div>
     </div>`;
-    renderFilters(); renderGrid();
+    renderFilters(); renderGrid(); // ?q= 로 들어온 경우 검색어만 자동 입력하고 스크롤은 하지 않음 (검색창 입력 시에만 일치 위치로 이동)
     el('btnExport').onclick = ()=>describe('엑셀 내보내기', `현재 필터·열 그대로 .xlsx 생성(SheetJS) → 다운로드 + SharePoint /Exports/ 저장. 현재 ${num(filtered().length)}행 · ${visibleCols().length}열.`);
     el('btnAdd').onclick = openAddOrder;
   }
@@ -61,11 +61,19 @@ function renderFilters(){
     <button class="btn sm editor-only" id="btnEdit"></button>
     <span class="muted small" id="fCount"></span>`;
   el('fStage').onchange = e=>{ LF.stage=e.target.value; LF.page=1; renderGrid(); };
-  el('fQ').oninput = e=>{ LF.q=e.target.value; LF.page=1; renderGrid(); };
+  el('fQ').oninput = e=>{ LF.q=e.target.value; LF.page=1; renderGrid(); scrollToMatch(); };
   el('fReset').onclick = ()=>{ Object.assign(LF,{stage:'',q:'',page:1}); LF.col={}; renderFilters(); renderGrid(); };
   el('btnEdit').onclick = toggleEdit; syncEditBtn();
 }
 // 편집 버튼: '초기화' 옆 (10/19 No.1) · 라벨·상태는 편집 모드에 맞춰 갱신
+// 검색 실행 시 검색어가 포함된 첫 셀(하이라이트)이 보이도록 그리드를 스크롤 (10/19 No.1): 행은 맨 위, 열은 고정 Comm No. 열 너비만큼 띄워 이동
+function scrollToMatch(){
+  const wrap = el('gridwrap'); if(!wrap) return; wrap.scrollTop = 0;
+  const m = q('tbody mark', wrap); const td = m && m.closest('td');
+  if(!td || td.classList.contains('sticky')){ wrap.scrollLeft = 0; return; }
+  const sticky = q('thead th.sticky', wrap); const stickyW = sticky? sticky.offsetWidth : 0;
+  wrap.scrollLeft = Math.max(0, td.offsetLeft - stickyW - 8); // 입력마다 표가 다시 그려지므로 애니메이션 없이 즉시 이동
+}
 function syncEditBtn(){
   const be = el('btnEdit'); if(!be) return;
   be.textContent = EDIT.on? '편집 종료' : '편집';
@@ -122,7 +130,7 @@ function renderGrid(){
   const selBox = v=> EDIT.on? `<input type="checkbox" class="rowsel" ${EDIT.sel.has(v.commission_no)?'checked':''}>` : '';
   const keyin = c=> canEdit && EDIT.on && KEYIN_COLS.includes(c.key); // Key-in 열도 편집 모드에서만 입력 (10/15 No.4)
   const pend = (v,c)=> EDIT.pending[v.commission_no] && c.key in EDIT.pending[v.commission_no];
-  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
+  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${(c.key==='model'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
   h += '</tbody></table>';
   if(!rows.length) h = '<div class="muted" style="padding:30px;text-align:center">조건에 맞는 차량이 없습니다.</div>';
   const wrap = el('gridwrap'); wrap.innerHTML = h;

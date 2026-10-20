@@ -74,7 +74,7 @@ PAGES.shipping = {
       mk('div', {class:'muted small', style:'margin-top:6px'}, '행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 Logistics 그리드/상세 또는 아래 일괄 업데이트에서.'));
 
     root.innerHTML = kpi;
-    root.append(monthly, vessels);
+    root.append(vessels, monthly); // 10/19 No.8: 선박별 현황을 월별 입항 예정 위로
     qa('tr[data-vessel]', root).forEach(tr=>tr.onclick=()=>location.hash='#/logistics?q='+encodeURIComponent(tr.dataset.vessel));
     const b=el('btnSched'); if(b) b.onclick = ()=>openModal('선사 스케줄 일괄 업데이트', `<div class="callout">선사(EUKOR/MOL) 스케줄 파일 또는 붙여넣기 → Vessel명 매칭 → ETA 선사·ETA Final 미리보기 → 체크한 선박만 반영. 수신 방식(메일/포털)과 파일 형식은 §15 열린 질문 5번.</div>
       <ol style="padding-left:18px;line-height:1.9"><li>파일 선택(.xlsx/.csv) 또는 스케줄 텍스트 붙여넣기</li><li>Vessel / Voyage 기준 매칭 (매칭 실패 선박은 수동 선택)</li><li>미리보기: 선박별 ETA 선사 before/after, Δ(Pl. arrival 대비), 영향 차량 수</li><li>체크한 선박만 반영 → 해당 차량 eta_carrier 일괄 갱신, ETA Final은 Editor 확인 후 입력</li></ol>

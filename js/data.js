@@ -291,3 +291,22 @@ function closingStock(ym){ // 월말 마감 재고 (ym='current' 는 현재 상�
   return VEHICLES.filter(v=> v.current_status!=='Cancelled' && v.ata && v.ata<=endS && (!v.sales_month || v.sales_month>ym))
     .map(v=>({v, cleared: !!v.customs_clearance_date && v.customs_clearance_date<=endS}));
 }
+
+// ---- 월별 입항 예정 집계 (10/20): 선적·입항 '월별 입항 예정' 피벗과 대시보드 '당월 도착 예정' 공용 ----
+// 선박 입항월 = ATA → ETA 선사 → Pl. arrival(AFAB) · 대상 = 그 선박에 실린 In Transit + Shipment scheduled · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
+function voyageYm(y){ return (y.eta_final||y.eta_carrier||y.pl).slice(0,7); }
+function arrivalModelLabel(v){ return [v.vehicle, v.series, v.model, v.axle, v.cab, v.option].filter(Boolean).join(' '); }
+function arrivalSchedule(onlyYm){ // onlyYm: 특정 월만 집계(대시보드 당월). 반환 {yms, voyByYm:{ym:[항차(선적일 순)]}, groups:[{gen, vehicles:[{vehicle, rows:[{label, by:{vessel:n}, total}]}]}], grand:{vessel:n}, total}
+  const voyByYm = {}; VOYAGES.forEach(y=>{ const k=voyageYm(y); if(onlyYm && k!==onlyYm) return; (voyByYm[k]=voyByYm[k]||[]).push(y); });
+  const yms = Object.keys(voyByYm).sort(); yms.forEach(k=>voyByYm[k].sort((a,b)=>a.shipping<b.shipping?-1:1));
+  const vessels = new Set(yms.flatMap(k=>voyByYm[k].map(y=>y.vessel)));
+  const moving = VEHICLES.filter(v=>(v.current_status==='In Transit'||v.current_status==='Shipment scheduled') && vessels.has(v.vessel));
+  const byKey = {}, grand = {};
+  moving.forEach(v=>{ const label=arrivalModelLabel(v); const k=v.gen+'|'+v.vehicle+'|'+label; const c = byKey[k] = byKey[k] || {gen:v.gen, vehicle:v.vehicle, label, by:{}, total:0};
+    c.by[v.vessel]=(c.by[v.vessel]||0)+1; c.total++; grand[v.vessel]=(grand[v.vessel]||0)+1; });
+  const rows = Object.values(byKey);
+  // 정렬: 구분(Gen, Model_Master 순) > 차종(VEHICLE_TYPES 순) > 모델명 사전순 (eActros는 Tractor와 분리)
+  const groups = [...new Set(MODEL_MASTER.map(m=>m.gen))].filter(g=>rows.some(r=>r.gen===g)).map(g=>({gen:g,
+    vehicles: VEHICLE_TYPES.filter(t=>rows.some(r=>r.gen===g&&r.vehicle===t)).map(t=>({vehicle:t, rows: rows.filter(r=>r.gen===g&&r.vehicle===t).sort((a,b)=>a.label<b.label?-1:1)}))}));
+  return {yms, voyByYm, groups, grand, total: moving.length};
+}

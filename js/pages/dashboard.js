@@ -9,8 +9,8 @@ PAGES.dashboard = {
     // D1 카드 7종 (10/19 No.10~13: 한글 카드명 · Cancelled 카드 삭제 · In Production + Shipment scheduled → 확정 재고(Factory Stock) · 카드별 아이콘)
     // 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 당월 입항 예정 → 재고(Bonded + OH) → 판매(YTD)
     const transit = VEHICLES.filter(v=>v.current_status==='In Transit');
-    const moving = VEHICLES.filter(v=>v.current_status==='In Transit'||v.current_status==='Shipment scheduled');
-    const arrival = moving.filter(v=>expectedArrivalYm(v)===BASE_YM);
+    // 당월 입항 예정 (10/20): 당월 입항 선박(ATA → ETA 선사 → Pl. arrival)에 실린 In Transit + Shipment scheduled — 당월 도착 예정 표와 동일 (data.js arrivalSchedule)
+    const sched = arrivalSchedule(BASE_YM); const curVoys = sched.voyByYm[BASE_YM]||[];
     const stockVs = VEHICLES.filter(v=>v.current_status==='Bonded Stock'||v.current_status==='OH Stock');
     const soldYtd = VEHICLES.filter(v=>v.current_status==='Sold'&&v.sales_month.startsWith(year));
     const factoryStages = ['In Production','Shipment scheduled'];
@@ -20,7 +20,7 @@ PAGES.dashboard = {
       {label:'확정 주문', icon:'fixed', n:byStage['Ordered(Fixed)']||0, color:STAGE_COLOR['Ordered(Fixed)'], sub:'', href:'#/logistics?stage=Ordered(Fixed)', to:'Logistics 목록 (Ordered(Fixed))'},
       {label:'확정 재고 (Factory Stock)', icon:'factory', n:factoryStages.reduce((a,s)=>a+(byStage[s]||0),0), color:STAGE_COLOR['In Production'], sub:`In Production ${num(byStage['In Production']||0)} · Shipment scheduled ${num(byStage['Shipment scheduled']||0)}`, href:'#/logistics?stage='+encodeURIComponent(factoryStages.join(',')), to:'Logistics 목록 (In Production + Shipment scheduled)'},
       {label:'운송 중', icon:'transit', n:transit.length, color:STAGE_COLOR['In Transit'], sub:'', href:'#/logistics?stage=In%20Transit', to:'Logistics 목록 (In Transit)'},
-      {label:`당월 입항 예정 (${Number(BASE_YM.slice(5))}월)`, icon:'arrival', n:arrival.length, color:'var(--st-sched)', sub:`선박 ${new Set(arrival.map(v=>v.vessel)).size}척`, href:'#/shipping', to:'선적·입항'}, // 10/20 No.16 당월 도착 예정 표와 동일 기준(arrival) · 월 표기는 'N월' 유지
+      {label:`당월 입항 예정 (${Number(BASE_YM.slice(5))}월)`, icon:'arrival', n:sched.total, color:'var(--st-sched)', sub:`선박 ${curVoys.length}척`, href:'#/shipping', to:'선적·입항'}, // 10/20 No.16 당월 도착 예정 표와 동일 기준(선박 입항월) · 월 표기는 'N월' 유지
       {label:'재고 (보세 + 통관)', icon:'stock', n:stockVs.length, color:STAGE_COLOR['Bonded Stock'], sub:`Bonded ${num(byStage['Bonded Stock']||0)} · OH ${num(byStage['OH Stock']||0)}`, href:'#/stock', to:'재고현황'},
       {label:`판매 (${year} YTD)`, icon:'sold', n:soldYtd.length, color:STAGE_COLOR['Sold'], sub:`전월 ${num(byMonth('sales_month')[ymAdd(BASE_YM,-1)]||0)}`, href:'#/logistics?stage=Sold', to:'Logistics 목록 (Sold)'},
     ];
@@ -74,15 +74,20 @@ PAGES.dashboard = {
       <div class="hbars">${byVeh.map(b=>hbar(b.t, b.segs, b.total, maxVeh)).join('')}</div>
       <div class="legend">${pipeStages.map(s=>`<span><span class="sw" style="background:${STAGE_COLOR[s]}"></span>${s}</span>`).join('')}</div></div>`;
 
-    // D7 당월 도착 예정 (10/20 No.16): 모델 세부(Vehicle · Model · Type · Axle · Cab · Option)별 당월 입항 예정 대수 — 당월 입항 예정 카드(arrival)와 같은 집계, 길어지면 세로 스크롤
-    const arrKeys = ['vehicle','series','model','axle','cab','option'];
-    const arrBy = {}; arrival.forEach(v=>{ const k=arrKeys.map(x=>v[x]||'').join('|'); (arrBy[k] = arrBy[k] || {v, n:0}).n++; });
-    const arrRows = Object.values(arrBy).sort((a,b)=> b.n-a.n || arrKeys.map(x=>a.v[x]||'').join(' ').localeCompare(arrKeys.map(x=>b.v[x]||'').join(' ')));
-    const arrCard = mk('div', {class:'card'},
-      mk('div', {class:'card-h'}, mk('h2', null, `당월 도착 예정 (${Number(BASE_YM.slice(5))}월)`), noteEl('D7'), mk('span', {class:'desc'}, `모델 세부별 · 합계 ${num(arrival.length)}대 · 선박 ${new Set(arrival.map(v=>v.vessel)).size}척`), mk('span', {class:'spacer'}), mk('a', {href:'#/shipping'}, '월별 입항 예정 →')),
-      mk('div', {class:'tbl-wrap', style:'max-height:260px;overflow:auto'}, mk('table', {class:'tbl compact'},
-        mk('thead', null, mk('tr', null, ['Vehicle','Model','Type','Axle','Cab','Option'].map(t=>mk('th', null, t)), mk('th', {class:'num'}, '대수'))),
-        mk('tbody', null, arrRows.length? arrRows.map(r=>mk('tr', null, arrKeys.map(x=>mk('td', null, r.v[x] || mk('span', {class:'muted'}, '—'))), mk('td', {class:'num'}, mk('b', null, num(r.n))))) : mk('tr', null, mk('td', {colspan:7, class:'muted', style:'text-align:center'}, '당월 입항 예정 차량이 없습니다.'))))));
+    // D7 당월 도착 예정 (10/20 No.16): 선적·입항 '월별 입항 예정' 피벗의 당월 블록 — 행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 당월 입항 선박(선적일 순) + Total · 값: 모델별 선박 선적 대수 · 표 높이는 옆 '입항 예정 선박' 카드에 맞추고 넘치면 세로 스크롤
+    const cellN = n=> n? mk('td', {class:'num'}, num(n)) : mk('td', {class:'num'}, mk('span', {class:'muted'}, '·'));
+    const arrCells = by=>{ const cells = curVoys.map(y=>cellN(by[y.vessel]||0)); const t = cellN(curVoys.reduce((a,y)=>a+(by[y.vessel]||0),0)); t.classList.add('tot'); cells.push(t); return cells; };
+    const arrCols = 1 + curVoys.length + 1;
+    const arrRows = [];
+    sched.groups.forEach(g=>{ arrRows.push(mk('tr', {class:'g1'}, mk('td', {colspan:arrCols}, g.gen)));
+      g.vehicles.forEach(t=>{ arrRows.push(mk('tr', {class:'g2'}, mk('td', {colspan:arrCols}, t.vehicle)));
+        t.rows.forEach(r=>arrRows.push(mk('tr', null, mk('td', {class:'model'}, r.label), arrCells(r.by)))); }); });
+    arrRows.push(mk('tr', {class:'total'}, mk('td', null, 'Grand Total'), arrCells(sched.grand)));
+    const arrCard = mk('div', {class:'card fillcol'}, // fillcol: 표 스크롤 영역 높이를 옆 '입항 예정 선박' 카드에 맞춤
+      mk('div', {class:'card-h'}, mk('h2', null, `당월 도착 예정 (${Number(BASE_YM.slice(5))}월)`), noteEl('D7'), mk('span', {class:'desc'}, `구분 > 차종 > 모델 × 당월 입항 선박 · 합계 ${num(sched.total)}대 · 선박 ${curVoys.length}척`), mk('span', {class:'spacer'}), mk('a', {href:'#/shipping'}, '월별 입항 예정 →')),
+      mk('div', {class:'fill'}, mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot'},
+        mk('thead', null, mk('tr', null, mk('th', null, 'Model'), curVoys.map(y=>mk('th', {class:'num'}, y.vessel)), mk('th', {class:'num tot'}, 'Total'))),
+        mk('tbody', null, sched.total? arrRows : mk('tr', null, mk('td', {colspan:arrCols, class:'muted', style:'text-align:center'}, '당월 입항 예정 차량이 없습니다.')))))));
 
     // (재고 연령 분포 D5는 2026-10-12 검토에서 삭제)
     const stock = stockVs;

@@ -82,7 +82,7 @@ function makeVehicle(p, m){
   const s=p.stage;
   const v={ current_status:s, status_override:'', status_reason:'', vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option,
     baumuster:m.prefix+' '+m.suffix, model_in_afab:m.type_desc, lead_time:m.lead, color_code:pick(COLORS), sub_cat: m.vehicle==='Tipper'?'KIP':(m.vehicle==='Tractor'?'SZM':'LKW'),
-    vessel:'', bl_no:'', import_license:'', b1_factory_order:'', fleet_co:'', option_remarks:'', tires:'', order_note:'' };
+    vessel:'', bl_no:'', import_license:'', b1_factory_order:'', co:'', option_remarks:'', tires:'', order_note:'' }; // 10/20 No.14: fleet_co → co
   let orderD=null, pm='', tdd=null, prodDone=null, exf=null, ship=null, inv=null, pl=null, etaC=null, etaF=null, cust=null, saleD=null, chg=null;
   const seaChain=()=>{ ship=addD(etaF,-ri(40,60)); pl=addD(etaF,-ri(0,6)); etaC=addD(pl,ri(-2,3)); inv=addD(ship,2); exf=addD(ship,-ri(5,15)); prodDone=addD(exf,-ri(1,4)); tdd=addD(prodDone,-ri(1,8)); pm=ymOf(tdd); orderD=addD(tdd,-ri(100,240)); v.vessel=pick(VESSEL_PAST); v.bl_no=(rnd()<0.5?'EUKO':'MOLU')+pick(['HAM','BRV'])+ymOf(ship).slice(2,4)+ymOf(ship).slice(5,7)+String(ri(100,999)); };
   if(s==='Sold'){ saleD=randDate('2025-01-01','2026-09-30'); etaF=addD(saleD,-ri(5,200)); cust=addD(etaF,ri(3,40)); if(cust>saleD) cust=addD(saleD,-1); seaChain(); }
@@ -118,7 +118,7 @@ function makeVehicle(p, m){
   v.vehicle_value_eur = ri(95,165)*1000+ri(0,999); v.order_value_eur = Math.round(v.vehicle_value_eur*1.19);
   // 플래그 (10/19: sap_code · sap_b1_flag 필드 제거)
   if(ship && ship<=TODAY) { v.b1_factory_order='B1-'+String(ri(10000,99999)); }
-  if(rnd()<0.1) v.fleet_co='O';
+  if(rnd()<0.1) v.co='O';
   // 메모
   if(rnd()<0.25) v.option_remarks=pick(['Retarder','Hydraulic kit','Retarder, PTO','Roof spoiler','Alcoa wheels']);
   if(rnd()<0.2) v.tires=pick(['Michelin 315/80R22.5','Continental 315/70R22.5','Hankook 385/65R22.5']);
@@ -142,6 +142,7 @@ function makeVehicle(p, m){
   v.ref_commission_no = '';                                       // genVehicles에서 Commission No 부여 후 일부 채움
   // ---- 단계 분리: Ordered → Ordered(Dummy) 약 3% / Rejected 약 2% (가짜값) / 나머지는 Order 분류 규칙으로 Ordered(Fixed) · Ordered(Changeable) ----
   if(s==='Ordered'){ const x=rndX(); v.current_status = x<0.03 ? 'Ordered(Dummy)' : x<0.05 ? 'Rejected' : (v.order_class==='Fixed order' ? 'Ordered(Fixed)' : 'Ordered(Changeable)'); }
+  v.create_order_date = v.current_status==='Ordered(Dummy)' ? fmtD(orderD) : ''; // 10/20 No.10: 시스템 오더 등록일 — 샘플은 더미 오더(시스템에서 생성)만 채움, AFAB 오더는 공란 (가정)
   v._sort = orderD ? orderD.getTime() : 0;
   delete v._noafab; delete v._new;
   return v;
@@ -261,19 +262,19 @@ const AUDIT_LOG = [
   {at:'2026-09-19 08:38', user:'정물류', action:'AFAB 업로드 반영', target:'SDISP_2026-09-19.xlsx', detail:'신규 186건 (2027 PM)'},
 ];
 
-// ---- 상태 규칙 (§7) ----
+// ---- 상태 규칙 (10/20 No.13 별첨1 확정: 상태별 Source · 판정 규칙) — Factory Stock은 단계로 두지 않음(대시보드 카드 합계) · Rejected의 WB 필드는 차량 데이터 미생성 ----
 const STAGE_RULES = [
-  {order:1, stage:'Cancelled', cond:'수동 지정 (AFAB 목록에서 사라지면 "확인 필요" 알림, 자동 취소 금지)', legacy:'Cancelled'},
-  {order:2, stage:'Rejected', cond:'수동 지정 (거절된 오더)', legacy:'—'},
-  {order:3, stage:'Ordered(Dummy)', cond:'수동 지정 (더미 오더)', legacy:'—'},
-  {order:4, stage:'Sold', cond:'Current Status = Sold (sales_month 입력)', legacy:'Sold'},
-  {order:5, stage:'OH Stock', cond:'Current Status = OH Stock (customs_clearance_date 입력)', legacy:'OH Stock'},
-  {order:6, stage:'Bonded Stock', cond:'입고일 = eta_final (ETA Final Arrival) ≤ 오늘', legacy:'Bonded Stock'},
-  {order:7, stage:'In Transit', cond:'shipping_date ≤ 오늘, eta_final 미도래 (Shipped / Invoiced)', legacy:'Ordered'},
-  {order:8, stage:'Shipment scheduled', cond:'Shipping 전이나 vessel 또는 bl_no 확인', legacy:'Ordered'},
-  {order:9, stage:'In Production', cond:'pm_final ≤ 당월, 미선적·배편 미확정 (생산월 경과분 포함)', legacy:'Ordered'},
-  {order:10, stage:'Ordered(Fixed)', cond:'그 외 (pm_final > 당월) 중 PM(final) = 익월 (당월+1)', legacy:'Ordered / 공란'},
-  {order:11, stage:'Ordered(Changeable)', cond:'그 외 (pm_final > 당월) 중 PM(final) ≥ 당월+2', legacy:'Ordered / 공란'},
+  {order:1, source:'Key-in', stage:'Ordered(Dummy)', cond:'오더 생성 시'},
+  {order:2, source:'Key-in', stage:'Ordered(Changeable)', cond:'KUFRI 확정 후'},
+  {order:3, source:'AFAB', stage:'Ordered(Fixed)', cond:'Changeability Date 경과 시'},
+  {order:4, source:'AFAB', stage:'Rejected', cond:'WB열 값이 R인 경우'},
+  {order:5, source:'AFAB', stage:'In Production', cond:'생산월 도래 시'},
+  {order:6, source:'AFAB', stage:'Shipment scheduled', cond:'Vessel, Shipping Date 확정 시'},
+  {order:7, source:'AFAB', stage:'In Transit', cond:'Shipping Date 기준'},
+  {order:8, source:'선적·입항', stage:'Bonded Stock', cond:'ATA 기준'},
+  {order:9, source:'통관', stage:'OH Stock', cond:'통관 탭 입력 후 (Customs Clearance Date 입력)'},
+  {order:10, source:'Key-in', stage:'Sold', cond:'월말 입력 후'},
+  {order:11, source:'Key-in', stage:'Cancelled', cond:'STK 담당자가 취소할 경우'},
 ];
 
 // ---- 공통 집계 헬퍼 ----

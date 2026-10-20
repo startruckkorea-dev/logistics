@@ -126,7 +126,7 @@ function renderGrid(){
   let h = `<table class="grid"><thead><tr class="fld"><th class="sticky" data-sort="commission_no" title="commission_no">Commission No</th>`;
   h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}" title="${c.key}">${esc(c.label)}</th>`).join('') + '</tr>';
   h += `<tr class="sub"><th class="sticky" data-sort="commission_no">${EDIT.on?'<input type="checkbox" id="selAll" title="현재 페이지 전체 선택">':''}${srcBadge('AFAB')}${sortIcon('commission_no')}</th>`;
-  h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}">${colBox(c)}${srcBadge(c.src)}${sortIcon(c.key)}${filtBtn(c)}</th>`).join('') + '</tr></thead><tbody>';
+  h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}">${colBox(c)}${srcBadge(c.src, c.keyin)}${sortIcon(c.key)}${filtBtn(c)}</th>`).join('') + '</tr></thead><tbody>';
   const selBox = v=> EDIT.on? `<input type="checkbox" class="rowsel" ${EDIT.sel.has(v.commission_no)?'checked':''}>` : '';
   const keyin = c=> canEdit && EDIT.on && KEYIN_COLS.includes(c.key); // Key-in 열도 편집 모드에서만 입력 (10/15 No.4)
   const pend = (v,c)=> EDIT.pending[v.commission_no] && c.key in EDIT.pending[v.commission_no];
@@ -297,7 +297,8 @@ function openColFilter(btn, key){
 function colFilterOutside(e){ if(!e.target.closest('#colfilter') && !e.target.closest('.cf')) closeColFilter(); }
 function closeColFilter(){ const p = el('colfilter'); if(p) p.remove(); document.removeEventListener('mousedown', colFilterOutside); }
 
-// ---- 오더 생성 (10/19): Type 숫자 검색 → Type 선택 → MY → 모델(Model_Master 행) 선택 → 속성 표시 → PM·수량·단계 → Commission No 생성 방식 → 생성 ----
+// ---- 오더 생성 (10/19): Type 숫자 검색 → Type 선택 → MY → 모델(Model_Master 행) 선택 → 속성 표시 → Original PM·수량·단계 → Commission No 생성 방식 → 생성 ----
+// 10/20 No.22: 입력받는 생산월은 Original PM(배지: 오더 생성)에 기록하고 PM은 공란 · No.10: Create Order Date = 생성일
 function openAddOrder(){
   const active = MODEL_MASTER.filter(m=>m.active);
   const field = (label, ctl, wide)=> mk('div', {class:'f'+(wide?' wide':'')}, mk('div', {class:'k'}, label), mk('div', {class:'v'}, ctl));
@@ -316,7 +317,7 @@ function openAddOrder(){
     const m = active[Number(modelSel.value)]; if(!m){ attrs.append(mk('dt', {class:'muted'}, '모델을 선택하면 속성이 표시됩니다.')); return; }
     [['BM', m.prefix+'-'+m.code2], ['Baumuster', m.prefix+' '+m.suffix], ['Model In AFAB', m.type_desc], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Option', m.option||'—'], ['Gen', m.gen], ['리드타임(월)', String(m.lead)], ['MY', mySel.value]]
       .forEach(([k,v])=>attrs.append(mk('dt', null, k), mk('dd', {class:'mono'}, v))); };
-  // 6. 생산월 · 수량 · Current Status
+  // 6. Original PM(생산월) · 수량 · Current Status
   const pmIn = mk('input', {placeholder:'YYYY-MM', value: ymAdd(BASE_YM,3), style:'width:100%'});
   const qtyIn = mk('input', {type:'number', min:'1', max:'500', value:'1', style:'width:100%'});
   const stSel = mk('select', {style:'width:100%'}, STAGES.map(s=>mk('option', {value:s}, s)));
@@ -352,11 +353,11 @@ function openAddOrder(){
       field('① Type 검색 *', search), field('② Type *', typeSel),
       field('③ MY *', mySel), field('④ 모델 (Model_Master) *', modelSel),
       field('매칭된 모델 속성', attrs, true),
-      field('⑤ 생산월 (PM) *', pmIn), field('수량 *', qtyIn), field('Current Status *', stSel),
+      field('⑤ Original PM (생산월) *', pmIn), field('수량 *', qtyIn), field('Current Status *', stSel),
       field('⑥ Commission No 생성 방식 *', mk('div', {style:'display:flex;gap:14px;align-items:center;flex-wrap:wrap'},
         mk('label', null, rCont, ' 마지막 번호에 이어서 생성'), mk('label', null, rNew, ' 새 번호로 시작 ', startIn)), true),
       field('', preview, true)),
-    mk('div', {class:'muted small', style:'margin-top:8px'}, '* 필수. 모델 속성(Vehicle · Model · Type · Axle · Cab · Option · Baumuster · BM)은 선택한 Model_Master 행에서 채워집니다. Commission No.는 중복 생성할 수 없습니다.'),
+    mk('div', {class:'muted small', style:'margin-top:8px'}, '* 필수. 모델 속성(Vehicle · Model · Type · Axle · Cab · Option · Baumuster · BM)은 선택한 Model_Master 행에서 채워집니다. 생산월은 Original PM에 기록되고 PM은 AFAB 확정 후 채워집니다. Create Order Date = 생성일. Commission No.는 중복 생성할 수 없습니다.'),
     err);
   openModal('오더 생성 '+note('L7'), '', ' ');
   el('modal-body').replaceChildren(body);
@@ -365,7 +366,7 @@ function openAddOrder(){
     mk('button', {class:'btn', onclick: closeModal}, '취소'),
     mk('button', {class:'btn primary', onclick: ()=>{ err.hidden = true;
       const m = active[Number(modelSel.value)]; if(!modelSel.value || !m) return fail('Type과 모델을 선택하세요.');
-      const pm = pmIn.value.trim(); if(!/^\d{4}-\d{2}$/.test(pm)) return fail('생산월(PM)은 YYYY-MM 형식으로 입력하세요.');
+      const pm = pmIn.value.trim(); if(!/^\d{4}-\d{2}$/.test(pm)) return fail('Original PM(생산월)은 YYYY-MM 형식으로 입력하세요.');
       const cs = commList(); if(!cs.length) return fail('Commission No 시작 번호는 숫자만 입력하세요.');
       const dup = cs.filter(c=>VEHICLE_BY_COMM[c]); if(dup.length) return fail(`Commission No. ${dup.slice(0,3).join(', ')}${dup.length>3?' 외':''}는 이미 등록된 오더입니다. 중복 생성할 수 없습니다.`);
       const rows = cs.map(c=>Store.vehicles.create({commission_no:c, m, pm, status:stSel.value, model_year:mySel.value, by:state.user}));
@@ -373,5 +374,5 @@ function openAddOrder(){
       const d = new Date(); const at = TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
       Store.history.add(rows.map(v=>({commission_no:v.commission_no, field:'(전체)', old_value:'', new_value:'수동 생성', changed_by:state.user, changed_at:at, source:'수동'})));
       closeModal(); renderFilters(); renderGrid();
-      toast(`오더 생성 ${num(n)}건`, `${cs[0]}${n>1?` ~ ${cs[n-1]}`:''} · ${modelLine(m)} · PM ${pm} · ${stSel.value} → Vehicles 추가(출처: 수동) · Vehicle_History 기록 · 대시보드·KUFRI 즉시 반영`); }}, '생성'));
+      toast(`오더 생성 ${num(n)}건`, `${cs[0]}${n>1?` ~ ${cs[n-1]}`:''} · ${modelLine(m)} · Original PM ${pm} · ${stSel.value} → Vehicles 추가(출처: 수동) · Vehicle_History 기록 · 대시보드·KUFRI 즉시 반영`); }}, '생성'));
 }

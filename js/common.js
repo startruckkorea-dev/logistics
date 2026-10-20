@@ -7,51 +7,53 @@ const STAGE_COLOR = {'Ordered(Dummy)':'var(--st-ordered)','Rejected':'var(--st-c
 const STAGE_SHORT = {'Ordered(Dummy)':'Ordered(Dummy)','Rejected':'Rejected','Ordered(Changeable)':'Ordered(Changeable)','Ordered(Fixed)':'Ordered(Fixed)','In Production':'In Production','Shipment scheduled':'Shipment scheduled','In Transit':'In Transit (Shipped / Invoiced)','Bonded Stock':'Bonded Stock','OH Stock':'OH Stock','Sold':'Sold','Cancelled':'Cancelled'};
 const SERIES = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)','var(--s7)','var(--s8)'];
 
-// Logistics 그리드 43열 — docs/data-dictionary_v2_1_2.csv "최종 컬럼 순서" 기준 (Commission No 고정열 → Current Status → 사전 순서 → Order Note)
+// Logistics 그리드 44열 — docs/data-dictionary_v2_1_2.csv "최종 컬럼 순서" 기준 (Commission No 고정열 → Current Status → 사전 순서 → Order Note)
 // 뒤쪽 블록: 사전 '제외' 열(v2_1_1·v2_2) 중 남긴 1개(AFAB 수정 가능) + 사전 미언급 열 1개(Baumuster). group은 상세 Drawer·열 설정 모달의 묶음에만 사용.
 // 10/19: Order Date · Invoice No. · SAP · SAP B1 · Days in Stock · Stock level · T/M Memo 열 제거
+// 10/20 No.2: 출처 배지(src) 별첨2 기준 · keyin:true = 초록 '입력' 배지(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 그 외 '입력'은 회색
 const COLUMNS = [
   {key:'commission_no', label:'Commission No', group:'기본', src:'AFAB'},
-  {key:'current_status', label:'Current Status', group:'기본', src:'자동'},
-  {key:'model_year', label:'MY', group:'기본', src:'자동'},
-  {key:'bm', label:'BM', group:'기본', src:'자동'},
+  {key:'current_status', label:'Current Status', group:'기본', src:'AFAB/입력'},
+  {key:'model_year', label:'MY', group:'기본', src:'MODEL_MASTER'},
+  {key:'bm', label:'BM', group:'기본', src:'MODEL_MASTER'},
   {key:'vin_no', label:'Vin No', group:'기본', src:'AFAB'},
-  {key:'vehicle', label:'Vehicle', group:'기본', src:'자동'},
-  {key:'series', label:'Model', group:'기본', src:'자동'},   // 10/15 No.3: SAM 기준 라벨 (기존 Series → Model)
-  {key:'model', label:'Type', group:'기본', src:'자동'},     // 10/15 No.3: SAM 기준 라벨 (기존 Model → Type)
-  {key:'axle', label:'Axle', group:'기본', src:'자동'},
-  {key:'cab', label:'Cab', group:'기본', src:'자동'},
-  {key:'option', label:'Option', group:'기본', src:'자동'},   // 10/15 No.5: Model_Master에서 자동 반영 (수동 입력 제외)
+  {key:'vehicle', label:'Vehicle', group:'기본', src:'MODEL_MASTER'},
+  {key:'series', label:'Model', group:'기본', src:'MODEL_MASTER'},   // 10/15 No.3: SAM 기준 라벨 (기존 Series → Model)
+  {key:'model', label:'Type', group:'기본', src:'MODEL_MASTER'},     // 10/15 No.3: SAM 기준 라벨 (기존 Model → Type)
+  {key:'axle', label:'Axle', group:'기본', src:'MODEL_MASTER'},
+  {key:'cab', label:'Cab', group:'기본', src:'MODEL_MASTER'},
+  {key:'option', label:'Option', group:'기본', src:'MODEL_MASTER'},   // 10/15 No.5: Model_Master에서 자동 반영 (수동 입력 제외)
   {key:'changeability_date', label:'Changeability Date', group:'일정', src:'AFAB'},
   {key:'pm', label:'PM', group:'일정', src:'AFAB'},
-  {key:'original_pm', label:'Original PM', group:'일정', src:'AFAB'},
+  {key:'original_pm', label:'Original PM', group:'일정', src:'오더 생성'},
   {key:'tdd_calc', label:'TDD Calc', group:'일정', src:'AFAB'},
   {key:'dispatch', label:'Dispatch', group:'일정', src:'AFAB'},
   {key:'shipping', label:'Shipping', group:'일정', src:'AFAB'},
   {key:'invoice', label:'Invoice', group:'선적', src:'AFAB'},
   {key:'planned_arrival', label:'Planned Arrival', group:'일정', src:'AFAB'},
-  {key:'eta_from_tdd', label:'ETA From TDD', group:'일정', src:'자동'},
-  {key:'eta_from_eukor_pirt', label:'ETA From EUKOR/PIRT', group:'일정', src:'입력'},
-  {key:'ata', label:'ATA', group:'일정', src:'입력'},
-  {key:'bl_no', label:'B/L No', group:'선적', src:'입력'},
-  {key:'vessel', label:'Vessel', group:'선적', src:'AFAB'},
+  {key:'eta_from_tdd', label:'ETA From TDD', group:'일정', src:'+75 FROM TDD'},
+  {key:'eta_from_eukor_pirt', label:'ETA From EUKOR/PIRT', group:'일정', src:'선적·입항'},
+  {key:'ata', label:'ATA', group:'일정', src:'선적·입항'},
+  {key:'bl_no', label:'B/L No', group:'선적', src:'선적·입항'},
+  {key:'vessel', label:'Vessel', group:'선적', src:'선적·입항'},
   {key:'customs_clearance_date', label:'Customs Clearance Date', group:'통관', src:'입력'},
   {key:'color_code', label:'Color Code', group:'사양', src:'AFAB'},
-  {key:'color_name', label:'Color Name', group:'사양', src:'자동'},
-  {key:'tires', label:'Tires', group:'메모', src:'입력', memo:true},
+  {key:'color_name', label:'Color Name', group:'사양', src:'COLOR_MASTER'},
+  {key:'tires', label:'Tires', group:'메모', src:'WINGS', memo:true},
   {key:'model_in_afab', label:'Model In AFAB', group:'사양', src:'AFAB'},
   {key:'engine_no', label:'Engine No', group:'기본', src:'AFAB'},
   {key:'import_license', label:'Import License', group:'통관', src:'입력'},
-  {key:'ref_commission_no', label:'Ref Commission No', group:'기본', src:'입력'},
-  {key:'option_remarks', label:'Option Note', group:'메모', src:'입력', memo:true},
-  {key:'order_note', label:'Order Note', group:'메모', src:'입력', memo:true}, // 10/15 No.10: Option Note 다음 순서
-  {key:'b1_factory_order', label:'B1 Factory Order', group:'선적', src:'입력'},
-  {key:'sales_month', label:'Sales Month', group:'통관', src:'입력'},
+  {key:'ref_commission_no', label:'Ref Commission No', group:'기본', src:'입력', keyin:true},
+  {key:'option_remarks', label:'Option Note', group:'메모', src:'입력', keyin:true, memo:true},
+  {key:'order_note', label:'Order Note', group:'메모', src:'입력', keyin:true, memo:true}, // 10/15 No.10: Option Note 다음 순서
+  {key:'create_order_date', label:'Create Order Date', group:'일정', src:'오더 생성'}, // 10/20 No.10: 시스템 오더 등록일 (AFAB Order Date와 별개 · 더미 오더 → 실제 오더 전환 이력)
+  {key:'b1_factory_order', label:'B1 Factory Order', group:'선적', src:'입력', keyin:true},
+  {key:'co', label:'C/O', group:'선적', src:'입력'}, // 10/20 No.14: Fleet C/O → C/O (fleet_co → co) · Sales Month 바로 앞
+  {key:'sales_month', label:'Sales Month', group:'통관', src:'입력', keyin:true},
   {key:'model_classification', label:'Model Classification', group:'사양', src:'자동'},
-  {key:'gen', label:'Gen', group:'기본', src:'자동'},
+  {key:'gen', label:'Gen', group:'기본', src:'AFAB'},
   {key:'spec', label:'Spec', group:'사양', src:'자동'},
   {key:'sub_cat', label:'Sub Cat', group:'사양', src:'AFAB'},
-  {key:'fleet_co', label:'Fleet C/O', group:'선적', src:'입력'},
   // ---- 사전 제외 열 (뒤쪽 배치) ----
   {key:'afab_editable', label:'AFAB 수정 가능', group:'사양', src:'AFAB'},
   // ---- 사전 미언급 열 (뒤쪽 배치) ----
@@ -64,8 +66,8 @@ const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // �
 // 설계 노트 (목업 전용)
 const NOTES = {
   G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. UI 한국어, 필드명은 기존 엑셀 영문',
-  D1:'차량 주문·재고 흐름: 카드 7종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit) → 당월 입항 예정(Arrival) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘, Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 6개월만 표시, 나머지는 가로 스크롤. 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외)', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)',
-  L1:'단계 칩 필터(10단계 + Cancelled)', L2:'열 필터(모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 43열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지(AFAB/자동/입력)', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
+  D1:'차량 주문·재고 흐름: 카드 7종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit) → 당월 입항 예정(Arrival) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘, Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 8개월만 표시, 나머지는 가로 스크롤(Y축 고정). 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외) · 단계 색 = Current Status 색', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)', D7:'당월 도착 예정: 모델 세부(Vehicle · Model · Type · Axle · Cab · Option)별 당월 입항 예정 대수 (In Transit + Shipment scheduled 중 입항 예정월 = 당월, 당월 입항 예정 카드와 동일 기준)',
+  L1:'단계 칩 필터(10단계 + Cancelled)', L2:'열 필터(모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 44열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
   S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC 입고일(Key-in)·대수) + 선사 스케줄 일괄 업데이트. ETA 불일치 카드·탭·표시는 제외',
   K1:'기준월 선택(최근 5개월 월말 마감 + 현재) → 요약 카드(Total Stock + 연식 MY24~27 대수·비율) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
@@ -88,7 +90,13 @@ function qa(sel,root){ return Array.from((root||document).querySelectorAll(sel))
 
 // ---- 작은 컴포넌트 ----
 function note(id){ return `<span class="note" title="${esc(NOTES[id]||'')}" data-note="${id}">${id}</span>`; }
-function srcBadge(src){ const c = src==='AFAB'?'afab': src==='자동'?'auto':'input'; const t = src==='AFAB'?'AFAB 업로드로만 갱신(잠금)': src==='자동'?'시스템 계산(잠금)':'Editor 수동 입력'; return `<span class="badge ${c}" title="${t}">${src}</span>`; }
+// 출처 배지 (10/20 No.2 별첨2): 파랑(afab) = AFAB · WINGS · +75 FROM TDD · AFAB/입력 / 초록(input) = keyin 열의 '입력' / 회색(auto) = 그 외
+const SRC_BADGE = {
+  'AFAB':{cls:'afab', tip:'AFAB 업로드로만 갱신(잠금)'}, 'AFAB/입력':{cls:'afab', tip:'AFAB 기준 자동 판정 + Editor 입력(override)'}, 'WINGS':{cls:'afab', tip:'WINGS 연동 값(잠금)'}, '+75 FROM TDD':{cls:'afab', tip:'TDD Calc + 75일 자동 계산(잠금)'},
+  '자동':{cls:'auto', tip:'시스템 계산(잠금)'}, 'MODEL_MASTER':{cls:'auto', tip:'모델 마스터에서 자동 반영(잠금)'}, 'COLOR_MASTER':{cls:'auto', tip:'색상 마스터에서 자동 반영(잠금)'}, '선적·입항':{cls:'auto', tip:'선적·입항 화면에서 선박 단위 입력'}, '오더 생성':{cls:'auto', tip:'오더 생성 시 기록(잠금)'}, '입력':{cls:'auto', tip:'Editor 수동 입력'},
+};
+function srcBadge(src, keyin){ const b = SRC_BADGE[src]||SRC_BADGE['입력']; const c = (src==='입력'&&keyin)? 'input' : b.cls; return `<span class="badge ${c}" title="${b.tip}">${esc(src)}</span>`; }
+function srcEditable(src){ return src==='입력' || src==='선적·입항'; } // 상세 Drawer에서 입력창을 여는 출처
 function stagePill(stage){ return `<span class="pill ${STAGE_CLASS[stage]||'neutral'}">${esc(stage)}</span>`; }
 function classPill(cls){ if(!cls||cls==='—') return '<span class="muted">—</span>'; return `<span class="pill ${cls==='Fixed order'?'cls-fixed':'cls-chg'}">${esc(cls)}</span>`; }
 function statusPill(kind, text){ return `<span class="pill ${kind}">${esc(text)}</span>`; }
@@ -130,10 +138,10 @@ function openVehicle(comm){
     const val = v[c.key];
     let inner;
     if(c.key==='current_status') inner = stagePill(val);
-    else if(c.src==='입력' && editable) inner = `<input value="${esc(val)}" data-f="${c.key}" placeholder="${c.key.includes('date')?'YYYY-MM-DD': c.key==='sales_month'?'YYYY-MM':''}">`;
-    else if(editable) inner = `<input value="${esc(c.num?num(val):val)}" readonly title="${c.src==='AFAB'?'AFAB 업로드로만 갱신됩니다':'시스템 계산 값입니다'}">`;
+    else if(srcEditable(c.src) && editable) inner = `<input value="${esc(val)}" data-f="${c.key}" placeholder="${c.key.includes('date')?'YYYY-MM-DD': c.key==='sales_month'?'YYYY-MM':''}">`;
+    else if(editable) inner = `<input value="${esc(c.num?num(val):val)}" readonly title="${esc((SRC_BADGE[c.src]||{}).tip||'')}">`;
     else inner = `<span>${esc(c.num?num(val):val)||'<span class="muted">—</span>'}</span>`;
-    return `<div class="f ${c.memo?'wide':''}"><div class="k">${esc(c.label)} ${srcBadge(c.src)}${c.src!=='입력'?'<span class="lock">🔒</span>':''}</div><div class="v">${inner}</div></div>`;
+    return `<div class="f ${c.memo?'wide':''}"><div class="k">${esc(c.label)} ${srcBadge(c.src, c.keyin)}${srcEditable(c.src)?'':'<span class="lock">🔒</span>'}</div><div class="v">${inner}</div></div>`;
   };
   const groups = GROUPS.map(g=>`<div class="card"><div class="card-h"><h2>${g}</h2></div><div class="fields">${COLUMNS.filter(c=>c.group===g).map(field).join('')}</div></div>`).join('');
   const extra = `<div class="card"><div class="card-h"><h2>파생·상태</h2><span class="desc">저장하지 않고 계산</span></div><div class="fields">
@@ -142,8 +150,8 @@ function openVehicle(comm){
     <div class="f"><div class="k">DMS Model Name ${srcBadge('자동')}</div><div class="v">${esc(v.dms_model_name)}</div></div>
     <div class="f"><div class="k">Changeability D-day ${srcBadge('자동')}</div><div class="v">${v.changeability_dday==null?'—':'D-'+v.changeability_dday}</div></div>
     <div class="f"><div class="k">AFAB 금일 존재 ${srcBadge('자동')}</div><div class="v">${v.in_afab_today? statusPill('ok','있음') : (['Ordered(Changeable)','Ordered(Fixed)','In Production','Shipment scheduled','In Transit'].includes(v.current_status)? statusPill('warn','없음 — 확인 필요'):'<span class="muted">해당 없음</span>')}</div></div>
-    <div class="f"><div class="k">Status override ${srcBadge('입력')}</div><div class="v">${editable?`<select data-f="status_override"><option value="">(자동 판정)</option>${['Cancelled','Rejected','Sold','OH Stock','Bonded Stock','In Transit','Shipment scheduled','In Production','Ordered(Fixed)','Ordered(Changeable)','Ordered(Dummy)'].map(s=>`<option ${v.status_override===s?'selected':''}>${s}</option>`).join('')}</select>`:esc(v.status_override||'—')}</div></div>
-    <div class="f"><div class="k">Status reason ${srcBadge('입력')}</div><div class="v">${editable?`<input value="${esc(v.status_reason)}" placeholder="override 시 사유 필수">`:esc(v.status_reason||'—')}</div></div>
+    <div class="f"><div class="k">Status override ${srcBadge('입력', true)}</div><div class="v">${editable?`<select data-f="status_override"><option value="">(자동 판정)</option>${['Cancelled','Rejected','Sold','OH Stock','Bonded Stock','In Transit','Shipment scheduled','In Production','Ordered(Fixed)','Ordered(Changeable)','Ordered(Dummy)'].map(s=>`<option ${v.status_override===s?'selected':''}>${s}</option>`).join('')}</select>`:esc(v.status_override||'—')}</div></div>
+    <div class="f"><div class="k">Status reason ${srcBadge('입력', true)}</div><div class="v">${editable?`<input value="${esc(v.status_reason)}" placeholder="override 시 사유 필수">`:esc(v.status_reason||'—')}</div></div>
   </div></div>`;
   const hist = VEHICLE_HISTORY.filter(h=>h.commission_no===comm);
   const histHtml = `<div class="card"><div class="card-h"><h2>변경 이력</h2><span class="desc">Vehicle_History · 필드 단위 before/after</span></div>
@@ -209,26 +217,33 @@ function legendEl(items){ return mk('div', {class:'legend'}, items.map(it=>mk('s
 // ---- SVG 세로 막대 차트 (DOM 버전): 그룹 막대 + 막대 수치 + 기준월 강조 + 영문 월 라벨 ----
 const MON_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function monEn(ym){ return MON_EN[Number(ym.slice(5,7))-1]||ym; }
+function ymLabel(ym){ return ym? `${ym.slice(0,4)}-${monEn(ym)}` : ''; } // 10/20 No.18: '2026-10' → '2026-Oct'
 function barChartEl(opts){
-  // opts: {months:[ym], series:[{name,color,values:[]}], baseIdx, width, height, visible, scrollTo}
+  // opts: {months:[ym], series:[{name,color,values:[]}], baseIdx, width, height, visible, scrollTo, barW, barGap}
   // visible: 한 화면에 보일 월 수(나머지는 가로 스크롤) · scrollTo: 처음에 왼쪽 끝에 올 월 index (10/19 No.14)
+  // barW·barGap: 막대 폭·같은 달 막대 사이 간격 (10/20 No.20 B안) · 스크롤 모드에서는 Y축을 별도 SVG로 왼쪽에 고정
   const n=opts.months.length, vis = (opts.visible && opts.visible<n)? opts.visible : null;
   // visible 지정 시 viewBox 폭을 n/visible배로 늘려(월당 폭·글자 크기는 그대로) SVG를 그만큼 넓게 표시하고 래퍼를 가로 스크롤
-  const W=(opts.width||1200)*(vis? n/vis : 1), H=opts.height||300, padL=42, padR=10, padT=20, padB=40;
+  const base=opts.width||1200, axisW=42, padL=vis? 6 : axisW;
+  const W=base*(vis? n/vis : 1), H=opts.height||300, padR=10, padT=20, padB=40;
   const gw=(W-padL-padR)/n, plotH=H-padT-padB;
   const max=Math.max(1,...opts.series.flatMap(s=>s.values));
   const nice=Math.ceil(max/10)*10;
   const y=v=>padT+plotH*(1-v/nice);
   const svg=mkSvg('svg', {class:'chart', viewBox:`0 0 ${W} ${H}`, role:'img'});
+  const axis=vis? mkSvg('svg', {class:'chart chart-axis', viewBox:`0 0 ${axisW} ${H}`, 'aria-hidden':'true'}) : null; // 고정 Y축
   for(let i=0;i<n;i++){ const x=padL+i*gw;
     if(opts.baseIdx!=null && i>opts.baseIdx) svg.append(mkSvg('rect', {class:'future', x, y:padT, width:gw, height:plotH}));
     if(i===opts.baseIdx) svg.append(mkSvg('rect', {class:'base strong', x:x+1, y:padT, width:gw-2, height:plotH}));
   }
-  for(let t=0;t<=4;t++){ const v=nice*t/4; svg.append(mkSvg('line', {class:'gridl', x1:padL, x2:W-padR, y1:y(v), y2:y(v)}), mkSvg('text', {x:padL-6, y:y(v)+4, 'text-anchor':'end'}, v)); }
-  const bw=Math.min(14,(gw-8)/opts.series.length-2);
-  opts.series.forEach((s,si)=>{ s.values.forEach((v,i)=>{ const x=padL+i*gw+(gw-(bw+2)*opts.series.length)/2+si*(bw+2); const yy=y(v); const future=opts.baseIdx!=null&&i>opts.baseIdx;
-    svg.append(mkSvg('rect', {class:'bar', x, y:yy, width:bw, height:Math.max(0,H-padB-yy), fill:s.color, 'data-tip':`${monEn(opts.months[i])} ${opts.months[i].slice(0,4)} · ${s.name} ${v}대${future?' (계획/예정)':''}`}));
-    if(v>0) svg.append(mkSvg('text', {class:'vlbl', x:x+bw/2, y:yy-3, 'text-anchor':'middle'}, v));
+  for(let t=0;t<=4;t++){ const v=nice*t/4; svg.append(mkSvg('line', {class:'gridl', x1:padL, x2:W-padR, y1:y(v), y2:y(v)}));
+    (axis||svg).append(mkSvg('text', {x:axisW-6, y:y(v)+4, 'text-anchor':'end'}, v)); }
+  const bg=opts.barGap!=null? opts.barGap : 2;
+  const bw=Math.min(opts.barW||14,(gw-8)/opts.series.length-bg);
+  opts.series.forEach((s,si)=>{ s.values.forEach((v,i)=>{ const x=padL+i*gw+(gw-(bw+bg)*opts.series.length)/2+si*(bw+bg); const yy=y(v); const future=opts.baseIdx!=null&&i>opts.baseIdx; const hgt=Math.max(0,H-padB-yy);
+    svg.append(mkSvg('rect', {class:'bar', x, y:yy, width:bw, height:hgt, fill:s.color, 'data-tip':`${monEn(opts.months[i])} ${opts.months[i].slice(0,4)} · ${s.name} ${v}대${future?' (계획/예정)':''}`}));
+    // 수치는 막대 안쪽 위에 흰색으로, 막대가 짧으면 위에 표시 (10/20 No.20)
+    if(v>0) svg.append(hgt>=16? mkSvg('text', {class:'ilbl', x:x+bw/2, y:yy+11, 'text-anchor':'middle'}, v) : mkSvg('text', {class:'vlbl', x:x+bw/2, y:yy-3, 'text-anchor':'middle'}, v));
   }); });
   opts.months.forEach((m,i)=>{ const cx=padL+i*gw+gw/2; svg.append(mkSvg('text', {class:i===opts.baseIdx?'base-m':'', x:cx, y:H-padB+15, 'text-anchor':'middle'}, monEn(m)));
     if(i===0 || m.endsWith('-01')) svg.append(mkSvg('text', {class:'yr', x:cx, y:H-padB+30, 'text-anchor':'middle'}, m.slice(0,4))); });
@@ -238,7 +253,9 @@ function barChartEl(opts){
     svg.style.width = (n/vis*100).toFixed(1)+'%';
     const wrap = mk('div', {class:'chart-scroll'}, svg);
     wrap.dataset.scrollFrac = ((padL + (opts.scrollTo||0)*gw)/W).toFixed(4); // 스크롤 위치 = SVG 전체 폭 × 비율
-    return mk('div', null, wrap, legend);
+    // Y축 SVG 폭 = 전체 폭 × axisW/(base+axisW) 이면 두 SVG의 px/단위 배율이 같아져 눈금 높이가 맞는다 (측정 불필요)
+    axis.style.width = (axisW/(base+axisW)*100).toFixed(3)+'%';
+    return mk('div', null, mk('div', {class:'chart-split'}, axis, wrap), legend);
   }
   return mk('div', null, svg, legend);
 }

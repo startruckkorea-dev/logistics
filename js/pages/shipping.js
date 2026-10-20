@@ -36,7 +36,7 @@ PAGES.shipping = {
       mk('div', {class:'card-h'}, mk('h2', null, '월별 입항 예정 (Arrival Schedule)'), mk('span', {class:'desc'}, '행: 구분 > 차종 > 모델 · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)')),
       mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot'},
         mk('thead', null,
-          mk('tr', null, mk('th', {rowspan:2}, 'Model'), yms.flatMap(k=>[mk('th', {class:'ym', colspan:voyByYm[k].length}, k.slice(2)), mk('th', {class:'num tot', rowspan:2}, k.slice(2)+' Total')]), mk('th', {class:'num gt', rowspan:2}, 'Grand Total')),
+          mk('tr', null, mk('th', {rowspan:2}, 'Model'), yms.flatMap(k=>[mk('th', {class:'ym', colspan:voyByYm[k].length}, ymLabel(k)), mk('th', {class:'num tot', rowspan:2}, ymLabel(k)+' Total')]), mk('th', {class:'num gt', rowspan:2}, 'Grand Total')),
           mk('tr', null, yms.flatMap(k=>voyByYm[k].map(y=>mk('th', {class:'num', title:`${y.carrier} · Shipping ${y.shipping}`}, y.vessel))))),
         mk('tbody', null, bodyRows))),
       mk('div', {class:'muted small', style:'margin-top:6px'}, '선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. 실제 구현에서는 셀 클릭 → 해당 선박·모델 Logistics 목록.'));

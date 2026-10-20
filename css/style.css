@@ -356,3 +356,8 @@ body.viewer .viewer-only{display:inline}
 /* 10/19: 상태점(.dot.r)이 있는 셀은 점 자리를 padding으로 확보하고 점을 절대 위치로 둬 열이 좁아져도 다음 줄로 밀리지 않게 함 (헤더 2행 변경으로 열 폭이 줄어든 데 따른 보정) */
 .grid td.dotcell{position:relative;padding-right:22px}
 .grid td.dotcell .dot.r{float:none;position:absolute;right:8px;top:50%;margin:-4px 0 0 0}
+/* 10/20 No.20: 월별 추이 — 고정 Y축 + 스크롤 막대 영역, 막대 안 수치 */
+.chart-split{display:flex;align-items:flex-start}
+.chart-split .chart-axis{flex:none}
+.chart-split .chart-scroll{flex:1;min-width:0}
+.chart text.ilbl{fill:#fff;font-size:9.5px;font-weight:600}

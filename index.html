@@ -9,9 +9,10 @@
 <body>
   <!-- 상단 메뉴 바 (G1) -->
   <header class="topbar">
-    <div class="logo">STK Logistics Hub <span class="tag">목업 v0.1</span></div>
+    <div class="logo">STK Logistics Hub <span class="tag" id="logoTag">목업 v0.1</span></div>
     <nav id="nav"></nav>
-    <div class="afab-last" title="AFAB_Uploads 최근 반영">AFAB 최근 반영 <b>2026-10-07 08:42</b> · 677행 · 변경 1</div>
+    <div class="langbox" id="langbox" title="언어 전환 / Language"><button type="button" data-lang="ko" class="active">한</button><button type="button" data-lang="en">EN</button></div>
+    <div class="afab-last" id="afabLast" title="AFAB_Uploads 최근 반영"></div>
     <div class="userbox">👤 <b id="userName"></b> <select id="roleSel" title="역할 전환(목업 시연용)"><option>Editor</option><option>Viewer</option></select></div>
   </header>
   <main class="page" id="app"></main>

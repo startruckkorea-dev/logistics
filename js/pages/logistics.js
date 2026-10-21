@@ -18,8 +18,8 @@ PAGES.logistics = {
     root.innerHTML = `<div class="card">
       <div class="card-h"><div class="filters" id="filters"></div><span class="spacer"></span>
         <div class="btn-group">
-          <button class="btn editor-only" id="btnAdd">오더 생성 ${note('L7')}</button>
-          <button class="btn" id="btnExport">엑셀 내보내기</button>
+          <button class="btn editor-only" id="btnAdd">${tx('오더 생성')} ${note('L7')}</button>
+          <button class="btn" id="btnExport">${tx('엑셀 내보내기')}</button>
         </div></div>
       <div class="editbar editor-only" id="editbar" hidden></div>
       <div class="grp-nav" id="grpnav"></div>
@@ -52,12 +52,12 @@ function renderFilters(){
   const by = countBy(VEHICLES, v=>v.current_status);
   const stages = ['', ...STAGES, 'Cancelled'];
   stages.splice(stages.indexOf('Shipment scheduled')+1, 0, ...Object.keys(STAGE_COMBOS)); // 단계 2개 동시 선택 항목
-  const optLabel = s=> !s? `전체 (${num(VEHICLES.length)})` : STAGE_COMBOS[s]? `${STAGE_COMBOS[s]} (${num(s.split(',').reduce((a,x)=>a+(by[x]||0),0))})` : `${s} (${num(by[s]||0)})`;
+  const optLabel = s=> !s? tx('전체 ({n})', {n:num(VEHICLES.length)}) : STAGE_COMBOS[s]? `${STAGE_COMBOS[s]} (${num(s.split(',').reduce((a,x)=>a+(by[x]||0),0))})` : `${s} (${num(by[s]||0)})`;
   el('filters').innerHTML = `${note('L1')}
-    <label>단계 <select id="fStage">${stages.map(s=>`<option value="${esc(s)}" ${LF.stage===s?'selected':''}>${esc(optLabel(s))}</option>`).join('')}</select></label>
+    <label>${tx('단계')} <select id="fStage">${stages.map(s=>`<option value="${esc(s)}" ${LF.stage===s?'selected':''}>${esc(optLabel(s))}</option>`).join('')}</select></label>
     ${note('L2')}
-    <label>검색 <input id="fQ" placeholder="Comm / VIN / B/L / Vessel / Type / Order·Option Note" value="${esc(LF.q)}" style="width:260px"></label>
-    <button class="btn sm" id="fReset">초기화</button>
+    <label>${tx('검색')} <input id="fQ" placeholder="Comm / VIN / B/L / Vessel / Type / Order·Option Note" value="${esc(LF.q)}" style="width:260px"></label>
+    <button class="btn sm" id="fReset">${tx('초기화')}</button>
     <button class="btn sm editor-only" id="btnEdit"></button>
     <span class="muted small" id="fCount"></span>`;
   el('fStage').onchange = e=>{ LF.stage=e.target.value; LF.page=1; renderGrid(); };
@@ -76,7 +76,7 @@ function scrollToMatch(){
 }
 function syncEditBtn(){
   const be = el('btnEdit'); if(!be) return;
-  be.textContent = EDIT.on? '편집 종료' : '편집';
+  be.textContent = EDIT.on? tx('편집 종료') : tx('편집');
   be.classList.toggle('primary', EDIT.on);
   be.title = EDIT.on? '변경 내용을 저장하고 편집을 종료합니다' : '오더 복수 선택 → 오더 변경 · Key-in 입력 · 열 표시/숨김';
 }
@@ -115,7 +115,7 @@ function renderGrid(){
   const totalPages = Math.max(1, Math.ceil(rows.length/LF.size)); if(LF.page>totalPages) LF.page=totalPages;
   const pageRows = rows.slice((LF.page-1)*LF.size, LF.page*LF.size);
   const fkeys = Object.keys(LF.col);
-  el('fCount').textContent = `${num(rows.length)}건 / 전체 ${num(VEHICLES.length)}` + (fkeys.length? ` · 열 필터: ${fkeys.map(keyinLabel).join(' · ')}` : '');
+  el('fCount').textContent = tx('{n}건 / 전체 {m}', {n:num(rows.length), m:num(VEHICLES.length)}) + (fkeys.length? tx(' · 열 필터: {cols}', {cols:fkeys.map(keyinLabel).join(' · ')}) : '');
   // 헤더 2줄 (10/19 No.2): 1행 = 열 이름만 · 2행 = 체크박스 · 출처 배지 · 정렬 표시 · 열 필터 (Comm No.는 첫 열 고정)
   const sortIcon = k=> LF.sort===k? `<span class="sort">${LF.dir>0?'▲':'▼'}</span>`:'';
   const canEdit = isEditor();
@@ -124,7 +124,7 @@ function renderGrid(){
   const filtBtn = c=> FILTER_COLS.includes(c.key)? `<button class="cf ${LF.col[c.key]?'on':''}" data-filter="${c.key}" title="${esc(c.label)} 열 필터">▼</button>` : '';
   const rest = cols.filter(c=>c.key!=='commission_no');
   let h = `<table class="grid"><thead><tr class="fld"><th class="sticky" data-sort="commission_no" title="commission_no">Commission No</th>`;
-  h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}" title="${c.key}">${esc(c.label)}</th>`).join('') + '</tr>';
+  h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}" title="${c.key}">${esc(tx(c.label))}</th>`).join('') + '</tr>';
   h += `<tr class="sub"><th class="sticky" data-sort="commission_no">${EDIT.on?'<input type="checkbox" id="selAll" title="현재 페이지 전체 선택">':''}${srcBadge('AFAB')}${sortIcon('commission_no')}</th>`;
   h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}">${colBox(c)}${srcBadge(c.src, c.keyin)}${sortIcon(c.key)}${filtBtn(c)}</th>`).join('') + '</tr></thead><tbody>';
   const selBox = v=> EDIT.on? `<input type="checkbox" class="rowsel" ${EDIT.sel.has(v.commission_no)?'checked':''}>` : '';
@@ -132,7 +132,7 @@ function renderGrid(){
   const pend = (v,c)=> EDIT.pending[v.commission_no] && c.key in EDIT.pending[v.commission_no];
   h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${(c.key==='model'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
   h += '</tbody></table>';
-  if(!rows.length) h = '<div class="muted" style="padding:30px;text-align:center">조건에 맞는 차량이 없습니다.</div>';
+  if(!rows.length) h = `<div class="muted" style="padding:30px;text-align:center">${tx('조건에 맞는 차량이 없습니다.')}</div>`;
   const wrap = el('gridwrap'); wrap.innerHTML = h;
   qa('th[data-sort]', wrap).forEach(th=>th.onclick=e=>{ if(e.target.closest('.colvis,.cf')) return; const k=th.dataset.sort; if(LF.sort===k) LF.dir*=-1; else { LF.sort=k; LF.dir=1; } renderGrid(); });
   qa('th .colvis', wrap).forEach(cb=>{ cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>{ if(cb.checked) state.hiddenCols.delete(cb.dataset.col); else state.hiddenCols.add(cb.dataset.col); renderGrid(); }; }); // 변경 이력 없음
@@ -148,13 +148,13 @@ function renderGrid(){
   syncEditBtn();
   const sa = el('selAll'); if(sa){ sa.onclick = e=>e.stopPropagation(); sa.onchange = ()=>{ pageRows.forEach(v=>{ if(sa.checked) EDIT.sel.add(v.commission_no); else EDIT.sel.delete(v.commission_no); }); renderGrid(); }; }
   renderEditbar();
-  el('grpnav').innerHTML = `${note('L3')} 바로가기: ` + GRID_JUMPS.map(k=>{ const c=COLUMNS.find(x=>x.key===k); return `<button data-go="${k}" title="${esc(c?c.label:k)} 열로 이동">${esc(c?c.label:k)}</button>`; }).join('') + ` <span class="muted">· 열 ${visibleCols().length}/${COLUMNS.length} · 가로 스크롤 · Comm No. 고정 ${note('L5')}</span>`;
+  el('grpnav').innerHTML = `${note('L3')} ${tx('바로가기')}: ` + GRID_JUMPS.map(k=>{ const c=COLUMNS.find(x=>x.key===k); return `<button data-go="${k}" title="${esc(c?c.label:k)} 열로 이동">${esc(c?c.label:k)}</button>`; }).join('') + ` <span class="muted">${tx('· 열 {a}/{b} · 가로 스크롤 · Comm No. 고정', {a:visibleCols().length, b:COLUMNS.length})} ${note('L5')}</span>`;
   // 바로가기 이동: 고정된 Comm No. 열 실제 너비만큼 띄워 대상 열이 가려지지 않게 함 (10/15 No.14)
   qa('#grpnav button').forEach(b=>b.onclick=()=>{ const th = b.dataset.go==='current_status' ? null : q(`thead th[data-sort="${b.dataset.go}"]`, wrap); const sticky = q('thead th.sticky', wrap); const stickyW = sticky? sticky.offsetWidth : 0;
     if(th) wrap.scrollTo({left: Math.max(0, th.offsetLeft - stickyW - 8), behavior:'smooth'}); else wrap.scrollTo({left:0,behavior:'smooth'}); });
-  el('pager').innerHTML = `<span>${num(rows.length)}건 중 ${num((LF.page-1)*LF.size+1)}–${num(Math.min(rows.length, LF.page*LF.size))}</span>
-    <button class="btn sm" id="pgPrev" ${LF.page<=1?'disabled':''}>‹ 이전</button><span>${LF.page} / ${totalPages}</span><button class="btn sm" id="pgNext" ${LF.page>=totalPages?'disabled':''}>다음 ›</button>
-    <span class="muted">50행 페이지 (실제 구현은 가상 스크롤 또는 50행 페이지)</span>`;
+  el('pager').innerHTML = `<span>${tx('{n}건 중 {a}–{b}', {n:num(rows.length), a:num((LF.page-1)*LF.size+1), b:num(Math.min(rows.length, LF.page*LF.size))})}</span>
+    <button class="btn sm" id="pgPrev" ${LF.page<=1?'disabled':''}>${tx('‹ 이전')}</button><span>${LF.page} / ${totalPages}</span><button class="btn sm" id="pgNext" ${LF.page>=totalPages?'disabled':''}>${tx('다음 ›')}</button>
+    <span class="muted">${tx('50행 페이지 (실제 구현은 가상 스크롤 또는 50행 페이지)')}</span>`;
   el('pgPrev').onclick=()=>{ LF.page--; renderGrid(); el('gridwrap').scrollTop=0; }; el('pgNext').onclick=()=>{ LF.page++; renderGrid(); el('gridwrap').scrollTop=0; };
 }
 function renderEditbar(){
@@ -163,12 +163,12 @@ function renderEditbar(){
   if(!EDIT.on) return;
   const n = EDIT.sel.size;
   bar.append(
-    mk('b', null, '편집 모드'), mk('span', {class:'muted'}, '· 선택 '), mk('b', null, num(n)), mk('span', {class:'muted'}, '건'),
-    mk('button', {class:'btn sm primary', disabled: n===0, onclick: openModelChange}, '오더 변경 (모델 일괄)'),
-    mk('button', {class:'btn sm', disabled: n===0, onclick: openBulkKeyin}, 'Key-in 일괄 입력'),
-    mk('button', {class:'btn sm', disabled: n===0, onclick: ()=>{ EDIT.sel.clear(); renderGrid(); }}, '선택 해제'),
-    mk('span', {class:'muted small'}, 'Key-in 대상 열: B1 Factory Order · Sales Month (셀 클릭 → 개별 입력)'),
-    mk('span', {class:'muted small'}, `· 저장 대기 ${num(pendingCount())}건 → '편집 종료' 시 저장·변경 이력 기록`));
+    mk('b', null, tx('편집 모드')), mk('span', {class:'muted'}, tx('· 선택 ')), mk('b', null, num(n)), mk('span', {class:'muted'}, tx('건')),
+    mk('button', {class:'btn sm primary', disabled: n===0, onclick: openModelChange}, tx('오더 변경 (모델 일괄)')),
+    mk('button', {class:'btn sm', disabled: n===0, onclick: openBulkKeyin}, tx('Key-in 일괄 입력')),
+    mk('button', {class:'btn sm', disabled: n===0, onclick: ()=>{ EDIT.sel.clear(); renderGrid(); }}, tx('선택 해제')),
+    mk('span', {class:'muted small'}, tx('Key-in 대상 열: B1 Factory Order · Sales Month (셀 클릭 → 개별 입력)')),
+    mk('span', {class:'muted small'}, tx("· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록", {n:num(pendingCount())})));
 }
 function keyinLabel(key){ const c = COLUMNS.find(x=>x.key===key); return c? c.label : key; }
 function setKeyinCell(td, val){ td.replaceChildren(); if(val==null||val==='') td.append(mk('span', {class:'dim'}, '·')); else td.append(String(val)); }
@@ -221,17 +221,17 @@ function openModelChange(){
   const body = mk('div', null,
     mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건의 모델 속성(Vehicle · Gen · Model · Axle · Cab · Option · Baumuster · BM)을 Model_Master에서 선택한 모델로 일괄 변경합니다. Model In AFAB는 AFAB 업로드 값이라 바뀌지 않으며, 'Type' 열의 점(초록/빨강)으로 일치 여부를 확인합니다. 변경 내용은 '편집 종료' 시 저장됩니다.`),
     mk('div', {class:'fields'},
-      mk('div', {class:'f wide'}, mk('div', {class:'k'}, '현재 BM'), mk('div', {class:'v'}, Object.keys(byBm).sort().map(k=>`${k} ${num(byBm[k])}건`).join(' · '))),
-      mk('div', {class:'f wide'}, mk('div', {class:'k'}, '현재 모델 분포'), mk('div', {class:'v'}, Object.keys(by).sort().map(k=>`${k} ${num(by[k])}건`).join(' · '))),
-      mk('div', {class:'f wide'}, mk('div', {class:'k'}, '변경할 모델 (Model_Master) *'), mk('div', {class:'v'}, sel))));
-  openModal('오더 변경 — 모델 일괄 변경', '', ' ');
+      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('현재 BM')), mk('div', {class:'v'}, Object.keys(byBm).sort().map(k=>tx('{k} {n}건', {k, n:num(byBm[k])})).join(' · '))),
+      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('현재 모델 분포')), mk('div', {class:'v'}, Object.keys(by).sort().map(k=>tx('{k} {n}건', {k, n:num(by[k])})).join(' · '))),
+      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('변경할 모델 (Model_Master) *')), mk('div', {class:'v'}, sel))));
+  openModal(tx('오더 변경 — 모델 일괄 변경'), '', ' ');
   el('modal-body').replaceChildren(body);
   el('modal-foot').replaceChildren(
-    mk('button', {class:'btn', onclick: closeModal}, '취소'),
+    mk('button', {class:'btn', onclick: closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick: ()=>{ const m = MODEL_MASTER.find(x=>x.prefix===sel.value); if(!m) return;
       const patch = Store.vehicles.modelMasterPatch(m);
       vs.forEach(v=>Object.entries(patch).forEach(([k,val])=>stageChange(v.commission_no, k, val, '수동/일괄'))); closeModal(); renderGrid();
-      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${m.model} ${m.axle} ${m.cab}${m.option?' '+m.option:''} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, '변경'));
+      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${m.model} ${m.axle} ${m.cab}${m.option?' '+m.option:''} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
 }
 function openBulkKeyin(){
   const vs = selectedVehicles(); if(!vs.length) return;
@@ -239,15 +239,15 @@ function openBulkKeyin(){
   const row = (key, ph)=>{ inputs[key] = mk('input', {placeholder: ph}); return mk('div', {class:'f'}, mk('div', {class:'k'}, keyinLabel(key)), mk('div', {class:'v'}, inputs[key])); };
   const body = mk('div', null,
     mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건에 아래 값을 일괄 입력합니다. 비워 둔 열은 변경하지 않습니다. 변경 내용은 '편집 종료' 시 저장됩니다.`),
-    mk('div', {class:'fields'}, row('b1_factory_order','예) B1-12345'), row('sales_month','YYYY-MM')));
-  openModal('Key-in 일괄 입력', '', ' ');
+    mk('div', {class:'fields'}, row('b1_factory_order',tx('예) B1-12345')), row('sales_month','YYYY-MM')));
+  openModal(tx('Key-in 일괄 입력'), '', ' ');
   el('modal-body').replaceChildren(body);
   el('modal-foot').replaceChildren(
-    mk('button', {class:'btn', onclick: closeModal}, '취소'),
+    mk('button', {class:'btn', onclick: closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick: ()=>{ const changed = KEYIN_COLS.filter(k=>inputs[k].value.trim()!=='');
       if(!changed.length){ toast('입력값 없음', '하나 이상의 열에 값을 입력하세요.'); return; }
       vs.forEach(v=>changed.forEach(k=>stageChange(v.commission_no, k, inputs[k].value.trim(), '수동/일괄'))); closeModal(); renderGrid();
-      toast(`Key-in 일괄 입력 ${num(vs.length)}건 (저장 대기)`, `열: ${changed.map(keyinLabel).join(' · ')} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, '적용'));
+      toast(`Key-in 일괄 입력 ${num(vs.length)}건 (저장 대기)`, `열: ${changed.map(keyinLabel).join(' · ')} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('적용')));
 }
 
 // ---- 열 필터 (10/15 No.18): 머리글 ▼ → 값 목록 체크 선택 (값 검색 가능) ----
@@ -258,37 +258,37 @@ function openColFilter(btn, key){
   const counts = countBy(VEHICLES, v=>filterVal(v,key));
   const checked = new Set(LF.col[key] || vals);
   const isDate = DATE_FILTER_COLS.includes(key); // 날짜 열: 연도 → 월 체크 트리 (10/19 No.3)
-  const search = mk('input', {type:'text', placeholder: key==='model'? '값 검색 (예: 2853)' : isDate? '연·월 검색 (예: 2026-11)' : '값 검색'});
+  const search = mk('input', {type:'text', placeholder: key==='model'? tx('값 검색 (예: 2853)') : isDate? tx('연·월 검색 (예: 2026-11)') : tx('값 검색')});
   const list = mk('div', {class:'cf-list'});
   const shown = ()=>{ const t = search.value.trim().toLowerCase(); return vals.filter(x=>!t || x.toLowerCase().includes(t)); };
   const leaf = (x, cls, text, onchange)=>{ const cb = mk('input', {type:'checkbox', onchange:()=>{ if(cb.checked) checked.add(x); else checked.delete(x); if(onchange) onchange(); }}); cb.checked = checked.has(x);
     return mk('label', {class:cls}, cb, mk('span', null, text), mk('span', {class:'muted small'}, num(counts[x]||0))); };
   const draw = ()=>{ list.replaceChildren();
-    if(!isDate){ shown().forEach(x=>list.append(leaf(x, null, x))); }
+    if(!isDate){ shown().forEach(x=>list.append(leaf(x, null, x==='(빈 값)'? tx(x) : x))); }
     else {
       const byYear = {}; shown().forEach(x=>{ const y = x==='(빈 값)'? x : x.slice(0,4); (byYear[y] = byYear[y]||[]).push(x); });
       Object.keys(byYear).sort().forEach(y=>{
         const months = byYear[y];
-        if(y==='(빈 값)'){ list.append(leaf(y, null, y)); return; }
+        if(y==='(빈 값)'){ list.append(leaf(y, null, tx(y))); return; }
         const ycb = mk('input', {type:'checkbox', onchange:()=>{ months.forEach(x=>{ if(ycb.checked) checked.add(x); else checked.delete(x); }); draw(); }});
         const sync = ()=>{ const n = months.filter(x=>checked.has(x)).length; ycb.checked = n===months.length; ycb.indeterminate = n>0 && n<months.length; };
         sync();
-        list.append(mk('label', {class:'yr'}, ycb, mk('span', null, y+'년'), mk('span', {class:'muted small'}, num(months.reduce((a,x)=>a+(counts[x]||0),0)))));
-        months.forEach(x=>list.append(leaf(x, 'mo', x.slice(5)+'월', sync)));
+        list.append(mk('label', {class:'yr'}, ycb, mk('span', null, tx('{y}년', {y})), mk('span', {class:'muted small'}, num(months.reduce((a,x)=>a+(counts[x]||0),0)))));
+        months.forEach(x=>list.append(leaf(x, 'mo', tx('{m}월', {m:x.slice(5), mon:monEn(x)}), sync)));
       });
     }
-    if(!list.childElementCount) list.append(mk('div', {class:'muted small'}, '일치하는 값이 없습니다.')); };
+    if(!list.childElementCount) list.append(mk('div', {class:'muted small'}, tx('일치하는 값이 없습니다.'))); };
   search.oninput = draw; draw();
   const pop = mk('div', {class:'colfilter', id:'colfilter'},
-    mk('div', {class:'cf-h'}, mk('b', null, c.label+' 열 필터'), mk('button', {class:'x', title:'닫기', onclick: closeColFilter}, '×')),
+    mk('div', {class:'cf-h'}, mk('b', null, tx('{c} 열 필터', {c:tx(c.label)})), mk('button', {class:'x', title:'닫기', onclick: closeColFilter}, '×')),
     search,
     mk('div', {class:'cf-tools'},
-      mk('button', {class:'btn sm', onclick:()=>{ shown().forEach(x=>checked.add(x)); draw(); }}, '표시된 값 전체 선택'),
-      mk('button', {class:'btn sm', onclick:()=>{ shown().forEach(x=>checked.delete(x)); draw(); }}, '표시된 값 해제')),
+      mk('button', {class:'btn sm', onclick:()=>{ shown().forEach(x=>checked.add(x)); draw(); }}, tx('표시된 값 전체 선택')),
+      mk('button', {class:'btn sm', onclick:()=>{ shown().forEach(x=>checked.delete(x)); draw(); }}, tx('표시된 값 해제'))),
     list,
     mk('div', {class:'cf-foot'},
-      mk('button', {class:'btn sm', onclick:()=>{ delete LF.col[key]; LF.page=1; closeColFilter(); renderGrid(); }}, '필터 해제'),
-      mk('button', {class:'btn sm primary', onclick:()=>{ if(checked.size>=vals.length) delete LF.col[key]; else LF.col[key]=new Set(checked); LF.page=1; closeColFilter(); renderGrid(); }}, '적용')));
+      mk('button', {class:'btn sm', onclick:()=>{ delete LF.col[key]; LF.page=1; closeColFilter(); renderGrid(); }}, tx('필터 해제')),
+      mk('button', {class:'btn sm primary', onclick:()=>{ if(checked.size>=vals.length) delete LF.col[key]; else LF.col[key]=new Set(checked); LF.page=1; closeColFilter(); renderGrid(); }}, tx('적용'))));
   const r = btn.getBoundingClientRect();
   pop.style.top = (r.bottom+4)+'px'; pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth-296))+'px';
   document.body.append(pop); search.focus();
@@ -304,18 +304,18 @@ function openAddOrder(){
   const field = (label, ctl, wide)=> mk('div', {class:'f'+(wide?' wide':'')}, mk('div', {class:'k'}, label), mk('div', {class:'v'}, ctl));
   const modelLine = m=> [m.vehicle, m.series, m.model, m.axle, m.cab, m.option].filter(Boolean).join(' · ');
   // 1~2. Type 숫자 검색 → 해당 숫자가 포함된 Type 드롭다운
-  const search = mk('input', {placeholder:'Type 숫자 3~4자리 (예: 2863)', maxlength:'4', style:'width:100%'});
-  const typeSel = mk('select', {style:'width:100%', disabled:true}, mk('option', {value:''}, '검색어를 입력하세요'));
+  const search = mk('input', {placeholder:tx('Type 숫자 3~4자리 (예: 2863)'), maxlength:'4', style:'width:100%'});
+  const typeSel = mk('select', {style:'width:100%', disabled:true}, mk('option', {value:''}, tx('검색어를 입력하세요')));
   // 3. MY
   const mySel = mk('select', {style:'width:100%'}, Object.values(MY_FROM_LETTER).map(n=>mk('option', {value:'MY'+n}, 'MY'+n)));
   mySel.value = 'MY'+MY_FROM_LETTER[myLetterFromPm(ymAdd(BASE_YM,3))];
   // 5. 모델 한 줄 드롭다운 (Vehicle · Model · Type · Axle · Cab · Option)
-  const modelSel = mk('select', {style:'width:100%', disabled:true}, mk('option', {value:''}, 'Type을 먼저 선택하세요'));
+  const modelSel = mk('select', {style:'width:100%', disabled:true}, mk('option', {value:''}, tx('Type을 먼저 선택하세요')));
   // 4. 매칭된 Model_Master 속성 표시 (BM = Baumuster Code1-Code2)
   const attrs = mk('div', {class:'kv small', style:'grid-template-columns:140px 1fr'});
   const drawAttrs = ()=>{ attrs.replaceChildren();
-    const m = active[Number(modelSel.value)]; if(!m){ attrs.append(mk('dt', {class:'muted'}, '모델을 선택하면 속성이 표시됩니다.')); return; }
-    [['BM', m.prefix+'-'+m.code2], ['Baumuster', m.prefix+' '+m.suffix], ['Model In AFAB', m.type_desc], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Option', m.option||'—'], ['Gen', m.gen], ['리드타임(월)', String(m.lead)], ['MY', mySel.value]]
+    const m = active[Number(modelSel.value)]; if(!m){ attrs.append(mk('dt', {class:'muted'}, tx('모델을 선택하면 속성이 표시됩니다.'))); return; }
+    [['BM', m.prefix+'-'+m.code2], ['Baumuster', m.prefix+' '+m.suffix], ['Model In AFAB', m.type_desc], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Option', m.option||'—'], ['Gen', m.gen], [tx('리드타임(월)'), String(m.lead)], ['MY', mySel.value]]
       .forEach(([k,v])=>attrs.append(mk('dt', null, k), mk('dd', {class:'mono'}, v))); };
   // 6. Original PM(생산월) · 수량 · Current Status
   const pmIn = mk('input', {placeholder:'YYYY-MM', value: ymAdd(BASE_YM,3), style:'width:100%'});
@@ -327,22 +327,22 @@ function openAddOrder(){
   const nextOf = (s, k)=> String(Number(s)+k).padStart(s.length, '0');
   const rCont = mk('input', {type:'radio', name:'commMode', value:'cont', checked:true, style:'width:auto'});
   const rNew = mk('input', {type:'radio', name:'commMode', value:'new', style:'width:auto'});
-  const startIn = mk('input', {placeholder:'시작 번호 (예) 071009001', value: nextOf(last,1), disabled:true, style:'width:160px'});
+  const startIn = mk('input', {placeholder:tx('시작 번호 (예) 071009001'), value: nextOf(last,1), disabled:true, style:'width:160px'});
   const preview = mk('div', {class:'muted small'});
   const err = mk('div', {class:'small', style:'color:var(--danger);font-weight:600', hidden:true});
   const commList = ()=>{ const n = Math.max(1, Math.floor(Number(qtyIn.value)||1)); const start = rCont.checked? nextOf(last,1) : startIn.value.trim();
     if(!/^\d+$/.test(start)) return []; return Array.from({length:n}, (_,i)=>nextOf(start,i)); };
-  const drawPreview = ()=>{ const cs = commList(); preview.textContent = cs.length? `생성될 Commission No: ${cs[0]}${cs.length>1?` ~ ${cs[cs.length-1]}`:''} (${num(cs.length)}건) · 마지막 번호 ${last}` : '시작 번호는 숫자만 입력하세요.'; };
+  const drawPreview = ()=>{ const cs = commList(); preview.textContent = cs.length? tx('생성될 Commission No: {range} ({n}건) · 마지막 번호 {last}', {range:`${cs[0]}${cs.length>1?` ~ ${cs[cs.length-1]}`:''}`, n:num(cs.length), last}) : tx('시작 번호는 숫자만 입력하세요.'); };
   const setMode = ()=>{ startIn.disabled = !rNew.checked; drawPreview(); };
   rCont.onchange = rNew.onchange = setMode; startIn.oninput = drawPreview; qtyIn.oninput = drawPreview;
   // 흐름 연결
   search.oninput = ()=>{ const t = search.value.replace(/\D/g,''); search.value = t;
     const types = [...new Set(active.filter(m=>m.model.includes(t)).map(m=>m.model))].sort();
-    typeSel.replaceChildren(mk('option', {value:''}, t.length>=3 && types.length? `Type 선택 (${num(types.length)})` : t.length<3? '숫자 3~4자리를 입력하세요' : '일치하는 Type 없음'), ...(t.length>=3? types.map(x=>mk('option', {value:x}, x)) : []));
+    typeSel.replaceChildren(mk('option', {value:''}, t.length>=3 && types.length? tx('Type 선택 ({n})', {n:num(types.length)}) : t.length<3? tx('숫자 3~4자리를 입력하세요') : tx('일치하는 Type 없음')), ...(t.length>=3? types.map(x=>mk('option', {value:x}, x)) : []));
     typeSel.disabled = !(t.length>=3 && types.length); typeSel.onchange(); };
   typeSel.onchange = ()=>{ const t = typeSel.value;
     const rows = active.map((m,i)=>({m,i})).filter(x=>x.m.model===t);
-    modelSel.replaceChildren(mk('option', {value:''}, t? `모델 선택 (${num(rows.length)})` : 'Type을 먼저 선택하세요'), ...rows.map(x=>mk('option', {value:String(x.i)}, modelLine(x.m))));
+    modelSel.replaceChildren(mk('option', {value:''}, t? tx('모델 선택 ({n})', {n:num(rows.length)}) : tx('Type을 먼저 선택하세요')), ...rows.map(x=>mk('option', {value:String(x.i)}, modelLine(x.m))));
     modelSel.disabled = !rows.length; if(rows.length===1) modelSel.value = String(rows[0].i); drawAttrs(); };
   modelSel.onchange = drawAttrs; mySel.onchange = drawAttrs;
   pmIn.oninput = ()=>{ if(/^\d{4}-\d{2}$/.test(pmIn.value.trim())){ mySel.value = 'MY'+MY_FROM_LETTER[myLetterFromPm(pmIn.value.trim())]; drawAttrs(); } };
@@ -350,20 +350,20 @@ function openAddOrder(){
   const body = mk('div', null,
     mk('div', {class:'callout'}, 'AFAB에 아직 없는 오더(예: 구두 확정 오더, 특수 사양)를 수동 등록합니다. 이후 AFAB 업로드에서 같은 Commission No.가 들어오면 AFAB 필드가 덮어쓰고 출처가 AFAB로 바뀝니다.'),
     mk('div', {class:'fields'},
-      field('① Type 검색 *', search), field('② Type *', typeSel),
-      field('③ MY *', mySel), field('④ 모델 (Model_Master) *', modelSel),
-      field('매칭된 모델 속성', attrs, true),
-      field('⑤ Original PM (생산월) *', pmIn), field('수량 *', qtyIn), field('Current Status *', stSel),
-      field('⑥ Commission No 생성 방식 *', mk('div', {style:'display:flex;gap:14px;align-items:center;flex-wrap:wrap'},
-        mk('label', null, rCont, ' 마지막 번호에 이어서 생성'), mk('label', null, rNew, ' 새 번호로 시작 ', startIn)), true),
+      field(tx('① Type 검색 *'), search), field('② Type *', typeSel),
+      field('③ MY *', mySel), field(tx('④ 모델 (Model_Master) *'), modelSel),
+      field(tx('매칭된 모델 속성'), attrs, true),
+      field(tx('⑤ Original PM (생산월) *'), pmIn), field(tx('수량 *'), qtyIn), field('Current Status *', stSel),
+      field(tx('⑥ Commission No 생성 방식 *'), mk('div', {style:'display:flex;gap:14px;align-items:center;flex-wrap:wrap'},
+        mk('label', null, rCont, tx(' 마지막 번호에 이어서 생성')), mk('label', null, rNew, tx(' 새 번호로 시작 '), startIn)), true),
       field('', preview, true)),
     mk('div', {class:'muted small', style:'margin-top:8px'}, '* 필수. 모델 속성(Vehicle · Model · Type · Axle · Cab · Option · Baumuster · BM)은 선택한 Model_Master 행에서 채워집니다. 생산월은 Original PM에 기록되고 PM은 AFAB 확정 후 채워집니다. Create Order Date = 생성일. Commission No.는 중복 생성할 수 없습니다.'),
     err);
-  openModal('오더 생성 '+note('L7'), '', ' ');
+  openModal(tx('오더 생성')+' '+note('L7'), '', ' ');
   el('modal-body').replaceChildren(body);
   const fail = msg=>{ err.textContent = msg; err.hidden = false; };
   el('modal-foot').replaceChildren(
-    mk('button', {class:'btn', onclick: closeModal}, '취소'),
+    mk('button', {class:'btn', onclick: closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick: ()=>{ err.hidden = true;
       const m = active[Number(modelSel.value)]; if(!modelSel.value || !m) return fail('Type과 모델을 선택하세요.');
       const pm = pmIn.value.trim(); if(!/^\d{4}-\d{2}$/.test(pm)) return fail('Original PM(생산월)은 YYYY-MM 형식으로 입력하세요.');
@@ -374,5 +374,5 @@ function openAddOrder(){
       const d = new Date(); const at = TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
       Store.history.add(rows.map(v=>({commission_no:v.commission_no, field:'(전체)', old_value:'', new_value:'수동 생성', changed_by:state.user, changed_at:at, source:'수동'})));
       closeModal(); renderFilters(); renderGrid();
-      toast(`오더 생성 ${num(n)}건`, `${cs[0]}${n>1?` ~ ${cs[n-1]}`:''} · ${modelLine(m)} · Original PM ${pm} · ${stSel.value} → Vehicles 추가(출처: 수동) · Vehicle_History 기록 · 대시보드·KUFRI 즉시 반영`); }}, '생성'));
+      toast(`오더 생성 ${num(n)}건`, `${cs[0]}${n>1?` ~ ${cs[n-1]}`:''} · ${modelLine(m)} · Original PM ${pm} · ${stSel.value} → Vehicles 추가(출처: 수동) · Vehicle_History 기록 · 대시보드·KUFRI 즉시 반영`); }}, tx('생성')));
 }

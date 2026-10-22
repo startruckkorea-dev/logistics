@@ -67,7 +67,7 @@ const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // �
 const NOTES = {
   G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. UI 한국어, 필드명은 기존 엑셀 영문',
   D1:'차량 주문·재고 흐름: 카드 7종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit) → 당월 입항 예정(Arrival) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘, Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 8개월만 표시, 나머지는 가로 스크롤(Y축 고정). 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외) · 단계 색 = Current Status 색', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)', D7:'당월 도착 예정: 선적·입항 월별 입항 예정 피벗의 당월 블록 (행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 당월 입항 선박 + Total · 선박 입항월 = ATA → ETA 선사 → Pl. arrival) · 당월 입항 예정 카드와 동일 기준',
-  L1:'단계 칩 필터(10단계 + Cancelled)', L2:'열 필터(모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 44열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
+  L2:'열 필터(Current Status 단계 순 10단계 + Cancelled · 모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 44열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
   S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC 입고일(Key-in)·대수) + 선사 스케줄 일괄 업데이트. ETA 불일치 카드·탭·표시는 제외',
   K1:'기준월 선택(최근 5개월 월말 마감 + 현재) → 요약 카드(Total Stock + 연식 MY24~27 대수·비율) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
@@ -95,10 +95,10 @@ const I18N = {
   // 공통
   '닫기':'Close', '취소':'Cancel', '저장':'Save', '적용':'Apply', '반영':'Apply', '편집':'Edit', '편집 종료':'End Edit', '초기화':'Reset',
   '{v}대':'{v} units', '{n}대':'{n} units', ' (계획/예정)':' (plan/forecast)', '기준월':'Base Month', '기준월 이후(계획·예정)':'After base month (plan/forecast)',
-  '대수':'Units', '단계':'Stage', '검색':'Search', '일시':'Date', '필드':'Field', '이전':'Before', '이후':'After', '사용자':'User', '출처':'Source',
+  '대수':'Units', '검색':'Search', '일시':'Date', '필드':'Field', '이전':'Before', '이후':'After', '사용자':'User', '출처':'Source',
   '기본':'Basic', '일정':'Schedule', '선적':'Shipping', '통관':'Customs', '사양':'Spec', '메모':'Memo',
   '입력':'Input', '자동':'Auto', 'AFAB/입력':'AFAB/Input', '선적·입항':'Shipping·Arrival', '오더 생성':'Create Order', 'AFAB 수정 가능':'AFAB Editable',
-  '(빈 값)':'(blank)', '(공란)':'(blank)', '전체':'All', '전체 ({n})':'All ({n})',
+  '(빈 값)':'(blank)', '(공란)':'(blank)', '전체':'All',
   // 차량 상세 Drawer
   '파생·상태':'Derived · Status', '저장하지 않고 계산':'Calculated, not stored', '(VIN 10번째 자리)':'(VIN 10th digit)', 'AFAB 금일 존재':'In AFAB Today',
   '있음':'Yes', '없음 — 확인 필요':'No — check', '해당 없음':'N/A', '(자동 판정)':'(Auto)', 'override 시 사유 필수':'Reason required for override',
@@ -141,7 +141,8 @@ const I18N = {
   // 선적 · 입항
   '운송중 (In Transit)':'In Transit', 'Shipped / Invoiced · {n}척 · 선적 예정 {m}대 별도':'Shipped / Invoiced · {n} vessels · {m} units scheduled separately',
   '당월 입항 예정 ({m})':'Arriving This Month ({m})', 'ETA Final 기준, 없으면 Pl. arrival':'By ETA Final, else Pl. arrival', '익월 입항 예정 ({m})':'Arriving Next Month ({m})', 'Shipment scheduled 포함':'Incl. Shipment scheduled',
-  '월별 입항 예정 (Arrival Schedule)':'Monthly Arrival Schedule',
+  '월별 입항 예정·실적 (Arrival Schedule)':'Monthly Arrival Schedule & Actuals', '당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)':'Months before the current month show actual arrivals (ATA; Bonded·OH·Sold)',
+  '이번달~연말 ({a}~{b})':'This month to year-end ({a}~{b})', '올해 전체 ({y})':'Full year ({y})', '해당 월 입항 선박 없음':'No vessel arriving this month', '입항 실적 (ATA 기준)':'Actual arrival (ATA)',
   '행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)':'Rows: Gen > Vehicle > Model (Vehicle · Model · Type · Axle · Cab · Option) · Columns: arrival month (ATA → carrier ETA → Pl. arrival) > vessel · Values: units shipped per vessel by model (In Transit + Shipment scheduled)',
   '선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. 실제 구현에서는 셀 클릭 → 해당 선박·모델 Logistics 목록.':'Arrival month per vessel = ATA → carrier ETA → Pl. arrival (AFAB). In the real build, clicking a cell opens the Logistics list for that vessel and model.',
   '운송중':'In Transit', '선적 예정':'Scheduled', '미확정':'TBD', '예정':'planned', '미입력':'Not entered',
@@ -181,7 +182,7 @@ const I18N = {
   '＋ 모델 추가':'＋ Add Model', '실적 중앙값':'Actual Median', '차량 수':'Vehicles',
   'AFAB(SDISP) → 시스템 필드 매핑':'AFAB (SDISP) → System Field Mapping', '헤더 32개 명칭·순서가 바뀌면 업로드 검증에서 차단':'Upload validation blocks the file if the 32 header names or order change', 'AFAB 헤더(독일어)':'AFAB Header (German)',
   'Current Status 판정 규칙':'Current Status Rules', '상태별 Source · 판정 기준 (10/20 확정) · 1대 = 1단계 · 수동 override 시 사유 필수':'Source & rule per status (fixed 10/20) · 1 vehicle = 1 stage · reason required for manual override',
-  '판정 규칙':'Rule', '현재 건수':'Count', '오더 분류 (order_class)':'Order Classification (order_class)', '분류':'Class', '조건':'Condition', '현재':'Count',
+  '판정 규칙':'Rule', '현재 건수':'Count',
   '기준값 (Settings)':'Settings', '설명':'Description',
   '사용자 · 권한':'Users & Roles', 'M365 보안 그룹 2개로 역할 결정 · 5명 미만':'Roles from 2 M365 security groups · under 5 users', '이름':'Name', '부서':'Dept', 'M365 그룹':'M365 Group', '역할':'Role', '관리자':'Admin', '권한':'Permissions',
   '입력·수정·AFAB 반영·계획 확정':'Input · edit · AFAB apply · plan confirm', ' · 마스터·기준값·되돌리기':' · master · settings · undo', '조회·내보내기':'View · export',
@@ -212,7 +213,6 @@ const SRC_BADGE = {
 function srcBadge(src, keyin){ const b = SRC_BADGE[src]||SRC_BADGE['입력']; const c = (src==='입력'&&keyin)? 'input' : b.cls; return `<span class="badge ${c}" title="${b.tip}">${esc(tx(src))}</span>`; }
 function srcEditable(src){ return src==='입력' || src==='선적·입항'; } // 상세 Drawer에서 입력창을 여는 출처
 function stagePill(stage){ return `<span class="pill ${STAGE_CLASS[stage]||'neutral'}">${esc(stage)}</span>`; }
-function classPill(cls){ if(!cls||cls==='—') return '<span class="muted">—</span>'; return `<span class="pill ${cls==='Fixed order'?'cls-fixed':'cls-chg'}">${esc(cls)}</span>`; }
 function statusPill(kind, text){ return `<span class="pill ${kind}">${esc(text)}</span>`; }
 
 // ---- Toast (저장·처리 버튼은 동작 설명만 표시) ----

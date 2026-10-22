@@ -35,12 +35,7 @@ function drawSettings(){
   } else if(ST.tab==='rules'){
     b.innerHTML = `${adminNote}<div class="card-h"><h2>${tx('Current Status 판정 규칙')}</h2><span class="desc">${tx('상태별 Source · 판정 기준 (10/20 확정) · 1대 = 1단계 · 수동 override 시 사유 필수')}</span></div>
       <table class="tbl"><thead><tr><th>No.</th><th>Source</th><th>Current Status</th><th>${tx('판정 규칙')}</th><th class="num">${tx('현재 건수')}</th></tr></thead><tbody>${STAGE_RULES.map(r=>`<tr><td class="num">${r.order}</td><td>${esc(r.source)}</td><td>${stagePill(r.stage)}</td><td>${esc(r.cond)}</td><td class="num">${num(VEHICLES.filter(v=>v.current_status===r.stage).length)}</td></tr>`).join('')}</tbody></table>
-      <h3 style="margin:14px 0 6px">${tx('오더 분류 (order_class)')}</h3>
-      <table class="tbl"><thead><tr><th>${tx('분류')}</th><th>${tx('조건')}</th><th class="num">${tx('현재')}</th></tr></thead><tbody>
-      <tr><td>${classPill('Fixed order')}</td><td>단계 Ordered·In Production(미선적·배편 미확정) & PM(final) ∈ {당월 ${BASE_YM}, 익월 ${ymAdd(BASE_YM,1)}}</td><td class="num">${num(VEHICLES.filter(v=>v.order_class==='Fixed order').length)}</td></tr>
-      <tr><td>${classPill('Order (Changeable)')}</td><td>단계 Ordered·In Production & PM(final) ≥ 당월+2 (${ymAdd(BASE_YM,2)} 이후)</td><td class="num">${num(VEHICLES.filter(v=>v.order_class==='Order (Changeable)').length)}</td></tr>
-      <tr><td><span class="muted">—</span></td><td>생산월 경과·미선적분은 In Production에만 포함(분류 없음), 그 외 단계</td><td class="num">${num(VEHICLES.filter(v=>v.order_class==='—').length)}</td></tr></tbody></table>
-      <div class="muted small" style="margin-top:8px">샘플 검증(2026-10-07): Ordered 454 · In Production 162(생산월 경과 80 포함) · Shipment scheduled 14 · In Transit 66 · Bonded 186 · OH 91 · Sold 1,054 · Cancelled 34 = 2,061 · Fixed order 129(10월 82·11월 47) · Order (Changeable) 407</div>`;
+      <div class="muted small" style="margin-top:8px">샘플 검증(2026-10-07): Ordered 454 · In Production 162(생산월 경과 80 포함) · Shipment scheduled 14 · In Transit 66 · Bonded 186 · OH 91 · Sold 1,054 · Cancelled 34 = 2,061</div>`;
   } else if(ST.tab==='values'){
     b.innerHTML = `${adminNote}<div class="card-h"><h2>${tx('기준값 (Settings)')}</h2><span class="desc">key / value</span><span class="spacer"></span><button class="btn primary sm editor-only" onclick="describe('기준값 저장','Settings List 갱신 → Audit_Log 기록 → 파생 계산·KUFRI 판정 색이 즉시 재계산됩니다.')">${tx('저장')}</button></div>
       <table class="tbl"><thead><tr><th>Key</th><th>Value</th><th>${tx('설명')}</th></tr></thead><tbody>${SETTINGS.map(s=>`<tr><td class="mono">${s.key}</td><td>${admin?`<input value="${esc(s.value)}" style="width:160px">`:`<b>${esc(s.value)}</b>`}</td><td class="muted">${esc(s.desc)}</td></tr>`).join('')}</tbody></table>`;

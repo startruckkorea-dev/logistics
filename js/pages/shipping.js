@@ -1,7 +1,7 @@
 'use strict';
 /* ===== 선적 · 입항 (S1~S2) ===== */
-const SH = { edit:false }; // 선박별 현황 편집 모드: '편집' 클릭 후에만 입력란 표시 (10/15 No.20)
-window.addEventListener('hashchange', ()=>{ SH.edit=false; });
+const SH = { edit:false, range:'rest' }; // 선박별 현황 편집 모드: '편집' 클릭 후에만 입력란 표시 (10/15 No.20) · range: 월별 입항 예정 기간 'rest' = 이번달~연말(기본) · 'year' = 올해 전체 (10/22)
+window.addEventListener('hashchange', ()=>{ SH.edit=false; SH.range='rest'; });
 PAGES.shipping = {
   title:'선적 · 입항', sub:'운송중 · 입항 예정 · 선박별 현황',
   render(root){
@@ -16,23 +16,29 @@ PAGES.shipping = {
     </div>`;
 
     // 월별 입항 예정: 엑셀 'Arrival Schedule' 피벗 구조 (행: 구분 > 차종 > 모델 / 열: 월 > 선박, 월 Total, Grand Total / 값: 선박별 선적 대수)
-    const sched = arrivalSchedule(); const {yms, voyByYm} = sched; // 10/20: 집계·정렬은 data.js arrivalSchedule() 공용 (대시보드 당월 도착 예정과 동일 규칙) · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
+    // 기간 (10/22): 'rest' = 이번달~연말, 'year' = 올해 1~12월 · 당월 이전 달은 입항 실적(ATA) · 선박 없는 달도 열 유지('·')
+    const year = BASE_YM.slice(0,4); const range = { from: SH.range==='year'? year+'-01' : BASE_YM, to: year+'-12' };
+    const sched = arrivalSchedule(null, range); const {yms, voyByYm} = sched; // 10/20: 집계·정렬은 data.js arrivalSchedule() 공용 (대시보드 당월 도착 예정과 동일 규칙) · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
+    const kOf = y=> y.key||y.vessel; // 열 key: 항차 = 선박명, 입항 실적 = 'YYYY-MM|선박명'
     const cellN = n=> n? mk('td', {class:'num'}, num(n)) : mk('td', {class:'num'}, mk('span', {class:'muted'}, '·'));
-    const sumRow = by=> ({ perV: yms.flatMap(k=>voyByYm[k].map(y=>by[y.vessel]||0)), perM: yms.map(k=>voyByYm[k].reduce((a,y)=>a+(by[y.vessel]||0),0)) });
-    const valueCells = by=>{ const s=sumRow(by); const cells=[]; yms.forEach((k,mi)=>{ voyByYm[k].forEach(y=>cells.push(cellN(by[y.vessel]||0))); const t=cellN(s.perM[mi]); t.classList.add('tot'); cells.push(t); });
+    const sumRow = by=> ({ perV: yms.flatMap(k=>voyByYm[k].map(y=>by[kOf(y)]||0)), perM: yms.map(k=>voyByYm[k].reduce((a,y)=>a+(by[kOf(y)]||0),0)) });
+    const valueCells = by=>{ const s=sumRow(by); const cells=[]; yms.forEach((k,mi)=>{ voyByYm[k].forEach(y=>cells.push(cellN(by[kOf(y)]||0))); const t=cellN(s.perM[mi]); t.classList.add('tot'); cells.push(t); });
       const g=mk('td', {class:'num gt'}, num(s.perM.reduce((a,b)=>a+b,0))); cells.push(g); return cells; };
-    const nCols = 1 + VOYAGES.length + yms.length + 1;
+    const nCols = 1 + yms.reduce((a,k)=>a+voyByYm[k].length,0) + yms.length + 1;
+    const rangeBtn = (r, label)=> mk('button', {class:'btn sm'+(SH.range===r?' primary':''), onclick:()=>{ SH.range=r; PAGES.shipping.render(root); }}, label);
     const bodyRows = [];
-    sched.groups.forEach(g=>{ bodyRows.push(mk('tr', {class:'g1'}, mk('td', {colspan:nCols}, g.gen)));
-      g.vehicles.forEach(t=>{ bodyRows.push(mk('tr', {class:'g2'}, mk('td', {colspan:nCols}, t.vehicle)));
+    // 그룹 행은 첫 칸(고정 열)에 라벨, 나머지는 빈 칸 하나로 채움 — Model 열 고정(sticky) 시 가로 스크롤 중에도 라벨이 보이도록 (10/22)
+    sched.groups.forEach(g=>{ bodyRows.push(mk('tr', {class:'g1'}, mk('td', null, g.gen), mk('td', {colspan:nCols-1})));
+      g.vehicles.forEach(t=>{ bodyRows.push(mk('tr', {class:'g2'}, mk('td', null, t.vehicle), mk('td', {colspan:nCols-1})));
         t.rows.forEach(r=>bodyRows.push(mk('tr', null, mk('td', {class:'model'}, r.label), valueCells(r.by)))); }); });
     bodyRows.push(mk('tr', {class:'total'}, mk('td', null, 'Grand Total'), valueCells(sched.grand)));
     const monthly = mk('div', {class:'card'},
-      mk('div', {class:'card-h'}, mk('h2', null, tx('월별 입항 예정 (Arrival Schedule)')), mk('span', {class:'desc'}, tx('행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)'))),
-      mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot'},
+      mk('div', {class:'card-h'}, mk('h2', null, tx('월별 입항 예정·실적 (Arrival Schedule)')), mk('span', {class:'desc'}, tx('행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)') + ' · ' + tx('당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)')),
+        mk('span', {class:'spacer'}), mk('div', {class:'btn-group'}, rangeBtn('rest', tx('이번달~연말 ({a}~{b})', {a:ymLabel(BASE_YM), b:ymLabel(range.to)})), rangeBtn('year', tx('올해 전체 ({y})', {y:year})))),
+      mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot fixcol'},
         mk('thead', null,
-          mk('tr', null, mk('th', {rowspan:2}, 'Model'), yms.flatMap(k=>[mk('th', {class:'ym', colspan:voyByYm[k].length}, ymLabel(k)), mk('th', {class:'num tot', rowspan:2}, ymLabel(k)+' Total')]), mk('th', {class:'num gt', rowspan:2}, 'Grand Total')),
-          mk('tr', null, yms.flatMap(k=>voyByYm[k].map(y=>mk('th', {class:'num', title:`${y.carrier} · Shipping ${y.shipping}`}, y.vessel))))),
+          mk('tr', null, mk('th', {rowspan:2}, 'Model'), yms.flatMap(k=> voyByYm[k].length? [mk('th', {class:'ym', colspan:voyByYm[k].length}, ymLabel(k)), mk('th', {class:'num tot', rowspan:2}, ymLabel(k)+' Total')] : [mk('th', {class:'num tot', rowspan:2, title:tx('해당 월 입항 선박 없음')}, ymLabel(k)+' Total')]), mk('th', {class:'num gt', rowspan:2}, 'Grand Total')),
+          mk('tr', null, yms.flatMap(k=>voyByYm[k].map(y=>mk('th', {class:'num', title: y.arrived? tx('입항 실적 (ATA 기준)') : `${y.carrier} · Shipping ${y.shipping}`}, y.vessel))))),
         mk('tbody', null, bodyRows))),
       mk('div', {class:'muted small', style:'margin-top:6px'}, tx('선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. 실제 구현에서는 셀 클릭 → 해당 선박·모델 Logistics 목록.')));
 

@@ -1,19 +1,20 @@
 'use strict';
 /* ===== Logistics 차량 마스터 (L1~L7) ===== */
-const LF = { stage:'', q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50 }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18)
+const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50 }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18) · 단계는 상단 필터 대신 Current Status 열 필터로 (10/22 No.2)
 
 const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
-// 열 필터 적용 열 (10/19 No.3): 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel
+// 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel
 const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','customs_clearance_date'];
-const FILTER_COLS = ['vehicle','series','model','axle','cab','option', ...DATE_FILTER_COLS, 'vessel'];
+const FILTER_COLS = ['current_status','vehicle','series','model','axle','cab','option', ...DATE_FILTER_COLS, 'vessel'];
+const STAGE_ORDER = [...STAGES.filter(s=>s!=='Rejected'), 'Cancelled']; STAGE_ORDER.splice(STAGE_ORDER.indexOf('In Production'), 0, 'Rejected'); // Current Status 열 필터 값 순서 (10/22 No.2): Rejected는 In Production 앞 (STAGE_RULES 순서와 동일)
 const SEARCH_COLS = ['commission_no','vin_no','bl_no','vessel','model','engine_no','order_note','option_remarks']; // 검색 대상 열 (10/19 No.4: VIN·Comm·Order Note·Option Note 필수 포함)
-const STAGE_COMBOS = {'In Production,Shipment scheduled':'Factory Stock: In Production + Shipment scheduled'}; // 단계 2개 동시 선택 (10/19 No.12 Factory Stock 카드 연동)
 const EDIT = { on:false, sel:new Set(), pending:{} }; // 편집 모드(오더 복수 선택) · pending: {comm:{field:{old,nw,src}}} → '편집 종료' 시 저장 (10/15 No.9)
 
 PAGES.logistics = {
   title:'Logistics 차량 마스터', sub:`Commission No. 기준 1행 · ${COLUMNS.length}열`,
   render(root, params){
-    LF.stage = params.get('stage')||''; LF.q = params.get('q')||''; LF.page=1; LF.col={};
+    LF.q = params.get('q')||''; LF.page=1; LF.col={};
+    const st = params.get('stage'); if(st) LF.col.current_status = new Set(st.split(',')); // ?stage= (대시보드 카드·파이프라인·AFAB 링크, 쉼표 구분 복수) → Current Status 열 필터
     EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter();
     root.innerHTML = `<div class="card">
       <div class="card-h"><div class="filters" id="filters"></div><span class="spacer"></span>
@@ -37,9 +38,7 @@ window.addEventListener('hashchange', ()=>closeColFilter());
 function filterVal(v, key){ const x = v[key]; if(x==null||x==='') return '(빈 값)'; return DATE_FILTER_COLS.includes(key)? String(x).slice(0,7) : String(x); }
 function filtered(){
   const qq = LF.q.trim().toLowerCase();
-  const stages = LF.stage? LF.stage.split(',') : null; // 쉼표 구분 → 단계 복수 선택
   let rows = VEHICLES.filter(v=>
-    (!stages || stages.includes(v.current_status)) &&
     FILTER_COLS.every(k=> !LF.col[k] || LF.col[k].has(filterVal(v,k))) &&
     (!qq || SEARCH_COLS.some(k=>v[k]&&String(v[k]).toLowerCase().includes(qq))));
   const k=LF.sort, d=LF.dir;
@@ -49,20 +48,13 @@ function filtered(){
 function visibleCols(){ return COLUMNS.filter(c=>!state.hiddenCols.has(c.key)); }
 
 function renderFilters(){
-  const by = countBy(VEHICLES, v=>v.current_status);
-  const stages = ['', ...STAGES, 'Cancelled'];
-  stages.splice(stages.indexOf('Shipment scheduled')+1, 0, ...Object.keys(STAGE_COMBOS)); // 단계 2개 동시 선택 항목
-  const optLabel = s=> !s? tx('전체 ({n})', {n:num(VEHICLES.length)}) : STAGE_COMBOS[s]? `${STAGE_COMBOS[s]} (${num(s.split(',').reduce((a,x)=>a+(by[x]||0),0))})` : `${s} (${num(by[s]||0)})`;
-  el('filters').innerHTML = `${note('L1')}
-    <label>${tx('단계')} <select id="fStage">${stages.map(s=>`<option value="${esc(s)}" ${LF.stage===s?'selected':''}>${esc(optLabel(s))}</option>`).join('')}</select></label>
-    ${note('L2')}
+  el('filters').innerHTML = `${note('L2')}
     <label>${tx('검색')} <input id="fQ" placeholder="Comm / VIN / B/L / Vessel / Type / Order·Option Note" value="${esc(LF.q)}" style="width:260px"></label>
     <button class="btn sm" id="fReset">${tx('초기화')}</button>
     <button class="btn sm editor-only" id="btnEdit"></button>
     <span class="muted small" id="fCount"></span>`;
-  el('fStage').onchange = e=>{ LF.stage=e.target.value; LF.page=1; renderGrid(); };
   el('fQ').oninput = e=>{ LF.q=e.target.value; LF.page=1; renderGrid(); scrollToMatch(); };
-  el('fReset').onclick = ()=>{ Object.assign(LF,{stage:'',q:'',page:1}); LF.col={}; renderFilters(); renderGrid(); };
+  el('fReset').onclick = ()=>{ Object.assign(LF,{q:'',page:1}); LF.col={}; renderFilters(); renderGrid(); };
   el('btnEdit').onclick = toggleEdit; syncEditBtn();
 }
 // 편집 버튼: '초기화' 옆 (10/19 No.1) · 라벨·상태는 편집 모드에 맞춰 갱신
@@ -255,6 +247,7 @@ function openColFilter(btn, key){
   closeColFilter();
   const c = COLUMNS.find(x=>x.key===key); if(!c) return;
   const vals = [...new Set(VEHICLES.map(v=>filterVal(v,key)))].sort();
+  if(key==='current_status') vals.sort((a,b)=>{ const i=STAGE_ORDER.indexOf(a), j=STAGE_ORDER.indexOf(b); return (i<0?99:i)-(j<0?99:j); }); // 단계 순서 (10/22 No.2)
   const counts = countBy(VEHICLES, v=>filterVal(v,key));
   const checked = new Set(LF.col[key] || vals);
   const isDate = DATE_FILTER_COLS.includes(key); // 날짜 열: 연도 → 월 체크 트리 (10/19 No.3)
@@ -373,6 +366,6 @@ function openAddOrder(){
       const n = Store.vehicles.add(rows);
       const d = new Date(); const at = TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
       Store.history.add(rows.map(v=>({commission_no:v.commission_no, field:'(전체)', old_value:'', new_value:'수동 생성', changed_by:state.user, changed_at:at, source:'수동'})));
-      closeModal(); renderFilters(); renderGrid();
+      closeModal(); renderGrid();
       toast(`오더 생성 ${num(n)}건`, `${cs[0]}${n>1?` ~ ${cs[n-1]}`:''} · ${modelLine(m)} · Original PM ${pm} · ${stSel.value} → Vehicles 추가(출처: 수동) · Vehicle_History 기록 · 대시보드·KUFRI 즉시 반영`); }}, tx('생성')));
 }

@@ -296,17 +296,22 @@ function closingStock(ym){ // 월말 마감 재고 (ym='current' 는 현재 상�
 // 선박 입항월 = ATA → ETA 선사 → Pl. arrival(AFAB) · 대상 = 그 선박에 실린 In Transit + Shipment scheduled · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
 function voyageYm(y){ return (y.eta_final||y.eta_carrier||y.pl).slice(0,7); }
 function arrivalModelLabel(v){ return [v.vehicle, v.series, v.model, v.axle, v.cab, v.option].filter(Boolean).join(' '); }
-function arrivalSchedule(onlyYm){ // onlyYm: 특정 월만 집계(대시보드 당월). 반환 {yms, voyByYm:{ym:[항차(선적일 순)]}, groups:[{gen, vehicles:[{vehicle, rows:[{label, by:{vessel:n}, total}]}]}], grand:{vessel:n}, total}
-  const voyByYm = {}; VOYAGES.forEach(y=>{ const k=voyageYm(y); if(onlyYm && k!==onlyYm) return; (voyByYm[k]=voyByYm[k]||[]).push(y); });
-  const yms = Object.keys(voyByYm).sort(); yms.forEach(k=>voyByYm[k].sort((a,b)=>a.shipping<b.shipping?-1:1));
-  const vessels = new Set(yms.flatMap(k=>voyByYm[k].map(y=>y.vessel)));
-  const moving = VEHICLES.filter(v=>(v.current_status==='In Transit'||v.current_status==='Shipment scheduled') && vessels.has(v.vessel));
+function arrivalSchedule(onlyYm, range){ // onlyYm: 특정 월만 집계(대시보드 당월). 반환 {yms, voyByYm:{ym:[항차(선적일 순)]}, groups:[{gen, vehicles:[{vehicle, rows:[{label, by:{열key:n}, total}]}]}], grand:{열key:n}, total}
+  // range {from, to} (10/22 선적·입항 기간 보기): 기간 안의 모든 월을 열로 두고(선박 없는 달도 포함), 당월(BASE_YM) 이전 달은 이미 입항한 차량(Bonded·OH·Sold, ATA 월)을 실적으로 집계 · 열 key = 항차 선박명, 실적 열은 'YYYY-MM|선박명'(같은 선박이 여러 달 입항하므로)
+  const inRange = k=> !range || (k>=range.from && k<=range.to);
+  const voyByYm = {}; if(range) for(let k=range.from; k<=range.to; k=ymAdd(k,1)) voyByYm[k]=[];
+  VOYAGES.forEach(y=>{ const k=voyageYm(y); if(onlyYm && k!==onlyYm) return; if(!inRange(k)) return; (voyByYm[k]=voyByYm[k]||[]).push(y); });
+  const vessels = new Set(Object.values(voyByYm).flat().map(y=>y.vessel));
+  const items = VEHICLES.filter(v=>(v.current_status==='In Transit'||v.current_status==='Shipment scheduled') && vessels.has(v.vessel)).map(v=>({v, key:v.vessel}));
+  if(range) VEHICLES.forEach(v=>{ if(!v.ata || !v.vessel || !['Bonded Stock','OH Stock','Sold'].includes(v.current_status)) return; const ym=v.ata.slice(0,7); if(ym>=BASE_YM || !inRange(ym)) return;
+    const key=ym+'|'+v.vessel; if(!voyByYm[ym].some(y=>y.key===key)) voyByYm[ym].push({vessel:v.vessel, key, carrier:'', shipping:'', arrived:true}); items.push({v, key}); });
+  const yms = Object.keys(voyByYm).sort(); yms.forEach(k=>voyByYm[k].sort((a,b)=> a.shipping!==b.shipping ? (a.shipping<b.shipping?-1:1) : (a.vessel<b.vessel?-1:1)));
   const byKey = {}, grand = {};
-  moving.forEach(v=>{ const label=arrivalModelLabel(v); const k=v.gen+'|'+v.vehicle+'|'+label; const c = byKey[k] = byKey[k] || {gen:v.gen, vehicle:v.vehicle, label, by:{}, total:0};
-    c.by[v.vessel]=(c.by[v.vessel]||0)+1; c.total++; grand[v.vessel]=(grand[v.vessel]||0)+1; });
+  items.forEach(({v, key})=>{ const label=arrivalModelLabel(v); const k=v.gen+'|'+v.vehicle+'|'+label; const c = byKey[k] = byKey[k] || {gen:v.gen, vehicle:v.vehicle, label, by:{}, total:0};
+    c.by[key]=(c.by[key]||0)+1; c.total++; grand[key]=(grand[key]||0)+1; });
   const rows = Object.values(byKey);
   // 정렬: 구분(Gen, Model_Master 순) > 차종(VEHICLE_TYPES 순) > 모델명 사전순 (eActros는 Tractor와 분리)
   const groups = [...new Set(MODEL_MASTER.map(m=>m.gen))].filter(g=>rows.some(r=>r.gen===g)).map(g=>({gen:g,
     vehicles: VEHICLE_TYPES.filter(t=>rows.some(r=>r.gen===g&&r.vehicle===t)).map(t=>({vehicle:t, rows: rows.filter(r=>r.gen===g&&r.vehicle===t).sort((a,b)=>a.label<b.label?-1:1)}))}));
-  return {yms, voyByYm, groups, grand, total: moving.length};
+  return {yms, voyByYm, groups, grand, total: items.length};
 }

@@ -341,8 +341,26 @@ body.modal-open .modal-bg{display:flex}
 .pivot tr.g2 td{background:#f3f6fa;font-weight:600;padding-left:20px}
 .pivot td.model{padding-left:36px}
 .pivot tr.total td{font-weight:700;border-top:2px solid var(--line-strong)}
-.pivot.fixcol th:first-child,.pivot.fixcol td:first-child{position:sticky;left:0;z-index:2;background:#fff;border-right:2px solid var(--line-strong)} /* 10/22: Model 열 고정 (올해 전체 보기 가로 스크롤 대비) */
-.pivot.fixcol thead th:first-child{z-index:3;background:var(--soft)}
+/* 10/22: 선적·입항 월별 표(.fixcol) — Model 열·머리글 3줄 고정. collapse 방식은 고정 셀의 테두리가 스크롤 시 제자리에 남아 사라지므로 셀마다 테두리를 그리는 separate 방식 사용 */
+.pivot.fixcol{border-collapse:separate;border-spacing:0}
+.pivot.fixcol th,.pivot.fixcol td{border-left:0;border-right:1px solid var(--line)} /* 열 사이 세로선: 셀 오른쪽 1px 연한 색 */
+.pivot.fixcol th.tot,.pivot.fixcol td.tot{border-right:1px solid var(--line-strong)} /* 월 경계: Total 오른쪽만 조금 진하게 (머리글·본문 동일 → 끊김 없음) */
+.pivot.fixcol th.gt,.pivot.fixcol td.gt{border-left:0}
+.pivot.fixcol thead tr:first-child th:first-child,.pivot.fixcol td:first-child{position:sticky;left:0;z-index:2;background:#fff;border-right:1px solid var(--line-strong);width:300px;min-width:300px;max-width:300px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis} /* Model 열 고정 · 너비 300px 고정(가장 긴 모델명 38자 기준) — 이번달~연말/올해 전체 보기에서 동일 (10/22) */
+.pivot.fixcol thead{position:sticky;top:0;z-index:3} /* 머리글 3줄(월·선박·Grand Total) 통째로 고정 */
+.pivot.fixcol thead th{position:static}
+.pivot.fixcol thead th,.pivot.fixcol thead td{background:#e4ebf5;color:#3b4e6b} /* 머리글 색: 연한 청회색 */
+.pivot.fixcol thead tr:first-child th:first-child{position:sticky;left:0;z-index:3}
+.pivot.fixcol tr.g2 td{padding-left:8px}
+.pivot.fixcol tr.g2 td:first-child{padding-left:20px} /* 차종 행 들여쓰기는 라벨 칸만 */
+.pivot.fixcol thead tr.total td{font-weight:700;border-bottom:2px solid var(--line-strong);border-top:0}
+.pivot.fixcol th.tg{cursor:pointer}
+.pivot.fixcol th.tg:hover,.pivot.fixcol th.cur,.pivot.fixcol td.tot.cur,.pivot.fixcol thead tr.total td.cur{background:#d6e6fb} /* 당월 열 강조(올해 전체 보기) */
+.pivot.fixcol th.ym.cur{color:var(--accent);font-weight:700}
+.pivot.fixcol tr.g1 td{background:#d9e2f0} /* 그룹 행 대비 */
+.pivot.fixcol tr.g2 td{background:#e9eef6}
+.pivot.fixcol td.lnk{cursor:pointer;color:var(--accent);text-decoration:underline dotted}
+.pivot.fixcol td.lnk:hover{background:#d6e6fb}
 .tsc-in{border:1px solid var(--line-strong);border-radius:6px;padding:2px 6px;font:inherit;font-size:12px;background:#fffdf5}
 .viewer-only{display:none}
 body.viewer .viewer-only{display:inline}

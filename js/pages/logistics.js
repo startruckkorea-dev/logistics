@@ -3,9 +3,9 @@
 const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50 }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18) · 단계는 상단 필터 대신 Current Status 열 필터로 (10/22 No.2)
 
 const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
-// 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel
+// 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&model=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
 const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','customs_clearance_date'];
-const FILTER_COLS = ['current_status','vehicle','series','model','axle','cab','option', ...DATE_FILTER_COLS, 'vessel'];
+const FILTER_COLS = ['current_status','gen','vehicle','series','model','axle','cab','option', ...DATE_FILTER_COLS, 'vessel']; // gen: 선적·입항 구분 그룹 행 링크용 (10/22)
 const STAGE_ORDER = [...STAGES.filter(s=>s!=='Rejected'), 'Cancelled']; STAGE_ORDER.splice(STAGE_ORDER.indexOf('In Production'), 0, 'Rejected'); // Current Status 열 필터 값 순서 (10/22 No.2): Rejected는 In Production 앞 (STAGE_RULES 순서와 동일)
 const SEARCH_COLS = ['commission_no','vin_no','bl_no','vessel','model','engine_no','order_note','option_remarks']; // 검색 대상 열 (10/19 No.4: VIN·Comm·Order Note·Option Note 필수 포함)
 const EDIT = { on:false, sel:new Set(), pending:{} }; // 편집 모드(오더 복수 선택) · pending: {comm:{field:{old,nw,src}}} → '편집 종료' 시 저장 (10/15 No.9)
@@ -15,6 +15,7 @@ PAGES.logistics = {
   render(root, params){
     LF.q = params.get('q')||''; LF.page=1; LF.col={};
     const st = params.get('stage'); if(st) LF.col.current_status = new Set(st.split(',')); // ?stage= (대시보드 카드·파이프라인·AFAB 링크, 쉼표 구분 복수) → Current Status 열 필터
+    FILTER_COLS.forEach(k=>{ const v = params.get(k); if(v!=null) LF.col[k] = new Set(v.split(',').map(x=> x===''? '(빈 값)' : x)); }); // 열 필터 파라미터 (10/22 선적·입항 수량 셀 클릭): 쉼표 구분 복수 · 빈 문자열 = '(빈 값)'
     EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter();
     root.innerHTML = `<div class="card">
       <div class="card-h"><div class="filters" id="filters"></div><span class="spacer"></span>

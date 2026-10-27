@@ -1,39 +1,54 @@
 'use strict';
 /* ===== Logistics 차량 마스터 (L1~L7) ===== */
-const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50 }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18) · 단계는 상단 필터 대신 Current Status 열 필터로 (10/22 No.2)
+const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50, tab:'grid' }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18) · 단계는 상단 필터 대신 Current Status 열 필터로 (10/22 No.2) · tab: 페이지 탭 (10/26 No.1)
+// 페이지 탭 4개 (10/26 No.1): 1번 = 차량 마스터 그리드(홈), 2~4번 = 통관·보험(js/pages/customs.js). 이름은 영문 고정. ?tab= 으로 진입 가능, 없으면 grid
+const LOGI_TABS = [['grid','Logistics'], ['req','Request of Customs Clearance'], ['input','Update Customs Clearance Info'], ['ins','Insurance']];
 
 const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
 // 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&model=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
-const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','customs_clearance_date'];
+const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','tsc_arrival_date','customs_clearance_date']; // 10/26 No.9: TSC Arrival Date 추가
 const FILTER_COLS = ['current_status','gen','vehicle','series','model','axle','cab','option', ...DATE_FILTER_COLS, 'vessel']; // gen: 선적·입항 구분 그룹 행 링크용 (10/22)
 const STAGE_ORDER = [...STAGES.filter(s=>s!=='Rejected'), 'Cancelled']; STAGE_ORDER.splice(STAGE_ORDER.indexOf('In Production'), 0, 'Rejected'); // Current Status 열 필터 값 순서 (10/22 No.2): Rejected는 In Production 앞 (STAGE_RULES 순서와 동일)
 const SEARCH_COLS = ['commission_no','vin_no','bl_no','vessel','model','engine_no','order_note','option_remarks']; // 검색 대상 열 (10/19 No.4: VIN·Comm·Order Note·Option Note 필수 포함)
 const EDIT = { on:false, sel:new Set(), pending:{} }; // 편집 모드(오더 복수 선택) · pending: {comm:{field:{old,nw,src}}} → '편집 종료' 시 저장 (10/15 No.9)
 
 PAGES.logistics = {
-  title:'Logistics 차량 마스터', sub:`Commission No. 기준 1행 · ${COLUMNS.length}열`,
+  title:'Logistics 차량 마스터', sub:`Commission No. 기준 1행 · ${COLUMNS.length}열 · Customs · Insurance`,
   render(root, params){
     LF.q = params.get('q')||''; LF.page=1; LF.col={};
     const st = params.get('stage'); if(st) LF.col.current_status = new Set(st.split(',')); // ?stage= (대시보드 카드·파이프라인·AFAB 링크, 쉼표 구분 복수) → Current Status 열 필터
     FILTER_COLS.forEach(k=>{ const v = params.get(k); if(v!=null) LF.col[k] = new Set(v.split(',').map(x=> x===''? '(빈 값)' : x)); }); // 열 필터 파라미터 (10/22 선적·입항 수량 셀 클릭): 쉼표 구분 복수 · 빈 문자열 = '(빈 값)'
+    LF.tab = LOGI_TABS.some(t=>t[0]===params.get('tab')) ? params.get('tab') : 'grid'; // 대시보드·선적·입항 링크(?stage=·?vessel=)는 tab 없음 → 그리드
     EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter();
-    root.innerHTML = `<div class="card">
-      <div class="card-h"><div class="filters" id="filters"></div><span class="spacer"></span>
-        <div class="btn-group">
-          <button class="btn editor-only" id="btnAdd">${tx('오더 생성')} ${note('L7')}</button>
-          <button class="btn" id="btnExport">${tx('엑셀 내보내기')}</button>
-        </div></div>
-      <div class="editbar editor-only" id="editbar" hidden></div>
-      <div class="grp-nav" id="grpnav"></div>
-      <div class="grid-wrap" id="gridwrap"></div>
-      <div class="pager" id="pager"></div>
-    </div>`;
-    renderFilters(); renderGrid(); // ?q= 로 들어온 경우 검색어만 자동 입력하고 스크롤은 하지 않음 (검색창 입력 시에만 일치 위치로 이동)
-    el('btnExport').onclick = ()=>describe('엑셀 내보내기', `현재 필터·열 그대로 .xlsx 생성(SheetJS) → 다운로드 + SharePoint /Exports/ 저장. 현재 ${num(filtered().length)}행 · ${visibleCols().length}열.`);
-    el('btnAdd').onclick = openAddOrder;
+    root.innerHTML = `<div class="card"><div class="tabs" id="lgTabs"></div><div id="lgBody"></div></div>`;
+    el('lgTabs').append(...LOGI_TABS.map(([k,label])=>mk('span', {class:'tab', 'data-tab':k, onclick:()=>switchLogiTab(k)}, label)), noteEl('L1'));
+    renderLogiBody();
   }
 };
 window.addEventListener('hashchange', ()=>closeColFilter());
+// 탭 전환 (10/26 No.1): 편집 중 저장 대기 값이 있으면 전환하지 않음(언어 토글과 동일) · 전환 시 편집 모드·선택 해제, 검색어·열 필터(LF)는 유지
+function switchLogiTab(k){
+  if(k===LF.tab) return;
+  if(EDIT.on && pendingCount()>0){ toast(tx('탭 전환 불가'), tx("저장 대기 중인 편집 내용이 있습니다. '편집 종료'로 저장한 뒤 전환하세요.")); return; }
+  EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter(); LF.tab=k; renderLogiBody();
+}
+function renderLogiBody(){
+  qa('#lgTabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===LF.tab));
+  const body = el('lgBody');
+  if(LF.tab!=='grid'){ body.replaceChildren(); renderCustomsTab(body, LF.tab); return; } // 탭 2~4: js/pages/customs.js
+  body.innerHTML = `<div class="card-h"><div class="filters" id="filters"></div><span class="spacer"></span>
+      <div class="btn-group">
+        <button class="btn editor-only" id="btnAdd">${tx('오더 생성')} ${note('L7')}</button>
+        <button class="btn" id="btnExport">${tx('엑셀 내보내기')}</button>
+      </div></div>
+    <div class="editbar editor-only" id="editbar" hidden></div>
+    <div class="grp-nav" id="grpnav"></div>
+    <div class="grid-wrap" id="gridwrap"></div>
+    <div class="pager" id="pager"></div>`;
+  renderFilters(); renderGrid(); // ?q= 로 들어온 경우 검색어만 자동 입력하고 스크롤은 하지 않음 (검색창 입력 시에만 일치 위치로 이동)
+  el('btnExport').onclick = ()=>describe('엑셀 내보내기', `현재 필터·열 그대로 .xlsx 생성(SheetJS) → 다운로드 + SharePoint /Exports/ 저장. 현재 ${num(filtered().length)}행 · ${visibleCols().length}열.`);
+  el('btnAdd').onclick = openAddOrder;
+}
 
 // 날짜 열은 연·월(YYYY-MM) 단위로 필터 (10/19 No.3)
 function filterVal(v, key){ const x = v[key]; if(x==null||x==='') return '(빈 값)'; return DATE_FILTER_COLS.includes(key)? String(x).slice(0,7) : String(x); }

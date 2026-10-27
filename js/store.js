@@ -1,5 +1,6 @@
 'use strict';
 /* ===== Store: data.js 데이터 쓰기 함수 (조회는 각 화면에서 data.js 변수를 직접 읽음) ===== */
+function nowStamp(){ const d=new Date(); return TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes()); } // Vehicle_History changed_at (기준일 + 현재 시각)
 const Store = {
   vehicles: {
     // Commission No로 찾은 차량 행에 patch 필드 대입. 없으면 null.
@@ -28,7 +29,7 @@ const Store = {
     // 수동 오더 생성용 차량 1행 (10/19 오더 생성 화면): Model_Master 속성 + 입력값(Original PM · 단계 · MY) · 나머지 필드는 공란
     create(o){ // o: {commission_no, m(Model_Master 행), pm(Original PM), status, model_year, by}
       const v = { commission_no:o.commission_no, current_status:o.status, status_override:'', status_reason:'', model_year:o.model_year, vin_no:'',
-        changeability_date:'', pm:'', original_pm:o.pm, tdd_calc:'', production_done:'', dispatch:'', shipping:'', invoice:'', planned_arrival:'', eta_from_tdd:'', eta_from_eukor_pirt:'', ata:'', // 10/20 No.22: 입력받는 생산월은 Original PM에만 기록, PM은 공란(AFAB 확정 후 채움)
+        changeability_date:'', pm:'', original_pm:o.pm, tdd_calc:'', production_done:'', dispatch:'', shipping:'', invoice:'', planned_arrival:'', eta_from_tdd:'', eta_from_eukor_pirt:'', ata:'', tsc_arrival_date:'', // 10/20 No.22: 입력받는 생산월은 Original PM에만 기록, PM은 공란(AFAB 확정 후 채움)
         bl_no:'', vessel:'', customs_clearance_date:'', color_code:'', color_name:'', tires:'', model_in_afab:o.m.type_desc, engine_no:'', import_license:'', ref_commission_no:'',
         option_remarks:'', order_note:'', b1_factory_order:'', sales_month:'', sub_cat: o.m.vehicle==='Tipper'?'KIP':(o.m.vehicle==='Tractor'?'SZM':'LKW'), co:'', afab_editable:'', create_order_date:TODAY_S, // 10/20 No.14 co · No.10 시스템 오더 등록일
         eta_month:'', tdd_month:'', shipping_month:'', in_afab_today:false, order_class:'—', changeability_dday:null,
@@ -39,6 +40,21 @@ const Store = {
     },
     // 차량 행 추가 (Vehicles + Comm 색인). Commission No 중복은 건너뛰고 추가한 건수를 반환.
     add(rows){ let n=0; rows.forEach(v=>{ if(VEHICLE_BY_COMM[v.commission_no]) return; VEHICLES.push(v); VEHICLE_BY_COMM[v.commission_no]=v; n++; }); return n; },
+    // 통관 정보 입력 (10/26 No.1): rows = [{commission_no, customs_clearance_date, import_license}] · 값이 바뀐 필드만 대입 + Vehicle_History 기록
+    // 통관일이 채워지면 Bonded Stock → OH Stock 전환 (상태 규칙 9, 출처 '규칙'). 반환 {vehicles, fields, cleared}
+    applyCustoms(rows, by, source){
+      const at = nowStamp(); const hist = []; let vehicles = 0, cleared = 0;
+      rows.forEach(r=>{ const v = VEHICLE_BY_COMM[r.commission_no]; if(!v) return;
+        const patch = {};
+        ['customs_clearance_date','import_license'].forEach(k=>{ if(r[k]==null) return; const nw = String(r[k]).trim(); if(nw!==String(v[k]||'')) patch[k] = nw; });
+        if(!Object.keys(patch).length) return;
+        Object.entries(patch).forEach(([k,nw])=>hist.push({commission_no:v.commission_no, field:k, old_value:v[k]||'', new_value:nw, changed_by:by, changed_at:at, source}));
+        if(patch.customs_clearance_date && v.current_status==='Bonded Stock'){ patch.current_status = 'OH Stock'; cleared++;
+          hist.push({commission_no:v.commission_no, field:'current_status', old_value:'Bonded Stock', new_value:'OH Stock', changed_by:by, changed_at:at, source:'규칙'}); }
+        Object.assign(v, patch); vehicles++; });
+      Store.history.add(hist);
+      return {vehicles, fields:hist.length, cleared};
+    },
   },
   history: {
     // Vehicle_History에 변경 이력 행 추가 (최신순 유지). 추가한 건수를 반환.
@@ -54,10 +70,22 @@ const Store = {
       const y = VOYAGES.find(x=>x.id===voyId); if(!y) return null;
       Object.assign(y, patch); return y;
     },
-    // 선박 단위 입력값을 해당 선박 차량 전체의 vehKey(bl_no · eta_from_eukor_pirt · ata)에 대입. 반영한 차량 수를 반환.
-    applyToVehicles(vessel, vehKey, val){
+    // 선박 단위 입력값을 해당 선박 차량 전체의 vehKey(bl_no · eta_from_eukor_pirt · ata · tsc_arrival_date)에 대입.
+    // 값이 바뀐 차량만 Vehicle_History(출처: 수동)에 기록 (10/26). 반환 {n: 해당 선박 차량 수, changed: 값이 바뀐 차량 수}
+    applyToVehicles(vessel, vehKey, val, by){
+      const at = nowStamp(); const hist = [];
       const vs = VEHICLES.filter(v=>v.vessel===vessel);
-      vs.forEach(v=>{ v[vehKey] = val; });
+      vs.forEach(v=>{ const old = v[vehKey]==null? '' : v[vehKey]; if(String(old)===String(val==null? '' : val)) return;
+        hist.push({commission_no:v.commission_no, field:vehKey, old_value:old, new_value:val, changed_by:by, changed_at:at, source:'수동'}); v[vehKey] = val; });
+      Store.history.add(hist);
+      return {n:vs.length, changed:hist.length};
+    },
+    // TSC Arrival Date 입력 시 (10/26 No.8): 해당 선박의 In Transit 차량을 Bonded Stock으로 전환 + Vehicle_History(출처: 규칙). 전환 대수를 반환.
+    bondedByTsc(vessel, by){
+      const at = nowStamp();
+      const vs = VEHICLES.filter(v=>v.vessel===vessel && v.current_status==='In Transit');
+      vs.forEach(v=>{ v.current_status = 'Bonded Stock'; });
+      Store.history.add(vs.map(v=>({commission_no:v.commission_no, field:'current_status', old_value:'In Transit', new_value:'Bonded Stock', changed_by:by, changed_at:at, source:'규칙'})));
       return vs.length;
     },
   },

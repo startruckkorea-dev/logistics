@@ -58,41 +58,48 @@ PAGES.shipping = {
         mk('tbody', null, bodyRows))),
       mk('div', {class:'muted small', style:'margin-top:6px'}, tx('선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. 수량 셀·월 Total 클릭 → 해당 선박·모델 Logistics 목록(같은 건수). Grand Total은 표시 전용.') + (SH.range==='year'? ' '+tx('올해 전체에서 당월 외 월은 Total만 표시 — 월 Total 머리글(▸) 클릭으로 선박 열 펼침.') : '')));
 
-    // 선박별 현황: B/L · Shipping · Pl. arrival · ETA 선사 · ATA · TSC 입고일(Key-in) · 대수
+    // 선박별 현황: B/L · Shipping · Pl. arrival · ETA 선사 · ATA · TSC Arrival Date · 대수
     const dash = ()=>mk('span', {class:'muted'}, '—');
-    // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영(Store). TSC 입고일은 Key-in만(차량 마스터 미반영).
+    // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA · TSC Arrival Date) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영 + Vehicle_History 기록(Store, 10/26).
+    // TSC Arrival Date 입력 시 해당 선박 In Transit 차량 → Bonded Stock (10/26 No.8 · 삭제 시에는 되돌리지 않음)
     const applyToVehicles = (y, voyKey, vehKey, label, val)=>{
       Store.voyages.update(y.id, {[voyKey]: val});
-      const n = Store.voyages.applyToVehicles(y.vessel, vehKey, val);
-      toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(n)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History(출처: 수동) 기록`);
+      const r = Store.voyages.applyToVehicles(y.vessel, vehKey, val, state.user);
+      const moved = (vehKey==='tsc_arrival_date' && val) ? Store.voyages.bondedByTsc(y.vessel, state.user) : 0;
+      toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(r.n)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History ${num(r.changed)}건 기록(출처: 수동)${moved? ` · In Transit → Bonded Stock 전환 ${num(moved)}대 (출처: 규칙)` : ''}`);
+      PAGES.shipping.render(root); // 입력 직후 다시 그려 KPI · 월별 입항 예정 · 선박별 현황 단계·대수를 맞춤 (편집 모드 SH.edit 유지)
     };
     const edit = SH.edit && isEditor(); // 편집 모드에서만 입력란, 그 외에는 값 표시
     const vIn = (y, voyKey, vehKey, label, type, ph, empty)=> edit
       ? mk('input', {type, class:'tsc-in', value:y[voyKey]||'', placeholder:ph||'', title:`${label} 입력 → 차량 마스터 반영`, onclick:e=>e.stopPropagation(), onchange:e=>applyToVehicles(y, voyKey, vehKey, label, e.target.value.trim())})
       : mk('span', null, y[voyKey] || empty);
-    const rows = VOYAGES.map(y=>{ const vs=moving.filter(v=>v.vessel===y.vessel); // 10/19: ETA 불일치 표시 삭제
-      const tsc = !edit ? mk('span', {class:'muted'}, tx('미입력')) : mk('input', {type:'date', class:'tsc-in', title:'TSC 입고일 수기 입력 (Key-in) — 차량 마스터에는 반영하지 않음', onclick:e=>e.stopPropagation(), onchange:e=>describe('TSC 입고일 입력', `${y.vessel} · TSC Arrival Date ${e.target.value||'(삭제)'} → 해당 선박 차량의 tsc_arrival_date에 일괄 저장하고 Vehicle_History(출처: 수동)에 기록합니다. (차량 마스터 열에는 반영하지 않음)`)});
+    // 10/26: '단계' 열 분리(Vessel 다음) = 그 선박 차량의 Current Status(복수면 단계별 대수 병기) · '대수' = 그 선박에 실린 차량 전체(TSC 입력 후 Bonded Stock 포함) — 단계와 대수가 같은 집합
+    const stageCell = vs=>{ const by = countBy(vs, v=>v.current_status); const sts = Object.keys(by).sort((a,b)=>STAGES.indexOf(a)-STAGES.indexOf(b));
+      return mk('td', null, sts.length? sts.map(s=>mk('span', {class:'pill '+(STAGE_CLASS[s]||'neutral'), style:'margin-right:4px'}, sts.length>1? `${s} ${num(by[s])}` : s)) : mk('span', {class:'muted'}, '—')); };
+    const rows = VOYAGES.map(y=>{ const vs=VEHICLES.filter(v=>v.vessel===y.vessel); // 10/19: ETA 불일치 표시 삭제
       return mk('tr', {'data-vessel':y.vessel},
-        mk('td', null, mk('b', null, y.vessel), mk('div', {class:'muted small'}, `${y.carrier} · ${y.kind==='transit'?tx('운송중'):tx('선적 예정')}`)),
+        mk('td', null, mk('b', null, y.vessel), mk('div', {class:'muted small'}, y.carrier)),
+        stageCell(vs),
+        mk('td', {class:'num'}, mk('b', null, vs.length)),
         mk('td', {class:'mono'}, vIn(y, 'bl', 'bl_no', 'B/L No', 'text', tx('미확정'), mk('span', {class:'muted'}, tx('미확정')))),
         mk('td', {class:'mono'}, y.shipping, y.kind==='scheduled'? mk('div', {class:'muted small'}, tx('예정')) : null),
         mk('td', {class:'mono'}, y.pl),
         mk('td', {class:'mono'}, vIn(y, 'eta_carrier', 'eta_from_eukor_pirt', 'ETA From EUKOR/PIRT', 'date', '', dash())),
         mk('td', {class:'mono'}, vIn(y, 'eta_final', 'ata', 'ATA', 'date', '', mk('span', {class:'muted'}, tx('미입력')))),
-        mk('td', null, tsc),
-        mk('td', {class:'num'}, mk('b', null, vs.length))); });
+        mk('td', {class:'mono'}, vIn(y, 'tsc', 'tsc_arrival_date', 'TSC Arrival Date', 'date', '', mk('span', {class:'muted'}, tx('미입력'))))); }); // 10/26 No.9: B/L·ETA·ATA와 같은 경로로 차량 마스터 반영
     const vessels = mk('div', {class:'card'},
-      mk('div', {class:'card-h'}, mk('h2', null, tx('선박별 현황')), noteEl('S2'), mk('span', {class:'desc'}, tx('ATA = 실제 입항일(구 ETA Final) · TSC 입고일(TSC Arrival Date)은 Editor 수기 입력(Key-in)')), mk('span', {class:'spacer'}),
-        mk('button', {class:'btn editor-only '+(edit?'primary':''), title: edit? '편집을 종료합니다 (입력값은 입력 즉시 저장됨)' : 'B/L No · ETA 선사 · ATA · TSC 입고일 입력란을 엽니다', onclick:()=>{ SH.edit=!SH.edit; PAGES.shipping.render(root); }}, edit? tx('편집 종료') : tx('편집')),
+      mk('div', {class:'card-h'}, mk('h2', null, tx('선박별 현황')), noteEl('S2'), mk('span', {class:'desc'}, tx('ATA = 실제 입항일(구 ETA Final) · TSC Arrival Date 입력 시 차량 마스터 반영 · 해당 선박 In Transit → Bonded Stock 전환')), mk('span', {class:'spacer'}),
+        mk('button', {class:'btn editor-only '+(edit?'primary':''), title: edit? '편집을 종료합니다 (입력값은 입력 즉시 저장됨)' : 'B/L No · ETA 선사 · ATA · TSC Arrival Date 입력란을 엽니다', onclick:()=>{ SH.edit=!SH.edit; PAGES.shipping.render(root); }}, edit? tx('편집 종료') : tx('편집')),
         mk('button', {class:'btn primary editor-only', id:'btnSched'}, tx('선사 스케줄 일괄 업데이트')), mk('button', {class:'btn', onclick:()=>describe('엑셀 내보내기','선박별 현황 표를 .xlsx로 내보냅니다.')}, tx('엑셀'))),
-      mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl clickable compact'},
-        mk('thead', null, mk('tr', null, ['Vessel','B/L No','Shipping','Planned Arrival','ETA 선사 (EUKOR/MOL)','ATA','TSC 입고일 (TSC Arrival Date)'].map(x=>mk('th', null, tx(x))), mk('th', {class:'num'}, tx('대수')))),
+      mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact'+(edit? '' : ' clickable')}, // 편집 모드에서는 행 클릭 이동 없음 (10/26)
+        mk('thead', null, mk('tr', null, ['Vessel','단계'].map(x=>mk('th', null, tx(x))), mk('th', {class:'num'}, tx('대수')), ['B/L No','Shipping','Planned Arrival','ETA 선사 (EUKOR/MOL)','ATA','TSC 입고일 (TSC Arrival Date)'].map(x=>mk('th', null, tx(x))))),
         mk('tbody', null, rows))),
       mk('div', {class:'muted small', style:'margin-top:6px'}, tx('행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 Logistics 그리드/상세 또는 아래 일괄 업데이트에서.')));
 
     root.innerHTML = kpi;
     root.append(vessels, monthly); // 10/19 No.8: 선박별 현황을 월별 입항 예정 위로
-    qa('tr[data-vessel]', root).forEach(tr=>tr.onclick=()=>location.hash='#/logistics?q='+encodeURIComponent(tr.dataset.vessel));
+    // 편집 모드에서는 행 클릭으로 이동하지 않음 (10/26). 대시보드가 #app에 위임한 tr[data-vessel] 클릭 핸들러까지 막아야 하므로 전파를 끊는다
+    qa('tr[data-vessel]', root).forEach(tr=>tr.onclick = edit? e=>e.stopPropagation() : ()=>{ location.hash='#/logistics?q='+encodeURIComponent(tr.dataset.vessel); });
     qa('td.lnk[data-href]', monthly).forEach(td=>td.onclick=()=>location.hash=td.dataset.href); // 월별 입항 수량 셀 → Logistics (10/22)
     const b=el('btnSched'); if(b) b.onclick = ()=>openModal(tx('선사 스케줄 일괄 업데이트'), `<div class="callout">선사(EUKOR/MOL) 스케줄 파일 또는 붙여넣기 → Vessel명 매칭 → ETA 선사·ETA Final 미리보기 → 체크한 선박만 반영. 수신 방식(메일/포털)과 파일 형식은 §15 열린 질문 5번.</div>
       <ol style="padding-left:18px;line-height:1.9"><li>파일 선택(.xlsx/.csv) 또는 스케줄 텍스트 붙여넣기</li><li>Vessel / Voyage 기준 매칭 (매칭 실패 선박은 수동 선택)</li><li>미리보기: 선박별 ETA 선사 before/after, Δ(Pl. arrival 대비), 영향 차량 수</li><li>체크한 선박만 반영 → 해당 차량 eta_carrier 일괄 갱신, ETA Final은 Editor 확인 후 입력</li></ol>

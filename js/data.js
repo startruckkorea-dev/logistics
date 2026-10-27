@@ -58,16 +58,16 @@ const COLORS = ['9147','7350','3589','5361','9040','1636','9134','7755'];
 const COLOR_NAMES = {'9147':'Arctic White','7350':'Silver Grey','3589':'Jupiter Red','5361':'Steel Blue','9040':'Obsidian Black','1636':'Sun Yellow','9134':'Alpine White','7755':'Tenorite Grey'};
 const SAP_CODES = ['ZCBC','ZSHP','ZVIB','ZPDY','ZIVB','ZGOR'];
 
-// ---- 선박(항차): 운송중 6척 + 선적 예정 2척 ----
+// ---- 선박(항차): 운송중 6척 + 선적 예정 2척 · tsc = TSC Arrival Date 선박 단위 입력값 (10/26 No.9, 샘플 공란) ----
 const VOYAGES = [
-  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'2026-10-15', kind:'transit',   n:12},
-  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'2026-10-22', kind:'transit',   n:14},
-  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'2026-11-03', kind:'transit',   n:11},
-  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'2026-11-07', kind:'transit',   n:10},
-  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'2026-11-26', kind:'transit',   n:5},
-  {id:'V6', vessel:'Eukor Pioneer',   carrier:'EUKOR', bl:'EUKOBRV2610003', shipping:'2026-10-04', pl:'2026-11-20', eta_carrier:'',           eta_final:'',           kind:'transit',   n:14},
-  {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           kind:'scheduled', n:8},
-  {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           kind:'scheduled', n:6},
+  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'2026-10-15', tsc:'', kind:'transit',   n:12},
+  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'2026-10-22', tsc:'', kind:'transit',   n:14},
+  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'2026-11-03', tsc:'', kind:'transit',   n:11},
+  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'2026-11-07', tsc:'', kind:'transit',   n:10},
+  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'2026-11-26', tsc:'', kind:'transit',   n:5},
+  {id:'V6', vessel:'Eukor Pioneer',   carrier:'EUKOR', bl:'EUKOBRV2610003', shipping:'2026-10-04', pl:'2026-11-20', eta_carrier:'',           eta_final:'',           tsc:'', kind:'transit',   n:14},
+  {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', kind:'scheduled', n:8},
+  {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', kind:'scheduled', n:6},
 ];
 const VESSEL_PAST = ['Morning Christina','Glovis Symphony','Hoegh Target','MOL Endurance','Eukor Grace','Grand Pioneer','Hyundai Glory','Morning Laura','Glovis Passion','Hoegh Berlin'];
 
@@ -82,7 +82,7 @@ function makeVehicle(p, m){
   const s=p.stage;
   const v={ current_status:s, status_override:'', status_reason:'', vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option,
     baumuster:m.prefix+' '+m.suffix, model_in_afab:m.type_desc, lead_time:m.lead, color_code:pick(COLORS), sub_cat: m.vehicle==='Tipper'?'KIP':(m.vehicle==='Tractor'?'SZM':'LKW'),
-    vessel:'', bl_no:'', import_license:'', b1_factory_order:'', co:'', option_remarks:'', tires:'', order_note:'' }; // 10/20 No.14: fleet_co → co
+    vessel:'', bl_no:'', import_license:'', b1_factory_order:'', co:'', option_remarks:'', tires:'', order_note:'', tsc_arrival_date:'' }; // 10/20 No.14: fleet_co → co · 10/26 No.9: TSC Arrival Date (샘플은 전부 공란, 선적·입항 선박별 현황에서 입력)
   let orderD=null, pm='', tdd=null, prodDone=null, exf=null, ship=null, inv=null, pl=null, etaC=null, etaF=null, cust=null, saleD=null, chg=null;
   const seaChain=()=>{ ship=addD(etaF,-ri(40,60)); pl=addD(etaF,-ri(0,6)); etaC=addD(pl,ri(-2,3)); inv=addD(ship,2); exf=addD(ship,-ri(5,15)); prodDone=addD(exf,-ri(1,4)); tdd=addD(prodDone,-ri(1,8)); pm=ymOf(tdd); orderD=addD(tdd,-ri(100,240)); v.vessel=pick(VESSEL_PAST); v.bl_no=(rnd()<0.5?'EUKO':'MOLU')+pick(['HAM','BRV'])+ymOf(ship).slice(2,4)+ymOf(ship).slice(5,7)+String(ri(100,999)); };
   if(s==='Sold'){ saleD=randDate('2025-01-01','2026-09-30'); etaF=addD(saleD,-ri(5,200)); cust=addD(etaF,ri(3,40)); if(cust>saleD) cust=addD(saleD,-1); seaChain(); }
@@ -271,11 +271,22 @@ const STAGE_RULES = [
   {order:5, source:'AFAB', stage:'In Production', cond:'생산월 도래 시'},
   {order:6, source:'AFAB', stage:'Shipment scheduled', cond:'Vessel, Shipping Date 확정 시'},
   {order:7, source:'AFAB', stage:'In Transit', cond:'Shipping Date 기준'},
-  {order:8, source:'선적·입항', stage:'Bonded Stock', cond:'ATA 기준'},
+  {order:8, source:'선적·입항', stage:'Bonded Stock', cond:'TSC Arrival Date 입력 시 (ATA ~ TSC 입고 전은 In Transit 유지)'}, // 10/26 No.8
   {order:9, source:'통관', stage:'OH Stock', cond:'통관 탭 입력 후 (Customs Clearance Date 입력)'},
   {order:10, source:'Key-in', stage:'Sold', cond:'월말 입력 후'},
   {order:11, source:'Key-in', stage:'Cancelled', cond:'STK 담당자가 취소할 경우'},
 ];
+
+// ---- 통관 Excel 업로드 샘플 (10/26 No.1): Unipass 수입신고 목록 — 열 Commission(매칭 키) · 수리일 → Customs Clearance Date · 신고번호 → Import License ----
+// Bonded Stock 중 통관일 없는 차량 5건 + 미등록 Commission 1건. 난수는 rndX(VEHICLES 생성 뒤에 소비하므로 기존 가짜값에 영향 없음)
+const CUSTOMS_UPLOAD_FILE = 'Unipass_Import_'+TODAY_S+'.xlsx';
+const CUSTOMS_UPLOAD_SAMPLE = (function(){
+  const declNo = ()=> BASE_YM.replace('-','').slice(2)+'-'+String(100000+Math.floor(rndX()*900000))+'M';
+  const rows = VEHICLES.filter(v=>v.current_status==='Bonded Stock' && !v.customs_clearance_date).slice(0,5)
+    .map((v,i)=>({commission:v.commission_no, clear_date:fmtD(addD(TODAY,-Math.floor(i/2))), decl_no:declNo()}));
+  rows.push({commission:'071099998', clear_date:TODAY_S, decl_no:declNo()});
+  return rows;
+})();
 
 // ---- 공통 집계 헬퍼 ----
 function countBy(list, fn){ const m={}; list.forEach(v=>{ const k=fn(v); if(k==null||k==='') return; m[k]=(m[k]||0)+1; }); return m; }

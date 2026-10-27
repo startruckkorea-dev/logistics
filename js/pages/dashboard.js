@@ -6,11 +6,12 @@ PAGES.dashboard = {
     const byStage = countBy(VEHICLES, v=>v.current_status);
     const year = BASE_YM.slice(0,4);
 
-    // D1 카드 7종 (10/19 No.10~13: 한글 카드명 · Cancelled 카드 삭제 · In Production + Shipment scheduled → 확정 재고(Factory Stock) · 카드별 아이콘)
-    // 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 당월 입항 예정 → 재고(Bonded + OH) → 판매(YTD)
+    // D1 카드 6종 (10/19 No.10~13: 한글 카드명 · Cancelled 카드 삭제 · In Production + Shipment scheduled → 확정 재고(Factory Stock) · 카드별 아이콘 · 10/26 No.13: 당월 입항 예정 카드 삭제 → 운송 중 카드 하단 문구)
+    // 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중(하단: 당월 입항 예정 n대) → 재고(Bonded + OH) → 판매(YTD)
     const transit = VEHICLES.filter(v=>v.current_status==='In Transit');
     // 당월 입항 예정 (10/20): 당월 입항 선박(ATA → ETA 선사 → Pl. arrival)에 실린 In Transit + Shipment scheduled — 당월 도착 예정 표와 동일 (data.js arrivalSchedule)
     const sched = arrivalSchedule(BASE_YM); const curVoys = sched.voyByYm[BASE_YM]||[];
+    const curMon = {m:Number(BASE_YM.slice(5)), mon:monEn(BASE_YM)};
     const stockVs = VEHICLES.filter(v=>v.current_status==='Bonded Stock'||v.current_status==='OH Stock');
     const soldYtd = VEHICLES.filter(v=>v.current_status==='Sold'&&v.sales_month.startsWith(year));
     const factoryStages = ['In Production','Shipment scheduled'];
@@ -19,14 +20,13 @@ PAGES.dashboard = {
       {label:tx('수정 가능 주문'), icon:'changeable', n:byStage['Ordered(Changeable)']||0, color:STAGE_COLOR['Ordered(Changeable)'], sub:'', href:'#/logistics?stage=Ordered(Changeable)', to:'Logistics 목록 (Ordered(Changeable))'},
       {label:tx('확정 주문'), icon:'fixed', n:byStage['Ordered(Fixed)']||0, color:STAGE_COLOR['Ordered(Fixed)'], sub:'', href:'#/logistics?stage=Ordered(Fixed)', to:'Logistics 목록 (Ordered(Fixed))'},
       {label:tx('확정 재고 (Factory Stock)'), icon:'factory', n:factoryStages.reduce((a,s)=>a+(byStage[s]||0),0), color:STAGE_COLOR['In Production'], sub:`In Production ${num(byStage['In Production']||0)} · Shipment scheduled ${num(byStage['Shipment scheduled']||0)}`, href:'#/logistics?stage='+encodeURIComponent(factoryStages.join(',')), to:'Logistics 목록 (In Production + Shipment scheduled)'},
-      {label:tx('운송 중'), icon:'transit', n:transit.length, color:STAGE_COLOR['In Transit'], sub:'', href:'#/logistics?stage=In%20Transit', to:'Logistics 목록 (In Transit)'},
-      {label:tx('당월 입항 예정 ({m}월)', {m:Number(BASE_YM.slice(5)), mon:monEn(BASE_YM)}), icon:'arrival', n:sched.total, color:'var(--st-sched)', sub:tx('선박 {n}척', {n:curVoys.length}), href:'#/shipping', to:'선적·입항'}, // 10/20 No.16 당월 도착 예정 표와 동일 기준(선박 입항월) · 월 표기는 'N월' 유지
+      {label:tx('운송 중'), icon:'transit', n:transit.length, color:STAGE_COLOR['In Transit'], sub:tx('당월 입항 예정({m}월) {n}대', {m:curMon.m, mon:curMon.mon, n:num(sched.total)}), href:'#/logistics?stage=In%20Transit', to:'Logistics 목록 (In Transit)'}, // 10/26 No.13: 하단 = 당월 입항 예정 대수 (당월 도착 예정 표와 동일 기준 · 월 표기는 'N월' 유지)
       {label:tx('재고 (보세 + 통관)'), icon:'stock', n:stockVs.length, color:STAGE_COLOR['Bonded Stock'], sub:`Bonded ${num(byStage['Bonded Stock']||0)} · OH ${num(byStage['OH Stock']||0)}`, href:'#/stock', to:'재고현황'},
       {label:tx('판매 ({y} YTD)', {y:year}), icon:'sold', n:soldYtd.length, color:STAGE_COLOR['Sold'], sub:tx('전월 {n}', {n:num(byMonth('sales_month')[ymAdd(BASE_YM,-1)]||0)}), href:'#/logistics?stage=Sold', to:'Logistics 목록 (Sold)'},
     ];
     const flow = mk('div', {class:'card'},
       mk('div', {class:'card-h'}, mk('h2', null, tx('차량 주문·재고 흐름')), noteEl('D1'),
-        mk('span', {class:'desc'}, tx('7개 지표 · 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 당월 입항 예정 → 재고 → 판매 · 전체 {n} (Cancelled 제외)', {n:num(VEHICLES.length - (byStage['Cancelled']||0))}))),
+        mk('span', {class:'desc'}, tx('6개 지표 · 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 재고 → 판매 · 전체 {n} (Cancelled 제외)', {n:num(VEHICLES.length - (byStage['Cancelled']||0))}))),
       mk('div', {class:'flow'}, cards.map((c,i)=>mk('div', {class:'stage-box', style:`--c:${c.color}`, 'data-href':c.href, title:'클릭 → '+c.to},
         cardIcon(c.icon), mk('div', {class:'n num'}, num(c.n)), mk('div', {class:'l'}, c.label), c.sub? mk('div', {class:'s'}, c.sub) : null, i<cards.length-1? mk('span', {class:'arrow'}, '›') : null))),
       mk('div', {class:'muted small', style:'margin-top:8px'}, tx('카드 클릭 시 관련 목록으로 이동합니다.')));
@@ -84,7 +84,7 @@ PAGES.dashboard = {
         t.rows.forEach(r=>arrRows.push(mk('tr', null, mk('td', {class:'model'}, r.label), arrCells(r.by)))); }); });
     arrRows.push(mk('tr', {class:'total'}, mk('td', null, 'Grand Total'), arrCells(sched.grand)));
     const arrCard = mk('div', {class:'card fillcol'}, // fillcol: 표 스크롤 영역 높이를 옆 '입항 예정 선박' 카드에 맞춤
-      mk('div', {class:'card-h'}, mk('h2', null, tx('당월 도착 예정 ({m}월)', {m:Number(BASE_YM.slice(5)), mon:monEn(BASE_YM)})), noteEl('D7'), mk('span', {class:'desc'}, tx('구분 > 차종 > 모델 × 당월 입항 선박 · 합계 {n}대 · 선박 {v}척', {n:num(sched.total), v:curVoys.length})), mk('span', {class:'spacer'}), mk('a', {href:'#/shipping'}, tx('월별 입항 예정 →'))),
+      mk('div', {class:'card-h'}, mk('h2', null, tx('당월 도착 예정 ({m}월)', curMon)), noteEl('D7'), mk('span', {class:'desc'}, tx('구분 > 차종 > 모델 × 당월 입항 선박 · 합계 {n}대 · 선박 {v}척', {n:num(sched.total), v:curVoys.length})), mk('span', {class:'spacer'}), mk('a', {href:'#/shipping'}, tx('월별 입항 예정 →'))),
       mk('div', {class:'fill'}, mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot'},
         mk('thead', null, mk('tr', null, mk('th', null, 'Model'), curVoys.map(y=>mk('th', {class:'num'}, y.vessel)), mk('th', {class:'num tot'}, 'Total'))),
         mk('tbody', null, sched.total? arrRows : mk('tr', null, mk('td', {colspan:arrCols, class:'muted', style:'text-align:center'}, tx('당월 입항 예정 차량이 없습니다.'))))))));
@@ -121,7 +121,6 @@ const CARD_ICON_PATHS = {
   fixed: ['M5 3h8l4 4v5', 'M5 3v18h7', 'M13 3v4h4', 'M8 10h6M8 13h4', circ(17,17,4), 'M15 17l1.5 1.5 3-3'],              // 주문서 + 확인 표시 (확정 주문)
   factory: ['M3 21V11l5 3v-3l5 3v-3l5 3v7H3z', 'M16 11V5h3v10', 'M7 17h2M11 17h2M15 17h2'],                              // 공장 (확정 재고, 현행 유지)
   transit: ['M3 15l2 5h14l2-5z', 'M6 15v-4h12v4', 'M9 11V8h6v3', 'M12 5v3', 'M2 23c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0'], // 선박 (운송 중, 현행 유지)
-  arrival: ['M12 1.5a3.5 3.5 0 0 1 3.5 3.5c0 2.5-3.5 6.5-3.5 6.5S8.5 7.5 8.5 5A3.5 3.5 0 0 1 12 1.5z', circ(12,5,1), 'M3 17l2 4h14l2-4z', 'M6 17v-3h12v3'], // 도착 핀 + 선박 (당월 입항 예정)
   stock: ['M2.5 20V10L12 4l9.5 6v10', 'M2 20h20', 'M5 12.5h7.5v5H5z', 'M12.5 14h3l2 2.2v1.3h-5', circ(7.5,18.6,1.1), circ(15,18.6,1.1)], // 창고 안 트럭 (재고) — 10/20 No.19 첨부 SVG
   sold: ['M2.5 8.5h11v8.5h-11z', 'M13.5 11h4.2l2.8 3.3V17h-7', circ(6.5,18.3,1.7), circ(17,18.3,1.7), 'M8 8.5V17', 'M8 8.5c-1.4-2.6-3.8-2.7-3.8-1.2 0 .9 1.6 1.2 3.8 1.2zM8 8.5c1.4-2.6 3.8-2.7 3.8-1.2 0 .9-1.6 1.2-3.8 1.2z'], // 리본 달린 트럭 (판매) — 10/20 No.19 첨부 SVG
 };

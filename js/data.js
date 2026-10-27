@@ -58,16 +58,16 @@ const COLORS = ['9147','7350','3589','5361','9040','1636','9134','7755'];
 const COLOR_NAMES = {'9147':'Arctic White','7350':'Silver Grey','3589':'Jupiter Red','5361':'Steel Blue','9040':'Obsidian Black','1636':'Sun Yellow','9134':'Alpine White','7755':'Tenorite Grey'};
 const SAP_CODES = ['ZCBC','ZSHP','ZVIB','ZPDY','ZIVB','ZGOR'];
 
-// ---- 선박(항차): 운송중 6척 + 선적 예정 2척 · tsc = TSC Arrival Date 선박 단위 입력값 (10/26 No.9, 샘플 공란) ----
+// ---- 선박(항차): 운송중 6척 + 선적 예정 2척 · tsc = TSC Arrival Date 선박 단위 입력값 (10/26 No.9, 샘플 공란) · tsc_status: '' | 'scheduled'(예정, 선박에만 보관) | 'confirmed'(확정, 차량 마스터 반영됨) (10/27) ----
 const VOYAGES = [
-  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'2026-10-15', tsc:'', kind:'transit',   n:12},
-  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'2026-10-22', tsc:'', kind:'transit',   n:14},
-  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'2026-11-03', tsc:'', kind:'transit',   n:11},
-  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'2026-11-07', tsc:'', kind:'transit',   n:10},
-  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'2026-11-26', tsc:'', kind:'transit',   n:5},
-  {id:'V6', vessel:'Eukor Pioneer',   carrier:'EUKOR', bl:'EUKOBRV2610003', shipping:'2026-10-04', pl:'2026-11-20', eta_carrier:'',           eta_final:'',           tsc:'', kind:'transit',   n:14},
-  {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', kind:'scheduled', n:8},
-  {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', kind:'scheduled', n:6},
+  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'2026-10-15', tsc:'', tsc_status:'', kind:'transit',   n:12},
+  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'2026-10-22', tsc:'', tsc_status:'', kind:'transit',   n:14},
+  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'2026-11-03', tsc:'', tsc_status:'', kind:'transit',   n:11},
+  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'2026-11-07', tsc:'', tsc_status:'', kind:'transit',   n:10},
+  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'2026-11-26', tsc:'', tsc_status:'', kind:'transit',   n:5},
+  {id:'V6', vessel:'Eukor Pioneer',   carrier:'EUKOR', bl:'EUKOBRV2610003', shipping:'2026-10-04', pl:'2026-11-20', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:14},
+  {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:8},
+  {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:6},
 ];
 const VESSEL_PAST = ['Morning Christina','Glovis Symphony','Hoegh Target','MOL Endurance','Eukor Grace','Grand Pioneer','Hyundai Glory','Morning Laura','Glovis Passion','Hoegh Berlin'];
 
@@ -172,7 +172,7 @@ const USERS = [
   {name:'김백업', upn:'backup.kim@stk.co.kr', group:'STK-Logistics-Editors', role:'Editor', admin:false, dept:'Ordering & Logistics'},
   {name:'박대표', upn:'ceo.park@stk.co.kr',   group:'STK-Logistics-Viewers', role:'Viewer', admin:false, dept:'경영진'},
   {name:'이기획', upn:'plan.lee@stk.co.kr',   group:'STK-Logistics-Viewers', role:'Viewer', admin:false, dept:'영업기획'},
-  {name:'최영업', upn:'sales.choi@stk.co.kr', group:'STK-Logistics-Viewers', role:'Viewer', admin:false, dept:'영업'},
+  {name:'최영업', upn:'sales.choi@stk.co.kr', group:'STK-Logistics-Viewers', role:'Sales', admin:false, dept:'영업'}, // 10/27: Sales = 대시보드·선적·입항 조회 + Logistics Request of Customs Clearance 탭(통관 신청)만
 ];
 
 // ---- Vehicle_History (샘플) ----
@@ -271,13 +271,19 @@ const STAGE_RULES = [
   {order:5, source:'AFAB', stage:'In Production', cond:'생산월 도래 시'},
   {order:6, source:'AFAB', stage:'Shipment scheduled', cond:'Vessel, Shipping Date 확정 시'},
   {order:7, source:'AFAB', stage:'In Transit', cond:'Shipping Date 기준'},
-  {order:8, source:'선적·입항', stage:'Bonded Stock', cond:'TSC Arrival Date 입력 시 (ATA ~ TSC 입고 전은 In Transit 유지)'}, // 10/26 No.8
+  {order:8, source:'선적·입항', stage:'Bonded Stock', cond:'TSC Arrival Date 확정 시 (입력만 하면 예정 · ATA ~ TSC 확정 전은 In Transit 유지)'}, // 10/26 No.8 · 10/27: 예정/확정 구분
   {order:9, source:'통관', stage:'OH Stock', cond:'통관 탭 입력 후 (Customs Clearance Date 입력)'},
   {order:10, source:'Key-in', stage:'Sold', cond:'월말 입력 후'},
   {order:11, source:'Key-in', stage:'Cancelled', cond:'STK 담당자가 취소할 경우'},
 ];
 
-// ---- 통관 Excel 업로드 샘플 (10/26 No.1): Unipass 수입신고 목록 — 열 Commission(매칭 키) · 수리일 → Customs Clearance Date · 신고번호 → Import License ----
+// ---- 통관 Excel 열 매핑 (10/27, 읽기 전용): col = Excel 머리글(Unipass 수입신고 목록, 고정) · key = 차량 마스터 필드 · field = 업로드 샘플 행 속성명 · role 'key' = 매칭 키 / 'apply' = 반영 ----
+const CUSTOMS_UPLOAD_MAP = [
+  {col:'Commission', key:'commission_no',          field:'commission', role:'key'},
+  {col:'수리일',     key:'customs_clearance_date', field:'clear_date', role:'apply'},
+  {col:'신고번호',   key:'import_license',         field:'decl_no',    role:'apply'},
+];
+// ---- 통관 Excel 업로드 샘플 (10/26 No.1): Unipass 수입신고 목록 — 열 구성은 CUSTOMS_UPLOAD_MAP ----
 // Bonded Stock 중 통관일 없는 차량 5건 + 미등록 Commission 1건. 난수는 rndX(VEHICLES 생성 뒤에 소비하므로 기존 가짜값에 영향 없음)
 const CUSTOMS_UPLOAD_FILE = 'Unipass_Import_'+TODAY_S+'.xlsx';
 const CUSTOMS_UPLOAD_SAMPLE = (function(){
@@ -286,6 +292,17 @@ const CUSTOMS_UPLOAD_SAMPLE = (function(){
     .map((v,i)=>({commission:v.commission_no, clear_date:fmtD(addD(TODAY,-Math.floor(i/2))), decl_no:declNo()}));
   rows.push({commission:'071099998', clear_date:TODAY_S, decl_no:declNo()});
   return rows;
+})();
+
+// ---- 통관 신청 (10/27): 영업(Sales)이 Bonded Stock 차량을 골라 물류 담당자에게 보낸 신청 — 별도 List Customs_Requests. 차량 행에는 기록하지 않는다 ----
+// status '접수' = 물류 미처리 · '처리 완료' = 통관 정보 반영됨. 샘플 1 = 업로드 샘플과 같은 5대(접수 → Unipass 업로드로 처리하는 시연 흐름) · 샘플 2 = OH Stock 3대(처리 완료). 난수 미사용
+const CUSTOMS_REQUESTS = (function(){
+  const bonded = CUSTOMS_UPLOAD_SAMPLE.filter(r=>VEHICLE_BY_COMM[r.commission]).map(r=>r.commission);
+  const done = VEHICLES.filter(v=>v.current_status==='OH Stock').slice(0,3).map(v=>v.commission_no);
+  return [
+    {id:'CR-20261006-01', requested_at:'2026-10-06 14:20', requested_by:'최영업', dept:'영업', comms:bonded, n:bonded.length, status:'접수', note:'10월 판매분 우선 통관 요청'},
+    {id:'CR-20261002-01', requested_at:'2026-10-02 09:40', requested_by:'최영업', dept:'영업', comms:done, n:done.length, status:'처리 완료', note:''},
+  ];
 })();
 
 // ---- 공통 집계 헬퍼 ----

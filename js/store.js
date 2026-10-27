@@ -88,5 +88,28 @@ const Store = {
       Store.history.add(vs.map(v=>({commission_no:v.commission_no, field:'current_status', old_value:'In Transit', new_value:'Bonded Stock', changed_by:by, changed_at:at, source:'규칙'})));
       return vs.length;
     },
+    // TSC 입고일 예정 저장 (10/27): 선박(VOYAGES) 단위만 기록. 차량 마스터·단계는 바꾸지 않는다. date ''이면 예정 해제. 반환 항차 행 또는 null
+    scheduleTsc(voyId, date){ return Store.voyages.update(voyId, {tsc:date, tsc_status: date? 'scheduled' : ''}); },
+    // TSC 입고일 확정 (10/27): date 공란이면 아무것도 쓰지 않고 null. tsc_status='confirmed' → 해당 선박 차량 tsc_arrival_date 반영(Vehicle_History 출처 수동) → In Transit → Bonded Stock(출처 규칙)
+    // 반환 {vessel, date, n: 선박 차량 수, changed: 값 바뀐 차량 수, moved: 전환 대수}
+    confirmTsc(voyId, date, by){
+      if(!date) return null;
+      const y = Store.voyages.update(voyId, {tsc:date, tsc_status:'confirmed'}); if(!y) return null;
+      const r = Store.voyages.applyToVehicles(y.vessel, 'tsc_arrival_date', date, by);
+      const moved = Store.voyages.bondedByTsc(y.vessel, by);
+      return {vessel:y.vessel, date, n:r.n, changed:r.changed, moved};
+    },
+  },
+  customsRequests: {
+    // 통관 신청 등록 (10/27, Sales): comms = Commission No 배열 · by = 신청자. CUSTOMS_REQUESTS 맨 앞(최신순) + Audit_Log 기록. 차량 행·Vehicle_History는 건드리지 않는다. 반환 {req, to: 수신자 이름 배열}
+    add(comms, by){
+      const u = USERS.find(x=>x.name===by); const at = nowStamp();
+      const seq = CUSTOMS_REQUESTS.filter(r=>r.requested_at.startsWith(TODAY_S)).length+1;
+      const req = {id:'CR-'+TODAY_S.replace(/-/g,'')+'-'+pad2(seq), requested_at:at, requested_by:by, dept:u? u.dept : '', comms:[...comms], n:comms.length, status:'접수', note:''};
+      CUSTOMS_REQUESTS.unshift(req);
+      const to = USERS.filter(x=>x.role==='Editor' && x.dept==='Ordering & Logistics').map(x=>x.name);
+      AUDIT_LOG.unshift({at, user:by, action:'통관 신청', target:'Customs_Requests '+req.id, detail:`${comms.length}건 · 메일 수신 ${to.join(', ')}`});
+      return {req, to};
+    },
   },
 };

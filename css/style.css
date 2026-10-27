@@ -362,6 +362,11 @@ body.modal-open .modal-bg{display:flex}
 .pivot.fixcol td.lnk{cursor:pointer;color:var(--accent);text-decoration:underline dotted}
 .pivot.fixcol td.lnk:hover{background:#d6e6fb}
 .tsc-in{border:1px solid var(--line-strong);border-radius:6px;padding:2px 6px;font:inherit;font-size:12px;background:#fffdf5}
+/* 10/27: 선적·입항 선박별 현황 — 열 너비는 shipping.js evenCols()가 계산(열 최대 내용 폭 + 남는 폭 균등). 예정/확정 배지 열(.tscst)은 TSC 입고일 바로 옆에 붙임 */
+.tbl.even th,.tbl.even td{white-space:nowrap}
+.tbl.even th.tscst,.tbl.even td.tscst{padding-left:0}
+/* 10/27: Sales 통관 신청 목록 — Commission No 클릭으로 선택 */
+.tbl td.cu-pick{cursor:pointer;color:var(--accent);text-decoration:underline dotted}
 .viewer-only{display:none}
 body.viewer .viewer-only{display:inline}
 

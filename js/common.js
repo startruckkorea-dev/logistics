@@ -66,11 +66,11 @@ const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // �
 
 // 설계 노트 (목업 전용)
 const NOTES = {
-  G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. UI 한국어, 필드명은 기존 엑셀 영문',
+  G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. Sales = 대시보드·선적·입항·Logistics(Request 탭) 조회 + 통관 신청만. UI 한국어, 필드명은 기존 엑셀 영문',
   D1:'차량 주문·재고 흐름: 카드 6종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit, 하단에 당월 입항 예정 대수) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘, Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 8개월만 표시, 나머지는 가로 스크롤(Y축 고정). 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외) · 단계 색 = Current Status 색', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)', D7:'당월 도착 예정: 선적·입항 월별 입항 예정 피벗의 당월 블록 (행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 당월 입항 선박 + Total · 선박 입항월 = ATA → ETA 선사 → Pl. arrival) · 당월 입항 예정 카드와 동일 기준',
   L1:'탭 4개: Logistics(홈 그리드) · Request of Customs Clearance(통관 여부 조회) · Update Customs Clearance Info(Unipass Excel 업로드로 통관일·수입필증번호 반영) · Insurance(보험 조회 · Excel Export). 편집 중 저장 대기 값이 있으면 탭 전환 차단',
   L2:'열 필터(Current Status 단계 순 10단계 + Cancelled · 모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 45열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
-  S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(Vessel·단계·대수·B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC Arrival Date). 선박 단위 입력은 해당 선박 차량의 차량 마스터 열에 반영·Vehicle_History 기록, TSC 입력 시 In Transit → Bonded Stock. ETA 불일치 카드·탭·표시는 제외',
+  S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(Vessel·단계·대수·B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC Arrival Date). 선박 단위 입력은 해당 선박 차량의 차량 마스터 열에 반영·Vehicle_History 기록. TSC 입고일은 예정(선박 단위) 저장 후 배지 클릭으로 확정 → 차량 마스터 반영 + In Transit → Bonded Stock. ETA 불일치 카드·탭·표시는 제외',
   K1:'기준월 선택(최근 5개월 월말 마감 + 현재) → 요약 카드(Total Stock + 연식 MY24~27 대수·비율) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
   P1:'연도·차종 선택, 판매계획 입력 모드(Editor), 범례(실적/확정/계획)', P2:'모델 그룹 접기, 행 = Production/Arrival/Sales/OH Stock/In Transit/재고월수, 기준월 열 강조', P3:'전체 합계 + Fixed Order', P4:'계획 확정·시나리오(2차)·Kufri Excel',
@@ -81,6 +81,7 @@ const NOTES = {
 const PAGES = {};
 const state = { role:'Editor', user: USERS.find(u=>u.role==='Editor').name, notes:false, hiddenCols:new Set(DEFAULT_HIDDEN_COLS), lang:'ko' };
 function isEditor(){ return state.role==='Editor'; }
+function isSales(){ return state.role==='Sales'; } // 10/27: 영업 역할 — 대시보드·선적·입항 조회 + Logistics 'Request of Customs Clearance' 탭(통관 신청)만. 그 외 입력 버튼은 Viewer와 같이 숨김(body.viewer)
 
 // ---- 언어 (한/EN 토글) ----
 // I18N: 한글 UI 문구 → 영문 사전. tx(ko, vars)는 한국어 모드에서는 ko를 그대로 돌려주므로 한국어 화면은 바뀌지 않는다.
@@ -122,14 +123,14 @@ const I18N = {
   '월별 입항 예정 →':'Monthly Arrival Schedule →', '당월 입항 예정 차량이 없습니다.':'No vehicles arriving this month.',
   '연식별 재고':'Stock by Model Year', 'Bonded + OH Stock {n}대 · 연식(MY) 최신순 · 누적 = Vehicle 4종':'Bonded + OH Stock {n} units · newest MY first · stacked by 4 vehicle types',
   // Logistics 차량 마스터
-  '엑셀 내보내기':'Export Excel', '{n}건 / 전체 {m}':'{n} / Total {m}', ' · 열 필터: {cols}':' · Column filter: {cols}', '조건에 맞는 차량이 없습니다.':'No vehicles match the filters.',
+  '엑셀 내보내기':'Export Excel', '{n}건 / 전체 {m}':'{n} / Total {m}', 'Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note':'Comm (comma-separated for several) / VIN / B/L / Vessel / Type / Order·Option Note', ' · 열 필터: {cols}':' · Column filter: {cols}', '조건에 맞는 차량이 없습니다.':'No vehicles match the filters.',
   '바로가기':'Jump to', '· 열 {a}/{b} · 가로 스크롤 · Comm No. 고정':'· Columns {a}/{b} · horizontal scroll · Comm No. pinned',
   '{n}건 중 {a}–{b}':'{a}–{b} of {n}', '‹ 이전':'‹ Prev', '다음 ›':'Next ›', '50행 페이지 (실제 구현은 가상 스크롤 또는 50행 페이지)':'50 rows per page (real build: virtual scroll or 50-row pages)',
   '편집 모드':'Edit Mode', '· 선택 ':'· Selected ', '건':' items', '오더 변경 (모델 일괄)':'Change Order (Bulk Model)', 'Key-in 일괄 입력':'Bulk Key-in', '선택 해제':'Clear Selection',
   'Key-in 대상 열: B1 Factory Order · Sales Month (셀 클릭 → 개별 입력)':'Key-in columns: B1 Factory Order · Sales Month (click a cell to edit)',
   "· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록":"· {n} pending → saved with history on 'End Edit'",
   '현재 BM':'Current BM', '현재 모델 분포':'Current Model Mix', '변경할 모델 (Model_Master) *':'New Model (Model_Master) *', '{k} {n}건':'{k} ({n})',
-  '오더 변경 — 모델 일괄 변경':'Change Order — Bulk Model Change', '변경':'Change', '예) B1-12345':'e.g. B1-12345',
+  '오더 변경 — 모델·PM 일괄 변경':'Change Order — Bulk Model · PM Change', '현재 PM 분포':'Current PM Mix', '변경할 PM (생산월, 비우면 변경 없음)':'New PM (production month, blank = no change)', '변경':'Change', '예) B1-12345':'e.g. B1-12345',
   '값 검색 (예: 2853)':'Search values (e.g. 2853)', '연·월 검색 (예: 2026-11)':'Search year-month (e.g. 2026-11)', '값 검색':'Search values',
   '{y}년':'{y}', '{m}월':'{mon}', '일치하는 값이 없습니다.':'No matching values.', '{c} 열 필터':'{c} Column Filter',
   '표시된 값 전체 선택':'Select All Shown', '표시된 값 해제':'Clear Shown', '필터 해제':'Clear Filter',
@@ -143,7 +144,16 @@ const I18N = {
   'Commission No로 통관 여부 조회':'Check customs clearance by Commission No',
   'Unipass Excel 업로드 → 차량 마스터 Customs Clearance Date · Import License 반영 · 통관일 입력 시 Bonded Stock → OH Stock':'Upload the Unipass Excel → vehicle master Customs Clearance Date · Import License · Bonded Stock → OH Stock when a clearance date is entered',
   '통관 Excel(Unipass 수입신고 목록)을 여기에 놓거나 클릭하여 선택':'Drop the customs Excel (Unipass import list) here or click to select',
-  'Excel 열 매핑: Commission → Commission No(매칭 키) · 수리일 → Customs Clearance Date · 신고번호 → Import License':'Column mapping: Commission → Commission No (match key) · 수리일 → Customs Clearance Date · 신고번호 → Import License',
+  // 10/27: 열 매핑 표(읽기 전용)
+  '열 매핑 (읽기 전용)':'Column Mapping (read-only)', 'Excel 머리글(Unipass 수입신고 목록)은 고정 · 매핑 변경 불가':'Excel headers (Unipass import list) are fixed · mapping cannot be changed',
+  'Excel 열':'Excel Column', '시스템 필드 (차량 마스터)':'System Field (Vehicle Master)', '예시 값':'Example', '매칭 키':'Match Key',
+  // 10/27: 통관 신청 (Sales) · 신청 접수 (Editor·Viewer)
+  '통관 신청 ({n}건)':'Request Clearance ({n})', '신청 ({n}건)':'Submit ({n})', '통관 신청 확인':'Confirm Clearance Request', '신청자':'Requested by', '수신':'To', '선택 차량':'Selected vehicles',
+  'Bonded Stock 차량을 선택해 물류 담당자에게 통관 신청 · 신청 중(접수) 차량은 목록에서 제외':'Select Bonded Stock vehicles and send a clearance request to Logistics · vehicles with a pending request are excluded',
+  '대상 {n}건 · 신청 중 제외 {m}건':'{n} eligible · {m} excluded (pending)', '신청 접수':'Requests received',
+  '영업(Sales)이 보낸 통관 신청 · 행 클릭 → 아래 조회창에 Commission No 채워 조회':'Clearance requests from Sales · click a row → fills the lookup below',
+  '신청일시':'Requested at', '건수':'Count', '통관 여부 조회':'Clearance Lookup', '신청 내역':'My Requests', '보낸 통관 신청과 처리 상태':'Requests you sent and their status', '통관 신청 대상 (Bonded Stock)':'Eligible vehicles (Bonded Stock)', '클릭 → 선택':'Click → select', '체크박스 또는 Commission No 클릭 → 선택':'Tick the box or click a Commission No to select', '외 {n}건':'+{n} more', '접수':'Received', '처리 완료':'Done', '메모':'Note', '신청 내역이 없습니다.':'No requests yet.', '전체 선택':'Select all',
+  '선택한 차량 {n}대의 통관을 물류 담당자에게 신청합니다. 신청 내역은 Customs_Requests에 기록되고 담당자에게 메일로 안내됩니다.':'Sends a clearance request for {n} selected vehicles to Logistics. The request is stored in Customs_Requests and emailed to the owners.',
   '미리보기 — {f}':'Preview — {f}', '매칭 {a}건 · 미매칭 {b}건':'{a} matched · {b} unmatched', '수리일':'Clearance Date', '신고번호':'Declaration No', '매칭':'Match', '일치':'Matched', '미등록':'Not registered',
   '반영 ({n}건)':'Apply ({n})', '보험 조회 · 조회 결과를 Excel(xlsx)로 내보내기':'Insurance lookup · export results to Excel (xlsx)',
   '① Type 검색 *':'① Type Search *', '④ 모델 (Model_Master) *':'④ Model (Model_Master) *', '매칭된 모델 속성':'Matched Model Attributes',
@@ -157,7 +167,10 @@ const I18N = {
   '행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)':'Rows: Gen > Vehicle > Model (Vehicle · Model · Type · Axle · Cab · Option) · Columns: arrival month (ATA → carrier ETA → Pl. arrival) > vessel · Values: units shipped per vessel by model (In Transit + Shipment scheduled)',
   '선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. Grand Total 행의 수량 셀·월 Total 클릭 → 해당 선박 Logistics 목록(같은 건수). 모델 행과 Grand Total 열은 표시 전용.':'Arrival month per vessel = ATA → carrier ETA → Pl. arrival (AFAB). Click a count or month Total cell in the Grand Total row → Logistics list for that vessel (same count). Model rows and the Grand Total column are display only.', '클릭 → Logistics 목록':'Click → Logistics list', '클릭 → 선박 열 펼치기':'Click → show vessel columns', '클릭 → 선박 열 접기':'Click → hide vessel columns', '올해 전체에서 당월 외 월은 Total만 표시 — 월 Total 머리글(▸) 클릭으로 선박 열 펼침.':'In the full-year view, months other than the current one show only their Total — click a month Total header (▸) to expand its vessel columns.',
   '운송중':'In Transit', '선적 예정':'Scheduled', '미확정':'TBD', '예정':'planned', '미입력':'Not entered', '단계':'Stage',
-  '선박별 현황':'Status by Vessel', 'ATA = 실제 입항일(구 ETA Final) · TSC Arrival Date 입력 시 차량 마스터 반영 · 해당 선박 In Transit → Bonded Stock 전환':'ATA = actual arrival (formerly ETA Final) · TSC Arrival Date is written to the vehicle master · that vessel\'s In Transit → Bonded Stock',
+  '선박별 현황':'Status by Vessel', 'ATA = 실제 입항일(구 ETA Final) · TSC 입고일 입력 = 예정 저장(선박 단위) · 확정 시 차량 마스터 반영 · 해당 선박 In Transit → Bonded Stock 전환':'ATA = actual arrival (formerly ETA Final) · entering a TSC date saves it as planned (vessel level) · on confirmation it is written to the vehicle master · that vessel\'s In Transit → Bonded Stock',
+  // 10/27: TSC 입고일 예정/확정
+  '확정':'Confirmed', 'TSC 입고일 확정 — {v}':'Confirm TSC Arrival Date — {v}', '기존 날짜로 확정':'Confirm with current date', '새 날짜 입력 후 확정':'Enter a new date, then confirm', '클릭 → TSC 입고일 확정':'Click → confirm TSC Arrival Date', '구분':'Option', '날짜':'Date', '선택':'Select',
+  'TSC 입고일은 예정으로 저장되며, 확정 시 해당 선박 차량 {n}대의 TSC Arrival Date에 반영되고 In Transit {m}대가 Bonded Stock으로 전환됩니다.':'The TSC date is saved as planned. On confirmation it is written to TSC Arrival Date of {n} vehicles on this vessel and {m} In Transit vehicles move to Bonded Stock.',
   'ETA 선사 (EUKOR/MOL)':'Carrier ETA (EUKOR/MOL)', 'TSC 입고일 (TSC Arrival Date)':'TSC Arrival Date',
   '행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드 또는 Logistics 그리드/상세에서.':"Click a row for that vessel's Logistics list. Enter ATA in edit mode or in the Logistics grid/detail.",
   // 재고현황

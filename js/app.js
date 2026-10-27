@@ -3,13 +3,17 @@
 const MENU = [
   ['dashboard','대시보드'], ['logistics','Logistics 차량 마스터'], ['shipping','선적 · 입항'], ['stock','재고현황'], ['afab','AFAB 업로드'], ['kufri','KUFRI 생산판매계획'], ['settings','마스터 · 설정'],
 ];
+// 10/27: 역할별 허용 화면 — Sales는 대시보드·선적·입항(읽기 전용)·Logistics(Request of Customs Clearance 탭만). 목록에 없는 역할은 전체 허용. 메뉴에서 숨기고, 주소로 직접 들어와도 대시보드로 보낸다
+const ROLE_PAGES = { Sales:['dashboard','shipping','logistics'] };
+function pageAllowed(page){ const a = ROLE_PAGES[state.role]; return !a || a.includes(page); }
 function parseHash(){ const h=(location.hash||'#/dashboard').slice(2); const [path, qs]=h.split('?'); return {page: path||'dashboard', params:new URLSearchParams(qs||'')}; }
 function renderTop(){
   const {page} = parseHash();
-  el('nav').innerHTML = MENU.map(m=>`<a href="#/${m[0]}" class="${page===m[0]?'active':''}">${tx(m[1])}</a>`).join('');
+  el('nav').innerHTML = MENU.filter(m=>pageAllowed(m[0])).map(m=>`<a href="#/${m[0]}" class="${page===m[0]?'active':''}">${tx(m[1])}</a>`).join('');
 }
 function route(){
   const {page, params} = parseHash();
+  if(PAGES[page] && !pageAllowed(page)){ location.hash='#/dashboard'; return; } // 허용되지 않은 화면 → 대시보드 (hashchange로 다시 route)
   const p = PAGES[page] || PAGES.dashboard;
   renderTop(); closeDrawer(); closeModal();
   const root = el('app'); root.innerHTML=''; p.render(root, params);
@@ -32,7 +36,7 @@ function setLang(lang){
 window.addEventListener('DOMContentLoaded', ()=>{
   renderAfabLast(); qa('#langbox button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   el('userName').textContent = state.user; // 초기 사용자명: USERS 기준 (common.js state)
-  el('roleSel').onchange = e=>{ state.role=e.target.value; const u = USERS.find(x=>x.role===state.role); if(u) state.user = u.name; document.body.classList.toggle('viewer', state.role!=='Editor'); el('userName').textContent=state.user; route(); toast(`역할 전환: ${state.role}`, state.role==='Editor'?'입력·반영·확정 버튼이 표시됩니다.':'Viewer에게는 입력·반영·확정 버튼이 보이지 않습니다.'); };
+  el('roleSel').onchange = e=>{ state.role=e.target.value; const u = USERS.find(x=>x.role===state.role); if(u) state.user = u.name; document.body.classList.toggle('viewer', state.role!=='Editor'); el('userName').textContent=state.user; route(); toast(`역할 전환: ${state.role}`, state.role==='Editor'?'입력·반영·확정 버튼이 표시됩니다.': state.role==='Sales'? '영업 역할: 대시보드·선적·입항 조회, Logistics는 Request of Customs Clearance 탭(통관 신청)만 사용할 수 있습니다.' : 'Viewer에게는 입력·반영·확정 버튼이 보이지 않습니다.'); }; // 10/27: Sales 역할 추가 (허용 화면은 ROLE_PAGES)
   document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeDrawer(); closeModal(); } });
   el('drawer-bg').onclick = closeDrawer; el('modal-bg').addEventListener('click', e=>{ if(e.target===el('modal-bg')) closeModal(); });
   route();

@@ -18,10 +18,11 @@ PAGES.logistics = {
     LF.q = params.get('q')||''; LF.page=1; LF.col={};
     const st = params.get('stage'); if(st) LF.col.current_status = new Set(st.split(',')); // ?stage= (대시보드 카드·파이프라인·AFAB 링크, 쉼표 구분 복수) → Current Status 열 필터
     FILTER_COLS.forEach(k=>{ const v = params.get(k); if(v!=null) LF.col[k] = new Set(v.split(',').map(x=> x===''? '(빈 값)' : x)); }); // 열 필터 파라미터 (10/22 선적·입항 수량 셀 클릭): 쉼표 구분 복수 · 빈 문자열 = '(빈 값)'
-    LF.tab = LOGI_TABS.some(t=>t[0]===params.get('tab')) ? params.get('tab') : 'grid'; // 대시보드·선적·입항 링크(?stage=·?vessel=)는 tab 없음 → 그리드
+    const tabs = isSales()? LOGI_TABS.filter(t=>t[0]==='req') : LOGI_TABS; // 10/27: Sales는 Request of Customs Clearance 탭만 (그리드·Update·Insurance 없음)
+    LF.tab = isSales()? 'req' : (LOGI_TABS.some(t=>t[0]===params.get('tab')) ? params.get('tab') : 'grid'); // 대시보드·선적·입항 링크(?stage=·?vessel=)는 tab 없음 → 그리드
     EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter();
     root.innerHTML = `<div class="card"><div class="tabs" id="lgTabs"></div><div id="lgBody"></div></div>`;
-    el('lgTabs').append(...LOGI_TABS.map(([k,label])=>mk('span', {class:'tab', 'data-tab':k, onclick:()=>switchLogiTab(k)}, label)), noteEl('L1'));
+    el('lgTabs').append(...tabs.map(([k,label])=>mk('span', {class:'tab', 'data-tab':k, onclick:()=>switchLogiTab(k)}, label)), noteEl('L1'));
     renderLogiBody();
   }
 };
@@ -52,11 +53,18 @@ function renderLogiBody(){
 
 // 날짜 열은 연·월(YYYY-MM) 단위로 필터 (10/19 No.3)
 function filterVal(v, key){ const x = v[key]; if(x==null||x==='') return '(빈 값)'; return DATE_FILTER_COLS.includes(key)? String(x).slice(0,7) : String(x); }
+// 검색어 → 검색 항목 배열 (10/27): 쉼표·세미콜론으로 나눠 여러 Commission No를 한 번에 조회 (OR). 숫자·공백만 있으면 공백 구분도 허용(엑셀 열 붙여넣기). 그 외(선박명 등 공백 포함 문구)는 한 덩어리로 검색
+function searchTerms(){
+  const qq = LF.q.trim(); if(!qq) return [];
+  let t = qq.split(/[,;]+/).map(s=>s.trim()).filter(Boolean);
+  if(t.length===1 && /^[\d\s]+$/.test(qq)) t = qq.split(/\s+/).filter(Boolean);
+  return [...new Set(t.map(s=>s.toLowerCase()))];
+}
 function filtered(){
-  const qq = LF.q.trim().toLowerCase();
+  const terms = searchTerms();
   let rows = VEHICLES.filter(v=>
     FILTER_COLS.every(k=> !LF.col[k] || LF.col[k].has(filterVal(v,k))) &&
-    (!qq || SEARCH_COLS.some(k=>v[k]&&String(v[k]).toLowerCase().includes(qq))));
+    (!terms.length || terms.some(qq=>SEARCH_COLS.some(k=>v[k]&&String(v[k]).toLowerCase().includes(qq)))));
   const k=LF.sort, d=LF.dir;
   rows.sort((a,b)=>{ const x=a[k], y=b[k]; if(x===y) return 0; if(x===''||x==null) return 1; if(y===''||y==null) return -1; return (x>y?1:-1)*d; });
   return rows;
@@ -65,7 +73,7 @@ function visibleCols(){ return COLUMNS.filter(c=>!state.hiddenCols.has(c.key)); 
 
 function renderFilters(){
   el('filters').innerHTML = `${note('L2')}
-    <label>${tx('검색')} <input id="fQ" placeholder="Comm / VIN / B/L / Vessel / Type / Order·Option Note" value="${esc(LF.q)}" style="width:260px"></label>
+    <label>${tx('검색')} <input id="fQ" placeholder="${esc(tx('Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note'))}" title="${esc(tx('Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note'))}" value="${esc(LF.q)}" style="width:520px;max-width:60vw"></label>
     <button class="btn sm" id="fReset">${tx('초기화')}</button>
     <button class="btn sm editor-only" id="btnEdit"></button>
     <span class="muted small" id="fCount"></span>`;
@@ -93,12 +101,13 @@ function toggleEdit(){
   EDIT.on=true; EDIT.sel.clear(); renderGrid();
   toast('편집 모드', '행 클릭 또는 체크박스로 오더를 복수 선택한 뒤 위 버튼으로 일괄 변경합니다. Key-in 열은 셀 클릭, 열 표시/숨김은 머리글 체크박스. 변경 내용은 \'편집 종료\' 클릭 시 저장됩니다.');
 }
-// 검색어 일치 부분 하이라이트 (10/19 No.5) — esc 처리 후 <mark>로 감싼다
+// 검색어 일치 부분 하이라이트 (10/19 No.5) — esc 처리 후 <mark>로 감싼다 · 10/27: 검색 항목 여러 개(searchTerms)를 모두 표시
 function hl(s){
-  const t = String(s==null?'':s); const qq = LF.q.trim(); if(!qq) return esc(t);
-  const ql = qq.toLowerCase(); let rest = t, out = '', i;
-  while((i = rest.toLowerCase().indexOf(ql))>=0){ out += esc(rest.slice(0,i)) + '<mark>' + esc(rest.slice(i, i+qq.length)) + '</mark>'; rest = rest.slice(i+qq.length); }
-  return out + esc(rest);
+  const t = String(s==null?'':s); const terms = searchTerms(); if(!terms.length) return esc(t);
+  const re = new RegExp(terms.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
+  let out = '', last = 0, m;
+  while((m = re.exec(t))){ out += esc(t.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>'; last = m.index + m[0].length; }
+  return out + esc(t.slice(last));
 }
 // 편집 중 저장 대기 값이 있으면 그 값을, 없으면 저장된 값을 돌려준다
 function pendingVal(v, key){ const p = EDIT.pending[v.commission_no]; return (p && key in p)? p[key].nw : v[key]; }
@@ -226,20 +235,26 @@ function openModelChange(){
   // 시작값 = 선택한 오더의 차량 마스터 BM (복수 선택 시 첫 오더 기준) (10/15 No.6)
   const curBm = String(pendingVal(vs[0],'bm')||''); const curPrefix = curBm.split('-')[0];
   if(MODEL_MASTER.some(m=>m.active && m.prefix===curPrefix)) sel.value = curPrefix;
+  // 10/27: PM(생산월)도 같은 모달에서 일괄 변경 — 비워 두면 PM은 바꾸지 않음. 모델은 현재 BM이 그대로면 변경 없음(같은 값은 저장 대기에 오르지 않음)
+  const byPm = countBy(vs, v=>pendingVal(v,'pm'));
+  const pmIn = mk('input', {type:'month', style:'width:160px'}); // 10/27: 월 달력(브라우저 month picker) · 값은 YYYY-MM
   const body = mk('div', null,
-    mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건의 모델 속성(Vehicle · Gen · Model · Axle · Cab · Option · Baumuster · BM)을 Model_Master에서 선택한 모델로 일괄 변경합니다. Model In AFAB는 AFAB 업로드 값이라 바뀌지 않으며, 'Type' 열의 점(초록/빨강)으로 일치 여부를 확인합니다. 변경 내용은 '편집 종료' 시 저장됩니다.`),
+    mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건의 모델 속성(Vehicle · Gen · Model · Axle · Cab · Option · Baumuster · BM)을 Model_Master에서 선택한 모델로, PM(생산월)을 입력한 월로 일괄 변경합니다. PM을 비워 두면 모델만 바뀝니다. Model In AFAB는 AFAB 업로드 값이라 바뀌지 않으며, 'Type' 열의 점(초록/빨강)으로 일치 여부를 확인합니다. 변경 내용은 '편집 종료' 시 저장됩니다.`),
     mk('div', {class:'fields'},
       mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('현재 BM')), mk('div', {class:'v'}, Object.keys(byBm).sort().map(k=>tx('{k} {n}건', {k, n:num(byBm[k])})).join(' · '))),
       mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('현재 모델 분포')), mk('div', {class:'v'}, Object.keys(by).sort().map(k=>tx('{k} {n}건', {k, n:num(by[k])})).join(' · '))),
-      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('변경할 모델 (Model_Master) *')), mk('div', {class:'v'}, sel))));
-  openModal(tx('오더 변경 — 모델 일괄 변경'), '', ' ');
+      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('변경할 모델 (Model_Master) *')), mk('div', {class:'v'}, sel)),
+      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('현재 PM 분포')), mk('div', {class:'v'}, Object.keys(byPm).sort().map(k=>tx('{k} {n}건', {k:k||tx('(공란)'), n:num(byPm[k])})).join(' · ') || tx('(공란)'))),
+      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('변경할 PM (생산월, 비우면 변경 없음)')), mk('div', {class:'v'}, pmIn))));
+  openModal(tx('오더 변경 — 모델·PM 일괄 변경'), '', ' ');
   el('modal-body').replaceChildren(body);
   el('modal-foot').replaceChildren(
     mk('button', {class:'btn', onclick: closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick: ()=>{ const m = MODEL_MASTER.find(x=>x.prefix===sel.value); if(!m) return;
-      const patch = Store.vehicles.modelMasterPatch(m);
+      const pm = pmIn.value.trim(); if(pm && !/^\d{4}-(0[1-9]|1[0-2])$/.test(pm)){ toast('PM 형식 오류', 'YYYY-MM 형식으로 입력하세요 (예: 2027-03).'); return; }
+      const patch = Store.vehicles.modelMasterPatch(m); if(pm) patch.pm = pm;
       vs.forEach(v=>Object.entries(patch).forEach(([k,val])=>stageChange(v.commission_no, k, val, '수동/일괄'))); closeModal(); renderGrid();
-      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${m.model} ${m.axle} ${m.cab}${m.option?' '+m.option:''} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
+      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${m.model} ${m.axle} ${m.cab}${m.option?' '+m.option:''}${pm? ` · PM ${pm}` : ''} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
 }
 function openBulkKeyin(){
   const vs = selectedVehicles(); if(!vs.length) return;

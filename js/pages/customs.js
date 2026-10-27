@@ -29,7 +29,7 @@ function cuCommBox(tab, onSearch){
   ta.onkeydown = e=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) run(); };
   const box = mk('div', {class:'cu-row'}, ta, mk('button', {class:'btn primary', onclick:run}, tx('조회')));
   if(CU.text[tab].trim()) setTimeout(run, 0); // 탭 복귀 시 이전 입력값으로 자동 조회
-  return {box, info, run};
+  return {box, info, run, ta}; // ta: 신청 접수 행 클릭 시 Commission No 채우기용 (10/27)
 }
 function pillEl(kind, text){ return mk('span', {class:'pill '+kind}, text); } // statusPill(문자열)의 DOM 버전
 function cuCell(k, v){
@@ -39,43 +39,126 @@ function cuCell(k, v){
   return mk('td', {class: CU_MONO.has(k)? 'mono' : null}, String(val));
 }
 // 조회 결과 표: 열 key 배열 → 머리글 = COLUMNS 라벨 · 행 클릭 → 차량 상세 Drawer
-function cuTable(keys, vs){
-  return mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact clickable'},
-    mk('thead', null, mk('tr', null, keys.map(k=>mk('th', null, tx(keyinLabel(k)))))),
-    mk('tbody', null, vs.map(v=>mk('tr', {'data-comm':v.commission_no, onclick:()=>openVehicle(v.commission_no)}, keys.map(k=>cuCell(k, v)))))));
+// sel (10/27, 선택 옵션 · Sales 통관 신청) = {set: 선택된 Commission No Set, onChange: 선택 변경 콜백} → 첫 열에 체크박스(머리글 = 전체 선택) + Commission No 셀 클릭으로도 선택.
+// 선택 모드에서는 행 클릭으로 차량 상세 Drawer를 열지 않는다(Sales는 상세 권한 없음)
+function cuTable(keys, vs, sel){
+  const toggle = (v, on)=>{ if(on) sel.set.add(v.commission_no); else sel.set.delete(v.commission_no); sel.onChange(); };
+  const rowEl = v=>{
+    const box = sel? mk('input', {type:'checkbox', class:'rowsel', checked: sel.set.has(v.commission_no)||null, onchange:e=>toggle(v, e.target.checked)}) : null;
+    const cells = keys.map(k=>{ const td = cuCell(k, v);
+      if(sel && k==='commission_no'){ td.classList.add('cu-pick'); td.title = tx('클릭 → 선택'); td.onclick = ()=>{ box.checked = !box.checked; toggle(v, box.checked); }; }
+      return td; });
+    return mk('tr', {'data-comm':v.commission_no, onclick: sel? null : ()=>openVehicle(v.commission_no)}, box? mk('td', null, box) : null, cells);
+  };
+  const allBox = ()=> mk('th', null, mk('input', {type:'checkbox', title:tx('전체 선택'), checked: (vs.length>0 && vs.every(v=>sel.set.has(v.commission_no)))||null,
+    onchange:e=>{ vs.forEach(v=>{ if(e.target.checked) sel.set.add(v.commission_no); else sel.set.delete(v.commission_no); }); qa('input.rowsel', tbl).forEach(b=>{ b.checked = e.target.checked; }); sel.onChange(); }}));
+  const tbl = mk('table', {class:'tbl compact'+(sel? '' : ' clickable')},
+    mk('thead', null, mk('tr', null, sel? allBox() : null, keys.map(k=>mk('th', null, tx(keyinLabel(k)))))),
+    mk('tbody', null, vs.map(rowEl)));
+  return mk('div', {class:'tbl-wrap'}, tbl);
 }
 
-// ---- 탭 2: Request of Customs Clearance — 통관 여부 조회 ----
+// ---- 탭 2: Request of Customs Clearance ----
+// 10/27: Sales = Bonded Stock 목록에서 차량을 골라 물류 담당자에게 통관 신청 · Editor/Viewer = 신청 접수 목록 + 기존 Commission No 조회
 function renderCuRequest(body){
+  if(isSales()) renderCuRequestSales(body); else renderCuRequestInbox(body);
+}
+function pendingRequested(){ const s = new Set(); CUSTOMS_REQUESTS.filter(r=>r.status==='접수').forEach(r=>r.comms.forEach(c=>s.add(c))); return s; } // 신청 중(접수)인 Commission No
+// Sales 화면: Bonded Stock 전체(신청 중 제외) + 체크박스 선택 → '통관 신청' 버튼(Sales는 body.viewer라 editor-only를 쓰지 않는다)
+function renderCuRequestSales(body){
+  const pend = pendingRequested();
+  const all = VEHICLES.filter(v=>v.current_status==='Bonded Stock'), list = all.filter(v=>!pend.has(v.commission_no));
+  const sel = new Set();
+  const btn = mk('button', {class:'btn primary', onclick:()=>openCuRequestConfirm([...sel])});
+  const sync = ()=>{ btn.textContent = tx('통관 신청 ({n}건)', {n:num(sel.size)}); btn.disabled = !sel.size; };
+  sync();
+  body.append(mk('div', {class:'card-h'}, mk('h2', null, 'Request of Customs Clearance'), mk('span', {class:'desc'}, tx('Bonded Stock 차량을 선택해 물류 담당자에게 통관 신청 · 신청 중(접수) 차량은 목록에서 제외')), mk('span', {class:'spacer'}), btn),
+    mk('div', {class:'section-h', style:'margin-top:0'}, tx('신청 내역'), mk('span', {class:'sub'}, tx('보낸 통관 신청과 처리 상태'))), // 10/27: Sales에게도 신청 목록 표시 (조회창이 없어 행 클릭 없음)
+    cuRequestList(null),
+    mk('div', {class:'section-h'}, tx('통관 신청 대상 (Bonded Stock)')),
+    mk('div', {class:'muted small', style:'margin-bottom:8px'}, tx('대상 {n}건 · 신청 중 제외 {m}건', {n:num(list.length), m:num(all.length-list.length)})+' · '+tx('체크박스 또는 Commission No 클릭 → 선택')),
+    cuTable(CU_REQ_COLS, list, {set:sel, onChange:sync}));
+}
+// 신청 목록 표 (10/27): CUSTOMS_REQUESTS 최신순 — 신청일시 · 신청자 · 건수 · Commission No(앞 3개 + 외 n건) · 상태 · 메모. onRow(r)가 있으면 행 클릭 가능
+function cuRequestList(onRow){
+  if(!CUSTOMS_REQUESTS.length) return mk('div', {class:'muted small', style:'margin-bottom:14px'}, tx('신청 내역이 없습니다.'));
+  const rows = CUSTOMS_REQUESTS.map(r=>mk('tr', {onclick: onRow? ()=>onRow(r) : null},
+    mk('td', {class:'mono'}, r.requested_at), mk('td', null, r.requested_by, r.dept? mk('span', {class:'muted small'}, ' · '+r.dept) : null), mk('td', {class:'num'}, num(r.n)),
+    mk('td', {class:'mono'}, r.comms.slice(0,3).join(' · '), r.comms.length>3? mk('span', {class:'muted'}, ' '+tx('외 {n}건', {n:num(r.comms.length-3)})) : null),
+    mk('td', null, r.status==='접수'? pillEl('warn', tx('접수')) : pillEl('ok', tx('처리 완료'))), mk('td', {class:'muted'}, r.note||'')));
+  return mk('div', {class:'tbl-wrap', style:'max-height:240px;margin-bottom:14px'}, mk('table', {class:'tbl compact'+(onRow? ' clickable' : '')},
+    mk('thead', null, mk('tr', null, mk('th', null, tx('신청일시')), mk('th', null, tx('신청자')), mk('th', {class:'num'}, tx('건수')), mk('th', null, 'Commission No'), mk('th', null, tx('상태')), mk('th', null, tx('메모')))),
+    mk('tbody', null, rows)));
+}
+// 신청 확인 모달: 신청자 · 수신(Ordering & Logistics Editor) · 선택 차량 표(클릭 없음 — Drawer가 모달 위로 열리지 않도록) → Store.customsRequests.add → 메일 발송 토스트(시연)
+function openCuRequestConfirm(comms){
+  const vs = comms.map(c=>VEHICLE_BY_COMM[c]).filter(Boolean); if(!vs.length) return;
+  const me = USERS.find(u=>u.name===state.user), to = USERS.filter(u=>u.role==='Editor' && u.dept==='Ordering & Logistics');
+  const cols = ['commission_no','bl_no','series','model','bm','vin_no']; // 10/27: Commission No · B/L No · Model · Type · BM · VIN No
+  const body = mk('div', null,
+    mk('div', {class:'callout'}, tx('선택한 차량 {n}대의 통관을 물류 담당자에게 신청합니다. 신청 내역은 Customs_Requests에 기록되고 담당자에게 메일로 안내됩니다.', {n:num(vs.length)})),
+    mk('div', {class:'fields'},
+      mk('div', {class:'f'}, mk('div', {class:'k'}, tx('신청자')), mk('div', {class:'v'}, state.user + (me? ' · '+me.dept : ''))),
+      mk('div', {class:'f'}, mk('div', {class:'k'}, tx('수신')), mk('div', {class:'v'}, to.map(u=>u.name).join(', ') + ' (Ordering & Logistics)')),
+      mk('div', {class:'f wide'}, mk('div', {class:'k'}, tx('선택 차량')), mk('div', {class:'tbl-wrap', style:'max-height:40vh;margin-top:4px'}, mk('table', {class:'tbl compact'},
+        mk('thead', null, mk('tr', null, cols.map(k=>mk('th', null, tx(keyinLabel(k)))))),
+        mk('tbody', null, vs.map(v=>mk('tr', null, cols.map(k=>cuCell(k, v))))))))));
+  openModal(tx('통관 신청 확인'), '', ' ');
+  el('modal-body').replaceChildren(body);
+  el('modal-foot').replaceChildren(
+    mk('button', {class:'btn', onclick:closeModal}, tx('취소')),
+    mk('button', {class:'btn primary', onclick:()=>{ const r = Store.customsRequests.add(vs.map(v=>v.commission_no), state.user); closeModal();
+      toast(`통관 신청 ${num(r.req.n)}건 · 물류 담당자에게 메일 발송`, `수신: ${r.to.join(', ')} · 신청 ID ${r.req.id} · Customs_Requests 저장 · Audit_Log 기록 (실제 구현: Graph sendMail로 담당자 메일 발송)`);
+      renderLogiBody(); }}, tx('신청 ({n}건)', {n:num(vs.length)})));
+}
+// Editor·Viewer 화면: 신청 접수 목록(최신순) → 행 클릭 시 아래 조회창에 Commission No를 채워 조회 · 그 아래는 기존 Commission No 조회 그대로
+function renderCuRequestInbox(body){
   const out = mk('div');
-  const {box, info} = cuCommBox('req', found=>{ out.replaceChildren(); if(found.length) out.append(cuTable(CU_REQ_COLS, found)); });
-  body.append(mk('div', {class:'card-h'}, mk('h2', null, 'Request of Customs Clearance'), mk('span', {class:'desc'}, tx('Commission No로 통관 여부 조회')+' · '+tx('행 클릭 → 차량 상세'))), box, info, out);
+  const {box, info, run, ta} = cuCommBox('req', found=>{ out.replaceChildren(); if(found.length) out.append(cuTable(CU_REQ_COLS, found)); });
+  body.append(mk('div', {class:'card-h'}, mk('h2', null, 'Request of Customs Clearance'), mk('span', {class:'desc'}, tx('Commission No로 통관 여부 조회')+' · '+tx('행 클릭 → 차량 상세'))),
+    mk('div', {class:'section-h', style:'margin-top:0'}, tx('신청 접수'), mk('span', {class:'sub'}, tx('영업(Sales)이 보낸 통관 신청 · 행 클릭 → 아래 조회창에 Commission No 채워 조회'))),
+    cuRequestList(r=>{ CU.text.req = r.comms.join('\n'); ta.value = CU.text.req; run(); }),
+    mk('div', {class:'section-h'}, tx('통관 여부 조회')),
+    box, info, out);
 }
 
 // ---- 탭 3: Update Customs Clearance Info — 통관일 · 수입필증번호 Unipass Excel 업로드 (10/27: 수동 입력 칸 삭제) ----
 function renderCuInput(body){
   const editable = isEditor();
   const report = r=>toast(`통관 정보 반영 (Excel) · ${num(r.vehicles)}건`, r.vehicles? `${num(r.fields)}개 필드 → Vehicles 갱신(Customs Clearance Date · Import License) · Vehicle_History 기록${r.cleared? ` · Bonded Stock → OH Stock 전환 ${num(r.cleared)}대 (출처: 규칙)` : ''} · 대시보드·재고현황 즉시 반영` : '변경된 값이 없습니다.');
-  // Excel 업로드(목업): 드롭존 클릭 → 샘플 파일(CUSTOMS_UPLOAD_SAMPLE) 미리보기 → 매칭된 행만 반영. 매칭 키 = Excel 'Commission' 열
+  // Excel 업로드(목업): 드롭존 클릭 → 샘플 파일(CUSTOMS_UPLOAD_SAMPLE) 미리보기 → 매칭된 행만 반영. 열 매핑·매칭 키는 data.js CUSTOMS_UPLOAD_MAP (10/27)
+  const applyMap = CUSTOMS_UPLOAD_MAP.filter(m=>m.role==='apply');
+  // 열 매핑 표 (10/27, 읽기 전용): Excel 열 → 차량 마스터 필드 · 역할(매칭 키/반영) · 예시 값(샘플 첫 행). 파일 선택 전·후 모두 표시
+  const mappingCard = ()=>{ const ex = CUSTOMS_UPLOAD_SAMPLE[0]||{};
+    return mk('div', null,
+      mk('div', {class:'section-h'}, tx('열 매핑 (읽기 전용)'), mk('span', {class:'sub'}, tx('Excel 머리글(Unipass 수입신고 목록)은 고정 · 매핑 변경 불가'))),
+      mk('div', {class:'tbl-wrap', style:'max-width:760px;margin-bottom:12px'}, mk('table', {class:'tbl compact'},
+        mk('thead', null, mk('tr', null, mk('th', null, tx('Excel 열')), mk('th', null, ''), mk('th', null, tx('시스템 필드 (차량 마스터)')), mk('th', null, tx('역할')), mk('th', null, tx('예시 값')))),
+        mk('tbody', null, CUSTOMS_UPLOAD_MAP.map(m=>mk('tr', null, mk('td', {class:'mono'}, mk('b', null, m.col)), mk('td', {class:'muted', style:'text-align:center'}, '→'),
+          mk('td', null, keyinLabel(m.key), ' ', mk('span', {class:'mono muted small'}, m.key)),
+          mk('td', null, m.role==='key'? pillEl('warn', tx('매칭 키')) : pillEl('ok', tx('반영'))),
+          mk('td', {class:'mono muted'}, ex[m.field]||'')))))));
+  };
   const up = mk('div');
   const drawUpload = ()=>{ up.replaceChildren();
     if(!CU.upload){
       up.append(mk('div', {class:'dropzone', onclick:()=>{ if(!editable){ toast('Viewer는 업로드 권한이 없습니다'); return; } CU.upload = CUSTOMS_UPLOAD_SAMPLE; drawUpload(); }},
         mk('b', null, tx('통관 Excel(Unipass 수입신고 목록)을 여기에 놓거나 클릭하여 선택')),
-        tx('Excel 열 매핑: Commission → Commission No(매칭 키) · 수리일 → Customs Clearance Date · 신고번호 → Import License'),
-        mk('div', {class:'small', style:'margin-top:10px'}, '목업: 클릭하면 시연 파일 ', mk('b', null, CUSTOMS_UPLOAD_FILE), `(${num(CUSTOMS_UPLOAD_SAMPLE.length)}행)로 진행합니다. 브라우저에서 SheetJS로 파싱(서버 불필요).`)));
+        mk('div', {class:'small', style:'margin-top:10px'}, '목업: 클릭하면 시연 파일 ', mk('b', null, CUSTOMS_UPLOAD_FILE), `(${num(CUSTOMS_UPLOAD_SAMPLE.length)}행)로 진행합니다. 브라우저에서 SheetJS로 파싱(서버 불필요).`)),
+        mappingCard());
       return; }
     const rows = CU.upload.map(r=>({...r, v:VEHICLE_BY_COMM[r.commission]})); const ok = rows.filter(r=>r.v);
-    up.append(mk('div', {class:'card-h'}, mk('h2', null, tx('미리보기 — {f}', {f:CUSTOMS_UPLOAD_FILE})), mk('span', {class:'desc'}, tx('매칭 {a}건 · 미매칭 {b}건', {a:num(ok.length), b:num(rows.length-ok.length)}))),
+    up.append(mappingCard(),
+      mk('div', {class:'card-h'}, mk('h2', null, tx('미리보기 — {f}', {f:CUSTOMS_UPLOAD_FILE})), mk('span', {class:'desc'}, tx('매칭 {a}건 · 미매칭 {b}건', {a:num(ok.length), b:num(rows.length-ok.length)}))),
       mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact'},
-        mk('thead', null, mk('tr', null, ['Commission', tx('수리일'), tx('신고번호'), 'Current Status', 'Customs Clearance Date', 'Import License', tx('매칭')].map(x=>mk('th', null, x)))),
-        mk('tbody', null, rows.map(r=>mk('tr', null, mk('td', {class:'mono'}, r.commission), mk('td', {class:'mono'}, r.clear_date), mk('td', {class:'mono'}, r.decl_no),
-          mk('td', null, r.v? stagePillEl(r.v.current_status) : mk('span', {class:'muted'}, '·')), mk('td', {class:'mono muted'}, r.v? (r.v.customs_clearance_date||'·') : '·'), mk('td', {class:'mono muted'}, r.v? (r.v.import_license||'·') : '·'),
+        mk('thead', null, mk('tr', null, [...CUSTOMS_UPLOAD_MAP.map(m=> m.col==='Commission'? m.col : tx(m.col)), 'Current Status', ...applyMap.map(m=>keyinLabel(m.key)), tx('매칭')].map(x=>mk('th', null, x)))),
+        mk('tbody', null, rows.map(r=>mk('tr', null, CUSTOMS_UPLOAD_MAP.map(m=>mk('td', {class:'mono'}, r[m.field])),
+          mk('td', null, r.v? stagePillEl(r.v.current_status) : mk('span', {class:'muted'}, '·')), applyMap.map(m=>mk('td', {class:'mono muted'}, r.v? (r.v[m.key]||'·') : '·')),
           mk('td', null, r.v? pillEl('ok', tx('일치')) : pillEl('danger', tx('미등록')))))))),
       mk('div', {class:'btn-group', style:'margin-top:8px'},
         mk('button', {class:'btn', onclick:()=>{ CU.upload=null; drawUpload(); }}, tx('다른 파일')),
         mk('button', {class:'btn primary editor-only', disabled: !ok.length, onclick:()=>{
-          const r = Store.vehicles.applyCustoms(ok.map(x=>({commission_no:x.commission, customs_clearance_date:x.clear_date, import_license:x.decl_no})), state.user, '통관 업로드');
+          const r = Store.vehicles.applyCustoms(ok.map(x=>Object.fromEntries(CUSTOMS_UPLOAD_MAP.map(m=>[m.key, x[m.field]]))), state.user, '통관 업로드');
           CU.upload=null; drawUpload(); report(r); }}, tx('반영 ({n}건)', {n:num(ok.length)})))); };
   drawUpload();
   body.append(mk('div', {class:'card-h'}, mk('h2', null, 'Update Customs Clearance Info'), mk('span', {class:'desc'}, tx('Unipass Excel 업로드 → 차량 마스터 Customs Clearance Date · Import License 반영 · 통관일 입력 시 Bonded Stock → OH Stock'))), up);

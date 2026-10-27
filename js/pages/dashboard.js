@@ -75,18 +75,22 @@ PAGES.dashboard = {
       <div class="legend">${pipeStages.map(s=>`<span><span class="sw" style="background:${STAGE_COLOR[s]}"></span>${s}</span>`).join('')}</div></div>`;
 
     // D7 당월 도착 예정 (10/20 No.16): 선적·입항 '월별 입항 예정' 피벗의 당월 블록 — 행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 당월 입항 선박(선적일 순) + Total · 값: 모델별 선박 선적 대수 · 표 높이는 옆 '입항 예정 선박' 카드에 맞추고 넘치면 세로 스크롤
-    const cellN = n=> n? mk('td', {class:'num'}, num(n)) : mk('td', {class:'num'}, mk('span', {class:'muted'}, '·'));
-    const arrCells = by=>{ const cells = curVoys.map(y=>cellN(by[y.vessel]||0)); const t = cellN(curVoys.reduce((a,y)=>a+(by[y.vessel]||0),0)); t.classList.add('tot'); cells.push(t); return cells; };
+    // 10/27: 선적·입항 월별 입항 표 디자인 그대로 적용 — 머리글 3줄(월 > 선박 / 월 Total / Grand Total 행, 고정) · Model 열 고정 · 그룹 행(구분·차종)에도 열별 합계 · 0은 공란 (.pivot.fixcol)
+    const cellN = (n, tot)=>{ const td = n? mk('td', {class:'num'}, num(n)) : mk('td', {class:'num'}); if(tot) td.classList.add('tot'); return td; };
+    const arrCells = by=> [...curVoys.map(y=>cellN(by[y.vessel]||0)), cellN(curVoys.reduce((a,y)=>a+(by[y.vessel]||0),0), true)];
+    const sumBy = rows=>{ const by={}; rows.forEach(r=>Object.entries(r.by).forEach(([k,n])=>by[k]=(by[k]||0)+n)); return by; };
     const arrCols = 1 + curVoys.length + 1;
     const arrRows = [];
-    sched.groups.forEach(g=>{ arrRows.push(mk('tr', {class:'g1'}, mk('td', {colspan:arrCols}, g.gen)));
-      g.vehicles.forEach(t=>{ arrRows.push(mk('tr', {class:'g2'}, mk('td', {colspan:arrCols}, t.vehicle)));
+    sched.groups.forEach(g=>{ arrRows.push(mk('tr', {class:'g1'}, mk('td', null, g.gen), arrCells(sumBy(g.vehicles.flatMap(t=>t.rows)))));
+      g.vehicles.forEach(t=>{ arrRows.push(mk('tr', {class:'g2'}, mk('td', null, t.vehicle), arrCells(sumBy(t.rows))));
         t.rows.forEach(r=>arrRows.push(mk('tr', null, mk('td', {class:'model'}, r.label), arrCells(r.by)))); }); });
-    arrRows.push(mk('tr', {class:'total'}, mk('td', null, 'Grand Total'), arrCells(sched.grand)));
     const arrCard = mk('div', {class:'card fillcol'}, // fillcol: 표 스크롤 영역 높이를 옆 '입항 예정 선박' 카드에 맞춤
       mk('div', {class:'card-h'}, mk('h2', null, tx('당월 도착 예정 ({m}월)', curMon)), noteEl('D7'), mk('span', {class:'desc'}, tx('구분 > 차종 > 모델 × 당월 입항 선박 · 합계 {n}대 · 선박 {v}척', {n:num(sched.total), v:curVoys.length})), mk('span', {class:'spacer'}), mk('a', {href:'#/shipping'}, tx('월별 입항 예정 →'))),
-      mk('div', {class:'fill'}, mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot'},
-        mk('thead', null, mk('tr', null, mk('th', null, 'Model'), curVoys.map(y=>mk('th', {class:'num'}, y.vessel)), mk('th', {class:'num tot'}, 'Total'))),
+      mk('div', {class:'fill'}, mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot fixcol'},
+        mk('thead', null,
+          mk('tr', null, mk('th', {rowspan:2}, 'Model'), curVoys.length? mk('th', {class:'ym', colspan:curVoys.length}, ymLabel(BASE_YM)) : null, mk('th', {class:'num tot', rowspan:2}, ymLabel(BASE_YM)+' Total')),
+          mk('tr', null, curVoys.map(y=>mk('th', {class:'num', title:`${y.carrier} · Shipping ${y.shipping}`}, y.vessel))),
+          mk('tr', {class:'total'}, mk('td', null, 'Grand Total'), arrCells(sched.grand))),
         mk('tbody', null, sched.total? arrRows : mk('tr', null, mk('td', {colspan:arrCols, class:'muted', style:'text-align:center'}, tx('당월 입항 예정 차량이 없습니다.'))))))));
 
     // (재고 연령 분포 D5는 2026-10-12 검토에서 삭제)

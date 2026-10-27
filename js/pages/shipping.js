@@ -60,19 +60,70 @@ PAGES.shipping = {
 
     // 선박별 현황: B/L · Shipping · Pl. arrival · ETA 선사 · ATA · TSC Arrival Date · 대수
     const dash = ()=>mk('span', {class:'muted'}, '—');
-    // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA · TSC Arrival Date) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영 + Vehicle_History 기록(Store, 10/26).
-    // TSC Arrival Date 입력 시 해당 선박 In Transit 차량 → Bonded Stock (10/26 No.8 · 삭제 시에는 되돌리지 않음)
+    // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영 + Vehicle_History 기록(Store, 10/26).
+    // TSC Arrival Date는 10/27부터 별도 경로(tscCell): 입력 = 예정(선박에만 저장) → 배지 클릭으로 확정 시 차량 마스터 반영 + In Transit → Bonded Stock (삭제 시에는 되돌리지 않음)
     const applyToVehicles = (y, voyKey, vehKey, label, val)=>{
       Store.voyages.update(y.id, {[voyKey]: val});
       const r = Store.voyages.applyToVehicles(y.vessel, vehKey, val, state.user);
-      const moved = (vehKey==='tsc_arrival_date' && val) ? Store.voyages.bondedByTsc(y.vessel, state.user) : 0;
-      toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(r.n)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History ${num(r.changed)}건 기록(출처: 수동)${moved? ` · In Transit → Bonded Stock 전환 ${num(moved)}대 (출처: 규칙)` : ''}`);
+      toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(r.n)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History ${num(r.changed)}건 기록(출처: 수동)`);
       PAGES.shipping.render(root); // 입력 직후 다시 그려 KPI · 월별 입항 예정 · 선박별 현황 단계·대수를 맞춤 (편집 모드 SH.edit 유지)
     };
     const edit = SH.edit && isEditor(); // 편집 모드에서만 입력란, 그 외에는 값 표시
     const vIn = (y, voyKey, vehKey, label, type, ph, empty)=> edit
       ? mk('input', {type, class:'tsc-in', value:y[voyKey]||'', placeholder:ph||'', title:`${label} 입력 → 차량 마스터 반영`, onclick:e=>e.stopPropagation(), onchange:e=>applyToVehicles(y, voyKey, vehKey, label, e.target.value.trim())})
       : mk('span', null, y[voyKey] || empty);
+    // TSC 입고일 셀 (10/27): 날짜 + 배지('예정' = 선박에만 저장 · '확정' = 차량 마스터 반영됨). 편집 모드에서 '예정' 배지 클릭 → 확정 모달
+    const tscBadge = y=>{
+      if(y.tsc_status==='confirmed') return mk('span', {class:'pill ok', style:'margin-left:6px'}, tx('확정'));
+      if(y.tsc_status!=='scheduled') return null;
+      return edit ? mk('span', {class:'pill warn', style:'margin-left:6px;cursor:pointer', title:tx('클릭 → TSC 입고일 확정'), onclick:e=>{ e.stopPropagation(); openTscConfirm(y); }}, tx('예정'))
+                  : mk('span', {class:'pill warn', style:'margin-left:6px'}, tx('예정'));
+    };
+    const onTscChange = (y, val)=>{
+      if(y.tsc_status!=='confirmed'){ // 예정 저장(또는 공란이면 예정 해제) — 차량 마스터 미반영
+        Store.voyages.scheduleTsc(y.id, val);
+        toast(`TSC 입고일 ${val? '예정 저장' : '예정 해제'} · ${y.vessel}`, val? `${val} · 선박별 현황에만 저장(차량 마스터 미반영) · '예정' 배지 클릭으로 확정` : '예정 날짜를 지웠습니다. 차량 마스터는 변경 없음');
+      } else if(val){ // 확정 후 날짜 정정 → 차량 마스터 재반영(이력 기록). 단계는 이미 Bonded Stock이라 전환 0대
+        const r = Store.voyages.confirmTsc(y.id, val, state.user);
+        toast(`TSC 입고일 정정 · ${y.vessel}`, `${val} → 해당 선박 차량 ${num(r.n)}대의 tsc_arrival_date 재반영 · Vehicle_History ${num(r.changed)}건 기록(출처: 수동)`);
+      } else { // 확정 날짜 삭제 → 선박·차량 날짜 모두 삭제, 단계는 되돌리지 않음(기존 규칙)
+        Store.voyages.update(y.id, {tsc:'', tsc_status:''});
+        const r = Store.voyages.applyToVehicles(y.vessel, 'tsc_arrival_date', '', state.user);
+        toast(`TSC 입고일 삭제 · ${y.vessel}`, `해당 선박 차량 ${num(r.n)}대의 tsc_arrival_date 삭제 · Vehicle_History ${num(r.changed)}건 기록(출처: 수동) · 단계는 되돌리지 않음`);
+      }
+      PAGES.shipping.render(root);
+    };
+    const tscCell = y=> mk('td', {class:'mono'},
+      edit ? mk('input', {type:'date', class:'tsc-in', value:y.tsc||'', title:'TSC 입고일 입력 → 예정 저장(선박 단위) · 배지 클릭으로 확정', onclick:e=>e.stopPropagation(), onchange:e=>onTscChange(y, e.target.value.trim())})
+           : mk('span', null, y.tsc || mk('span', {class:'muted'}, tx('미입력'))));
+    const tscStatusCell = y=> mk('td', {class:'tscst'}, tscBadge(y)); // 10/27: 예정/확정 배지는 TSC 입고일 바로 옆 독립 열(왼쪽 여백 축소)
+    // 확정 모달 (10/27): 기존 날짜 유지 / 새 날짜 입력 중 선택 → Store.voyages.confirmTsc → 차량 마스터 반영 + Bonded Stock 전환
+    const openTscConfirm = y=>{
+      const vs = VEHICLES.filter(v=>v.vessel===y.vessel), transit = vs.filter(v=>v.current_status==='In Transit').length;
+      const dateIn = mk('input', {type:'date', class:'tsc-in', value:y.tsc||'', disabled:true});
+      const rKeep = mk('input', {type:'radio', name:'tscMode', value:'keep', checked:true, onchange:()=>{ dateIn.disabled = true; }});
+      const rNew = mk('input', {type:'radio', name:'tscMode', value:'new', onchange:()=>{ dateIn.disabled = false; dateIn.focus(); }});
+      // 선택 표 (10/27): 한 줄에 [구분 | 날짜 | 선택(라디오, 오른쪽)] · 행 클릭으로도 선택
+      const pickRow = (r, label, dateCell)=> mk('tr', {style:'cursor:pointer', onclick:e=>{ if(e.target!==dateIn){ r.checked = true; r.dispatchEvent(new Event('change')); } }},
+        mk('td', {style:'white-space:nowrap'}, label), mk('td', {class:'mono', style:'width:170px'}, dateCell), mk('td', {style:'width:60px;text-align:center'}, r));
+      const body = mk('div', null,
+        mk('div', {class:'callout'}, tx('TSC 입고일은 예정으로 저장되며, 확정 시 해당 선박 차량 {n}대의 TSC Arrival Date에 반영되고 In Transit {m}대가 Bonded Stock으로 전환됩니다.', {n:num(vs.length), m:num(transit)})),
+        mk('div', {class:'tbl-wrap', style:'max-width:560px'}, mk('table', {class:'tbl compact'},
+          mk('thead', null, mk('tr', null, mk('th', null, tx('구분')), mk('th', null, tx('날짜')), mk('th', {style:'text-align:center'}, tx('선택')))),
+          mk('tbody', null,
+            pickRow(rKeep, tx('기존 날짜로 확정'), y.tsc),
+            pickRow(rNew, tx('새 날짜 입력 후 확정'), dateIn)))));
+      openModal(tx('TSC 입고일 확정 — {v}', {v:y.vessel}), '', ' ');
+      el('modal-body').replaceChildren(body);
+      el('modal-foot').replaceChildren(
+        mk('button', {class:'btn', onclick:closeModal}, tx('취소')),
+        mk('button', {class:'btn primary', onclick:()=>{
+          const date = rKeep.checked? y.tsc : dateIn.value.trim();
+          if(!date){ toast('날짜를 입력하세요.'); return; }
+          const r = Store.voyages.confirmTsc(y.id, date, state.user); closeModal();
+          toast(`TSC 입고일 확정 · ${r.vessel}`, `${r.date} → 해당 선박 차량 ${num(r.n)}대의 tsc_arrival_date 반영(차량 마스터) · Vehicle_History ${num(r.changed)}건 기록(출처: 수동) · In Transit → Bonded Stock 전환 ${num(r.moved)}대 (출처: 규칙)`);
+          PAGES.shipping.render(root); }}, tx('확정')));
+    };
     // 10/26: '단계' 열 분리(Vessel 다음) = 그 선박 차량의 Current Status(복수면 단계별 대수 병기) · '대수' = 그 선박에 실린 차량 전체(TSC 입력 후 Bonded Stock 포함) — 단계와 대수가 같은 집합
     const stageCell = vs=>{ const by = countBy(vs, v=>v.current_status); const sts = Object.keys(by).sort((a,b)=>STAGES.indexOf(a)-STAGES.indexOf(b));
       return mk('td', null, sts.length? sts.map(s=>mk('span', {class:'pill '+(STAGE_CLASS[s]||'neutral'), style:'margin-right:4px'}, sts.length>1? `${s} ${num(by[s])}` : s)) : mk('span', {class:'muted'}, '—')); };
@@ -86,19 +137,31 @@ PAGES.shipping = {
         mk('td', {class:'mono'}, y.pl),
         mk('td', {class:'mono'}, vIn(y, 'eta_carrier', 'eta_from_eukor_pirt', 'ETA From EUKOR/PIRT', 'date', '', dash())),
         mk('td', {class:'mono'}, vIn(y, 'eta_final', 'ata', 'ATA', 'date', '', mk('span', {class:'muted'}, tx('미입력')))),
-        mk('td', {class:'mono'}, vIn(y, 'tsc', 'tsc_arrival_date', 'TSC Arrival Date', 'date', '', mk('span', {class:'muted'}, tx('미입력'))))); }); // 10/26 No.9: B/L·ETA·ATA와 같은 경로로 차량 마스터 반영
+        tscCell(y), tscStatusCell(y)); }); // 10/26 No.9 → 10/27: TSC는 예정/확정 2단계(tscCell + 배지 열)
     const vessels = mk('div', {class:'card'},
-      mk('div', {class:'card-h'}, mk('h2', null, tx('선박별 현황')), noteEl('S2'), mk('span', {class:'desc'}, tx('ATA = 실제 입항일(구 ETA Final) · TSC Arrival Date 입력 시 차량 마스터 반영 · 해당 선박 In Transit → Bonded Stock 전환')), mk('span', {class:'spacer'}),
-        mk('button', {class:'btn editor-only '+(edit?'primary':''), title: edit? '편집을 종료합니다 (입력값은 입력 즉시 저장됨)' : 'B/L No · ETA 선사 · ATA · TSC Arrival Date 입력란을 엽니다', onclick:()=>{ SH.edit=!SH.edit; PAGES.shipping.render(root); }}, edit? tx('편집 종료') : tx('편집'))), // 10/27: '선사 스케줄 일괄 업데이트'·'엑셀' 버튼 삭제
-      mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact'+(edit? '' : ' clickable')}, // 편집 모드에서는 행 클릭 이동 없음 (10/26)
-        mk('thead', null, mk('tr', null, ['Vessel','단계'].map(x=>mk('th', null, tx(x))), mk('th', {class:'num'}, tx('대수')), ['B/L No','Shipping','Planned Arrival','ETA 선사 (EUKOR/MOL)','ATA','TSC 입고일 (TSC Arrival Date)'].map(x=>mk('th', null, tx(x))))),
+      mk('div', {class:'card-h'}, mk('h2', null, tx('선박별 현황')), noteEl('S2'), mk('span', {class:'desc'}, tx('ATA = 실제 입항일(구 ETA Final) · TSC 입고일 입력 = 예정 저장(선박 단위) · 확정 시 차량 마스터 반영 · 해당 선박 In Transit → Bonded Stock 전환')), mk('span', {class:'spacer'}),
+        mk('button', {class:'btn editor-only '+(edit?'primary':''), title: edit? '편집을 종료합니다 (입력값은 입력 즉시 저장됨)' : 'B/L No · ETA 선사 · ATA · TSC 입고일(예정) 입력란을 엽니다', onclick:()=>{ SH.edit=!SH.edit; PAGES.shipping.render(root); }}, edit? tx('편집 종료') : tx('편집'))), // 10/27: '선사 스케줄 일괄 업데이트'·'엑셀' 버튼 삭제
+      mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact even'+(edit? '' : ' clickable')}, // 편집 모드에서는 행 클릭 이동 없음 (10/26) · even: 열 너비 = 열 최대 내용 폭 + 남는 폭 균등 배분 (evenCols, 10/27)
+        mk('thead', null, mk('tr', null, ['Vessel','단계'].map(x=>mk('th', null, tx(x))), mk('th', {class:'num'}, tx('대수')), ['B/L No','Shipping','Planned Arrival','ETA 선사 (EUKOR/MOL)','ATA','TSC 입고일 (TSC Arrival Date)'].map(x=>mk('th', null, tx(x))), mk('th', {class:'tscst'}, ''))),
         mk('tbody', null, rows))),
       mk('div', {class:'muted small', style:'margin-top:6px'}, tx('행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드 또는 Logistics 그리드/상세에서.')));
 
     root.innerHTML = kpi;
     root.append(vessels, monthly); // 10/19 No.8: 선박별 현황을 월별 입항 예정 위로
+    evenCols(q('table.tbl.even', vessels)); // 10/27: 열 너비 = 각 열 최대 내용 폭 + 남는 폭 균등 배분 (화면에 붙은 뒤 측정)
     // 편집 모드에서는 행 클릭으로 이동하지 않음 (10/26). 대시보드가 #app에 위임한 tr[data-vessel] 클릭 핸들러까지 막아야 하므로 전파를 끊는다
     qa('tr[data-vessel]', root).forEach(tr=>tr.onclick = edit? e=>e.stopPropagation() : ()=>{ location.hash='#/logistics?q='+encodeURIComponent(tr.dataset.vessel); });
     qa('td.lnk[data-href]', monthly).forEach(td=>td.onclick=()=>location.hash=td.dataset.href); // 월별 입항 Grand Total 행 수량 셀 → Logistics (10/22 · 10/27 범위 축소)
   }
 };
+// 선박별 현황 열 너비 (10/27): 표를 내용 폭(auto)으로 한 번 그려 열별 최대 내용 폭을 재고, 카드 남는 폭을 모든 열에 같은 크기로 더해 열 간격을 균등하게 맞춘다 (table-layout:fixed + th width)
+function evenCols(tbl){
+  if(!tbl || !tbl.isConnected) return;
+  const wrap = tbl.parentElement; const ths = qa('thead th', tbl);
+  tbl.style.tableLayout='auto'; tbl.style.width='auto'; ths.forEach(th=>{ th.style.width=''; });
+  const ws = ths.map(th=>th.getBoundingClientRect().width); const total = ws.reduce((a,b)=>a+b, 0);
+  if(!total) return; // 아직 화면에 없으면(폭 0) 기본 레이아웃 유지
+  const extra = Math.max(0, (wrap.clientWidth - total) / ths.length);
+  ths.forEach((th,i)=>{ th.style.width = (ws[i]+extra)+'px'; });
+  tbl.style.tableLayout='fixed'; tbl.style.width='100%';
+}

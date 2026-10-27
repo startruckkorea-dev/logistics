@@ -392,5 +392,4 @@ body.viewer .viewer-only{display:inline}
 .cu-ta{width:100%;max-width:560px;border:1px solid var(--line-strong);border-radius:6px;padding:6px 8px;resize:vertical;font:inherit;line-height:1.4;background:#fff}
 .cu-row{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px}
 .cu-row .cu-ta{flex:1;min-width:260px}
-.cu-sec{margin-top:16px}
 #lgTabs .note{align-self:center;margin-left:6px}

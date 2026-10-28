@@ -75,7 +75,7 @@ PAGES.dashboard = {
       <div class="legend">${pipeStages.map(s=>`<span><span class="sw" style="background:${STAGE_COLOR[s]}"></span>${s}</span>`).join('')}</div></div>`;
 
     // D7 당월 도착 예정 (10/20 No.16): 선적·입항 '월별 입항 예정' 피벗의 당월 블록 — 행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 당월 입항 선박(선적일 순) + Total · 값: 모델별 선박 선적 대수 · 표 높이는 옆 '입항 예정 선박' 카드에 맞추고 넘치면 세로 스크롤
-    // 10/27: 선적·입항 월별 입항 표 디자인 그대로 적용 — 머리글 3줄(월 > 선박 / 월 Total / Grand Total 행, 고정) · Model 열 고정 · 그룹 행(구분·차종)에도 열별 합계 · 0은 공란 (.pivot.fixcol)
+    // 10/27: 선적·입항 월별 입항 표 디자인 그대로 적용 — Model 열 고정 · 그룹 행(구분·차종)에도 열별 합계 · 0은 공란 (.pivot.fixcol) · 10/27 #1: 월 머리글 행 삭제 → 머리글 2줄(선박 / Grand Total 행, 고정)
     const cellN = (n, tot)=>{ const td = n? mk('td', {class:'num'}, num(n)) : mk('td', {class:'num'}); if(tot) td.classList.add('tot'); return td; };
     const arrCells = by=> [...curVoys.map(y=>cellN(by[y.vessel]||0)), cellN(curVoys.reduce((a,y)=>a+(by[y.vessel]||0),0), true)];
     const sumBy = rows=>{ const by={}; rows.forEach(r=>Object.entries(r.by).forEach(([k,n])=>by[k]=(by[k]||0)+n)); return by; };
@@ -88,8 +88,7 @@ PAGES.dashboard = {
       mk('div', {class:'card-h'}, mk('h2', null, tx('당월 도착 예정 ({m}월)', curMon)), noteEl('D7'), mk('span', {class:'desc'}, tx('구분 > 차종 > 모델 × 당월 입항 선박 · 합계 {n}대 · 선박 {v}척', {n:num(sched.total), v:curVoys.length})), mk('span', {class:'spacer'}), mk('a', {href:'#/shipping'}, tx('월별 입항 예정 →'))),
       mk('div', {class:'fill'}, mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot fixcol'},
         mk('thead', null,
-          mk('tr', null, mk('th', {rowspan:2}, 'Model'), curVoys.length? mk('th', {class:'ym', colspan:curVoys.length}, ymLabel(BASE_YM)) : null, mk('th', {class:'num tot', rowspan:2}, ymLabel(BASE_YM)+' Total')),
-          mk('tr', null, curVoys.map(y=>mk('th', {class:'num', title:`${y.carrier} · Shipping ${y.shipping}`}, y.vessel))),
+          mk('tr', null, mk('th', null, 'Model'), curVoys.map(y=>mk('th', {class:'num', title:`${y.carrier} · Shipping ${y.shipping}`}, y.vessel)), mk('th', {class:'num tot'}, 'Total')),
           mk('tr', {class:'total'}, mk('td', null, 'Grand Total'), arrCells(sched.grand))),
         mk('tbody', null, sched.total? arrRows : mk('tr', null, mk('td', {colspan:arrCols, class:'muted', style:'text-align:center'}, tx('당월 입항 예정 차량이 없습니다.'))))))));
 
@@ -105,8 +104,8 @@ PAGES.dashboard = {
       mk('div', {class:'card-h'}, mk('h2', null, tx('연식별 재고')), noteEl('D6'), mk('span', {class:'desc'}, tx('Bonded + OH Stock {n}대 · 연식(MY) 최신순 · 누적 = Vehicle 4종', {n:num(stock.length)}))),
       mk('div', {style:'max-width:640px'}, myChart));
 
-    // 레이아웃 (10/20 No.15·16): 카드 → [입항 예정 선박 | 당월 도착 예정] → [월별 생산·입항·판매 추이 | 연식별 재고] → 차종별 파이프라인(맨 아래 단독)
-    root.innerHTML = `<div class="grid2"><div id="d3slot"></div><div id="d7slot"></div></div><div class="grid2"><div id="d2slot"></div><div id="d6slot"></div></div>${pipe}`;
+    // 레이아웃 (10/20 No.15·16 → 10/27 #2): 카드 → [입항 예정 선박 / 월별 생산·입항·판매 추이 | 당월 도착 예정(2행 높이, .dash-top)] → [차종별 파이프라인 | 연식별 재고]
+    root.innerHTML = `<div class="grid2 dash-top"><div id="d3slot"></div><div id="d7slot"></div><div id="d2slot"></div></div><div class="grid2">${pipe}<div id="d6slot"></div></div>`;
     root.prepend(flow);
     el('d3slot').replaceWith(ships); el('d7slot').replaceWith(arrCard); el('d2slot').replaceWith(trend); el('d6slot').replaceWith(myCard);
     scrollChartTo(trend); // 화면에 붙은 뒤 당월-3개월이 왼쪽 끝에 오도록 스크롤

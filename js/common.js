@@ -68,7 +68,7 @@ const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // �
 const NOTES = {
   G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. Sales = 대시보드·선적·입항·Logistics(Request 탭) 조회 + 통관 신청만. UI 한국어, 필드명은 기존 엑셀 영문',
   D1:'차량 주문·재고 흐름: 카드 6종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit, 하단에 당월 입항 예정 대수) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘, Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 8개월만 표시, 나머지는 가로 스크롤(Y축 고정). 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외) · 단계 색 = Current Status 색', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)', D7:'당월 도착 예정: 선적·입항 월별 입항 예정 피벗의 당월 블록 (행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 당월 입항 선박 + Total · 선박 입항월 = ATA → ETA 선사 → Pl. arrival) · 당월 입항 예정 카드와 동일 기준',
-  L1:'탭 4개: Logistics(홈 그리드) · Request of Customs Clearance(통관 여부 조회) · Update Customs Clearance Info(Unipass Excel 업로드로 통관일·수입필증번호 반영) · Insurance(보험 조회 · Excel Export). 편집 중 저장 대기 값이 있으면 탭 전환 차단',
+  L1:'탭 4개: Logistics(홈 그리드) · 수입 통관 신청(Sales 통관 신청 · 신청 접수 처리 · 통관 여부 조회) · Update Customs Clearance Info(템플릿 Excel 업로드로 통관일·수입필증번호 반영) · Insurance(보험 조회 · Excel Export). 편집 중 저장 대기 값이 있으면 탭 전환 차단',
   L2:'열 필터(Current Status 단계 순 10단계 + Cancelled · 모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 45열을 data-dictionary 순서로 표시, Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가, 엑셀 내보내기',
   S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박)', S2:'선박별 현황(Vessel·단계·대수·B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC Arrival Date). 선박 단위 입력은 해당 선박 차량의 차량 마스터 열에 반영·Vehicle_History 기록. TSC 입고일은 예정(선박 단위) 저장 후 배지 클릭으로 확정 → 차량 마스터 반영 + In Transit → Bonded Stock. ETA 불일치 카드·탭·표시는 제외',
   K1:'기준월 선택(최근 5개월 월말 마감 + 현재) → 요약 카드(Total Stock + 연식 MY24~27 대수·비율) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
@@ -81,7 +81,7 @@ const NOTES = {
 const PAGES = {};
 const state = { role:'Editor', user: USERS.find(u=>u.role==='Editor').name, notes:false, hiddenCols:new Set(DEFAULT_HIDDEN_COLS), lang:'ko' };
 function isEditor(){ return state.role==='Editor'; }
-function isSales(){ return state.role==='Sales'; } // 10/27: 영업 역할 — 대시보드·선적·입항 조회 + Logistics 'Request of Customs Clearance' 탭(통관 신청)만. 그 외 입력 버튼은 Viewer와 같이 숨김(body.viewer)
+function isSales(){ return state.role==='Sales'; } // 10/27: 영업 역할 — 대시보드·선적·입항 조회 + Logistics '수입 통관 신청' 탭(통관 신청)만. 그 외 입력 버튼은 Viewer와 같이 숨김(body.viewer)
 
 // ---- 언어 (한/EN 토글) ----
 // I18N: 한글 UI 문구 → 영문 사전. tx(ko, vars)는 한국어 모드에서는 ko를 그대로 돌려주므로 한국어 화면은 바뀌지 않는다.
@@ -140,19 +140,24 @@ const I18N = {
   'Type 선택 ({n})':'Select Type ({n})', '숫자 3~4자리를 입력하세요':'Enter 3–4 digits', '일치하는 Type 없음':'No matching Type', '모델 선택 ({n})':'Select Model ({n})',
   // Logistics 탭 2~4: 통관·보험 (10/26 No.1) — 탭 이름은 영문 고정
   '탭 전환 불가':'Cannot switch tab', '조회':'Look up', 'Commission No 여러 개 (줄바꿈·쉼표 구분)':'Multiple Commission Nos (newline / comma separated)',
-  '조회 {n}건':'{n} found', '미등록 {n}건: {list}':'{n} not registered: {list}', 'Commission No를 입력하세요.':'Enter Commission Nos.', '행 클릭 → 차량 상세':'Click a row → vehicle detail',
-  'Commission No로 통관 여부 조회':'Check customs clearance by Commission No',
-  'Unipass Excel 업로드 → 차량 마스터 Customs Clearance Date · Import License 반영 · 통관일 입력 시 Bonded Stock → OH Stock':'Upload the Unipass Excel → vehicle master Customs Clearance Date · Import License · Bonded Stock → OH Stock when a clearance date is entered',
-  '통관 Excel(Unipass 수입신고 목록)을 여기에 놓거나 클릭하여 선택':'Drop the customs Excel (Unipass import list) here or click to select',
-  // 10/27: 열 매핑 표(읽기 전용)
-  '열 매핑 (읽기 전용)':'Column Mapping (read-only)', 'Excel 머리글(Unipass 수입신고 목록)은 고정 · 매핑 변경 불가':'Excel headers (Unipass import list) are fixed · mapping cannot be changed',
-  'Excel 열':'Excel Column', '시스템 필드 (차량 마스터)':'System Field (Vehicle Master)', '예시 값':'Example', '매칭 키':'Match Key',
+  '조회 {n}건':'{n} found', '미등록 {n}건: {list}':'{n} not registered: {list}', 'Commission No를 입력하세요.':'Enter Commission Nos.',  'Commission No로 통관 여부 조회':'Check customs clearance by Commission No',
+  '템플릿 Excel 업로드 → 차량 마스터 Customs Clearance Date · Import License 반영 · 통관일 입력 시 Bonded Stock → OH Stock':'Upload the template Excel → vehicle master Customs Clearance Date · Import License · Bonded Stock → OH Stock when a clearance date is entered',
+  '템플릿에 맞춘 통관 Excel(Commission · 수리일 · 신고번호)을 여기에 놓거나 클릭하여 선택':'Drop the customs Excel in the template layout (Commission · 수리일 · 신고번호) here or click to select',
+  '템플릿 다운로드':'Download Template', // 10/27 #10
+  // 10/28: 업로드 미리보기 (열 매핑 표는 삭제)
+  '음영 열 = 반영되는 차량 마스터 필드 (현재 값 표시)':'Shaded columns = vehicle master fields to be updated (current values shown)',
+  '반영 결과 — {f}':'Applied — {f}', '반영 {n}건 · Bonded Stock → OH Stock 전환 {m}대 · 음영 열 = 반영된 값':'{n} applied · {m} moved Bonded Stock → OH Stock · shaded columns = applied values',
   // 10/27: 통관 신청 (Sales) · 신청 접수 (Editor·Viewer)
   '통관 신청 ({n}건)':'Request Clearance ({n})', '신청 ({n}건)':'Submit ({n})', '통관 신청 확인':'Confirm Clearance Request', '신청자':'Requested by', '수신':'To', '선택 차량':'Selected vehicles',
-  'Bonded Stock 차량을 선택해 물류 담당자에게 통관 신청 · 신청 중(접수) 차량은 목록에서 제외':'Select Bonded Stock vehicles and send a clearance request to Logistics · vehicles with a pending request are excluded',
+  'Bonded Stock 차량을 선택해 물류 담당자에게 통관 신청 · 신청·접수 중인 차량은 목록에서 제외':'Select Bonded Stock vehicles and send a clearance request to Logistics · vehicles already requested or confirmed are excluded',
   '대상 {n}건 · 신청 중 제외 {m}건':'{n} eligible · {m} excluded (pending)', '신청 접수':'Requests received',
-  '영업(Sales)이 보낸 통관 신청 · 행 클릭 → 아래 조회창에 Commission No 채워 조회':'Clearance requests from Sales · click a row → fills the lookup below',
-  '신청일시':'Requested at', '건수':'Count', '통관 여부 조회':'Clearance Lookup', '신청 내역':'My Requests', '보낸 통관 신청과 처리 상태':'Requests you sent and their status', '통관 신청 대상 (Bonded Stock)':'Eligible vehicles (Bonded Stock)', '클릭 → 선택':'Click → select', '체크박스 또는 Commission No 클릭 → 선택':'Tick the box or click a Commission No to select', '외 {n}건':'+{n} more', '접수':'Received', '처리 완료':'Done', '메모':'Note', '신청 내역이 없습니다.':'No requests yet.', '전체 선택':'Select all',
+  '영업(Sales)이 보낸 통관 신청 · 행 클릭 → 아래 조회 목록에서 Commission No별 접수/거절 선택 후 제출':'Clearance requests from Sales · click a row → confirm / reject each Commission No in the lookup below, then submit',
+  // 10/27 #5·#11·#12: 탭명 · 상태 3종 · 처리 패널(조회 목록 안에서 행별 접수/거절 → 제출)
+  '수입 통관 신청':'Request of Customs Clearance', '신청':'Requested', '거절':'Rejected',
+  '처리 중: {id}':'Processing: {id}', '처리 해제':'Stop processing', '처리 제출 (접수 {a} · 거절 {b})':'Submit (confirm {a} · reject {b})', '처리 선택':'Decision', '거절 사유':'Reject reason',
+  '접수 (Confirm)':'Confirm', '거절 (Reject)':'Reject', '거절 사유 (거절 시 필수)':'Reject reason (required to reject)', '이 신청에 없는 차량':'Not in this request',
+  '행별로 접수/거절을 선택한 뒤 제출 · 거절은 사유 필수 · 이미 처리된 행은 선택 불가':'Choose confirm / reject per row, then submit · a reason is required to reject · processed rows cannot be changed',
+  '신청일시':'Requested at', '건수':'Count', '통관 여부 조회':'Clearance Lookup', '신청 내역':'My Requests', '보낸 통관 신청과 처리 상태':'Requests you sent and their status', '통관 신청 대상 (Bonded Stock)':'Eligible vehicles (Bonded Stock)', '클릭 → 선택':'Click → select', '체크박스 또는 Commission No 클릭 → 선택':'Tick the box or click a Commission No to select', '외 {n}건':'+{n} more', '접수':'Confirmed', '메모':'Note', '신청 내역이 없습니다.':'No requests yet.', '전체 선택':'Select all',
   '선택한 차량 {n}대의 통관을 물류 담당자에게 신청합니다. 신청 내역은 Customs_Requests에 기록되고 담당자에게 메일로 안내됩니다.':'Sends a clearance request for {n} selected vehicles to Logistics. The request is stored in Customs_Requests and emailed to the owners.',
   '미리보기 — {f}':'Preview — {f}', '매칭 {a}건 · 미매칭 {b}건':'{a} matched · {b} unmatched', '수리일':'Clearance Date', '신고번호':'Declaration No', '매칭':'Match', '일치':'Matched', '미등록':'Not registered',
   '반영 ({n}건)':'Apply ({n})', '보험 조회 · 조회 결과를 Excel(xlsx)로 내보내기':'Insurance lookup · export results to Excel (xlsx)',

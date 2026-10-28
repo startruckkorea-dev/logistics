@@ -102,14 +102,28 @@ const Store = {
   },
   customsRequests: {
     // 통관 신청 등록 (10/27, Sales): comms = Commission No 배열 · by = 신청자. CUSTOMS_REQUESTS 맨 앞(최신순) + Audit_Log 기록. 차량 행·Vehicle_History는 건드리지 않는다. 반환 {req, to: 수신자 이름 배열}
+    // 10/27 #11: 상태는 Commission No별 items[].status — 등록 시 전부 '신청'
     add(comms, by){
       const u = USERS.find(x=>x.name===by); const at = nowStamp();
       const seq = CUSTOMS_REQUESTS.filter(r=>r.requested_at.startsWith(TODAY_S)).length+1;
-      const req = {id:'CR-'+TODAY_S.replace(/-/g,'')+'-'+pad2(seq), requested_at:at, requested_by:by, dept:u? u.dept : '', comms:[...comms], n:comms.length, status:'접수', note:''};
+      const items = comms.map(c=>({comm:c, status:'신청', at:'', by:'', reason:''}));
+      const req = {id:'CR-'+TODAY_S.replace(/-/g,'')+'-'+pad2(seq), requested_at:at, requested_by:by, dept:u? u.dept : '', items, n:items.length, note:''};
       CUSTOMS_REQUESTS.unshift(req);
       const to = USERS.filter(x=>x.role==='Editor' && x.dept==='Ordering & Logistics').map(x=>x.name);
       AUDIT_LOG.unshift({at, user:by, action:'통관 신청', target:'Customs_Requests '+req.id, detail:`${comms.length}건 · 메일 수신 ${to.join(', ')}`});
       return {req, to};
+    },
+    // 신청 처리 제출 (10/27 #12·#13, PMM = Editor): decisions = [{comm, status:'접수'|'거절', reason}] — 아직 '신청'인 item만 status·at·by·reason(거절만) 갱신, 한 번의 제출 = Audit_Log 1행.
+    // 거절 건이 있으면 신청자에게 사유 메일(시연은 토스트). 반환 {req, accepted:[comm], rejected:[{comm, reason}], to: 신청자 이름}. 바뀐 건이 없으면 Audit 없음
+    process(reqId, decisions, by){
+      const req = CUSTOMS_REQUESTS.find(r=>r.id===reqId); if(!req) return null;
+      const at = nowStamp(); const accepted = [], rejected = [];
+      decisions.forEach(d=>{ const it = req.items.find(i=>i.comm===d.comm); if(!it || it.status!=='신청' || (d.status!=='접수' && d.status!=='거절')) return;
+        it.status = d.status; it.at = at; it.by = by; it.reason = d.status==='거절'? (d.reason||'') : '';
+        if(d.status==='접수') accepted.push(d.comm); else rejected.push({comm:d.comm, reason:it.reason}); });
+      if(accepted.length || rejected.length) AUDIT_LOG.unshift({at, user:by, action:'통관 신청 처리', target:'Customs_Requests '+reqId,
+        detail:[accepted.length? `접수 ${accepted.length}건 (${accepted.join(', ')})` : '', rejected.length? `거절 ${rejected.length}건 (${rejected.map(x=>x.comm+': '+x.reason).join(' / ')}) · 메일 수신 ${req.requested_by}` : ''].filter(Boolean).join(' · ')});
+      return {req, accepted, rejected, to:req.requested_by};
     },
   },
 };

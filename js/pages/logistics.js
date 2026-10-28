@@ -1,8 +1,9 @@
 'use strict';
 /* ===== Logistics 차량 마스터 (L1~L7) ===== */
 const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50, tab:'grid' }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18) · 단계는 상단 필터 대신 Current Status 열 필터로 (10/22 No.2) · tab: 페이지 탭 (10/26 No.1)
-// 페이지 탭 4개 (10/26 No.1): 1번 = 차량 마스터 그리드(홈), 2~4번 = 통관·보험(js/pages/customs.js). 이름은 영문 고정. ?tab= 으로 진입 가능, 없으면 grid
-const LOGI_TABS = [['grid','Logistics'], ['req','Request of Customs Clearance'], ['input','Update Customs Clearance Info'], ['ins','Insurance']];
+// 페이지 탭 4개 (10/26 No.1): 1번 = 차량 마스터 그리드(홈), 2~4번 = 통관·보험(js/pages/customs.js). ?tab= 으로 진입 가능, 없으면 grid
+// 10/27 #5: 탭 2는 한글 '수입 통관 신청'(EN 모드는 I18N으로 영문), 탭 3·4 이름은 미결이라 영문 유지
+const LOGI_TABS = [['grid','Logistics'], ['req','수입 통관 신청'], ['input','Update Customs Clearance Info'], ['ins','Insurance']];
 
 const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
 // 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&model=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
@@ -18,11 +19,11 @@ PAGES.logistics = {
     LF.q = params.get('q')||''; LF.page=1; LF.col={};
     const st = params.get('stage'); if(st) LF.col.current_status = new Set(st.split(',')); // ?stage= (대시보드 카드·파이프라인·AFAB 링크, 쉼표 구분 복수) → Current Status 열 필터
     FILTER_COLS.forEach(k=>{ const v = params.get(k); if(v!=null) LF.col[k] = new Set(v.split(',').map(x=> x===''? '(빈 값)' : x)); }); // 열 필터 파라미터 (10/22 선적·입항 수량 셀 클릭): 쉼표 구분 복수 · 빈 문자열 = '(빈 값)'
-    const tabs = isSales()? LOGI_TABS.filter(t=>t[0]==='req') : LOGI_TABS; // 10/27: Sales는 Request of Customs Clearance 탭만 (그리드·Update·Insurance 없음)
+    const tabs = isSales()? LOGI_TABS.filter(t=>t[0]==='req') : LOGI_TABS; // 10/27: Sales는 수입 통관 신청 탭만 (그리드·Update·Insurance 없음)
     LF.tab = isSales()? 'req' : (LOGI_TABS.some(t=>t[0]===params.get('tab')) ? params.get('tab') : 'grid'); // 대시보드·선적·입항 링크(?stage=·?vessel=)는 tab 없음 → 그리드
     EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter();
     root.innerHTML = `<div class="card"><div class="tabs" id="lgTabs"></div><div id="lgBody"></div></div>`;
-    el('lgTabs').append(...tabs.map(([k,label])=>mk('span', {class:'tab', 'data-tab':k, onclick:()=>switchLogiTab(k)}, label)), noteEl('L1'));
+    el('lgTabs').append(...tabs.map(([k,label])=>mk('span', {class:'tab', 'data-tab':k, onclick:()=>switchLogiTab(k)}, tx(label))), noteEl('L1')); // tx: 한글 탭명만 번역 (10/27 #5)
     renderLogiBody();
   }
 };

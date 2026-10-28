@@ -40,6 +40,7 @@ function renderLogiBody(){
   if(LF.tab!=='grid'){ body.replaceChildren(); renderCustomsTab(body, LF.tab); return; } // 탭 2~4: js/pages/customs.js
   body.innerHTML = `<div class="card-h"><div class="filters" id="filters"></div><span class="spacer"></span>
       <div class="btn-group">
+        <button class="btn editor-only" id="btnStatus" hidden></button>
         <button class="btn editor-only" id="btnAdd">${tx('오더 생성')} ${note('L7')}</button>
         <button class="btn" id="btnExport">${tx('엑셀 내보내기')}</button>
       </div></div>
@@ -50,6 +51,76 @@ function renderLogiBody(){
   renderFilters(); renderGrid(); // ?q= 로 들어온 경우 검색어만 자동 입력하고 스크롤은 하지 않음 (검색창 입력 시에만 일치 위치로 이동)
   el('btnExport').onclick = ()=>describe('엑셀 내보내기', `현재 필터·열 그대로 .xlsx 생성(SheetJS) → 다운로드 + SharePoint /Exports/ 저장. 현재 ${num(filtered().length)}행 · ${visibleCols().length}열.`);
   el('btnAdd').onclick = openAddOrder;
+  el('btnStatus').onclick = openStatusUpdate; syncStatusBtn(); autoStatusCheck(); // 10/28: Current Status 자동 점검 배지 + 하루 1회 자동 팝업
+}
+
+// ---- Current Status 자동 업데이트 (10/28): 편집자가 그리드 탭에 들어오면 상태 규칙 3·5·7 대상을 훑어 팝업 → 제외 선택 → 즉시 반영 ----
+const STATUS_CHECK_KEY = 'stk_statusCheck'; // localStorage: 자동 팝업을 띄운 실제 달력 날짜(YYYY-MM-DD). 기준일 TODAY_S는 고정이라 쓰지 않는다
+let statusCheckedDay = ''; // localStorage를 못 쓰는 환경용 대체(세션 변수)
+function realToday(){ return fmtD(new Date()); }
+// 배지 버튼: 대상 건수 표시 · 0건이면 숨김 (렌더·반영 후 호출)
+function syncStatusBtn(){
+  const b = el('btnStatus'); if(!b) return;
+  const n = Store.vehicles.statusUpdateCandidates().length;
+  b.hidden = n===0; b.classList.toggle('primary', n>0);
+  b.textContent = tx('상태 업데이트 대상 {n}건', {n:num(n)});
+  b.title = 'Current Status 자동 전환 대상 (규칙 3·5·7) — 클릭하면 목록을 다시 엽니다';
+}
+// 하루 1회 자동 팝업: Editor만 · 같은 날(실제 날짜)에 이미 띄웠으면 건너뜀 · 대상이 없어도 '없음' 안내를 띄운다
+function autoStatusCheck(){
+  if(!isEditor()) return;
+  const today = realToday(); let last;
+  try{ last = localStorage.getItem(STATUS_CHECK_KEY); }catch(e){ last = statusCheckedDay; }
+  if(last===today) return;
+  statusCheckedDay = today;
+  try{ localStorage.setItem(STATUS_CHECK_KEY, today); }catch(e){}
+  setTimeout(openStatusUpdate, 0); // 그리드를 먼저 그린 뒤 팝업
+}
+function openStatusUpdate(){
+  const items = Store.vehicles.statusUpdateCandidates();
+  const ruleCond = r=>{ const x = STAGE_RULES.find(s=>s.order===r); return x? x.cond : ''; };
+  const intro = mk('div', {class:'callout'}, `기준일 ${TODAY_S} 기준으로 상태 규칙 3·5·7에 해당하는 차량을 자동 판정합니다 — Ordered(Changeable) → Ordered(Fixed): Changeability Date 경과 · Ordered(Fixed) → In Production: PM(생산월) 도래 · In Production/Shipment scheduled → In Transit: Shipping Date 경과. 제외할 차량을 체크한 뒤 '반영'을 누르면 즉시 저장되고 Vehicle_History(출처: 규칙)·Audit_Log에 기록됩니다. Status override 지정 차량과 Bonded·OH·Sold 전환(TSC 확정·통관·월말 입력)은 대상이 아닙니다.`);
+  // override 보류 (10/28): 규칙에는 맞지만 status_override 때문에 전환하지 않는 차량 — 0건이어도 건수를 항상 보여 override 때문인지 확인할 수 있게 한다
+  const held = Store.vehicles.statusUpdateHeld();
+  const heldLine = mk('div', {class:'muted small', style:'margin-bottom:8px'}, mk('b', null, tx('Status override로 보류: {n}건', {n:num(held.length)})), ' (override가 지정된 차량은 규칙에 맞아도 자동 전환하지 않음 · 상세 Drawer의 Status override · Status reason 참고)');
+  const cols = ['commission_no','series','model']; // Commission No · Model · Type (customs.js cuCell 재사용)
+  const heldGroup = held.length? mk('div', null,
+    mk('div', {class:'section-h'}, tx('Status override로 보류'), mk('span', {class:'sub'}, tx('{n}건', {n:num(held.length)}))),
+    mk('div', {class:'tbl-wrap', style:'max-height:220px'}, mk('table', {class:'tbl compact'},
+      mk('thead', null, mk('tr', null, cols.map(k=>mk('th', null, tx(keyinLabel(k)))), mk('th', null, tx('현재 상태')), mk('th', null, tx('규칙 적용 시')), mk('th', null, 'Status override'), mk('th', null, 'Status reason'), mk('th', null, tx('수정 이유')))),
+      mk('tbody', null, held.map(it=>mk('tr', null, cols.map(k=>cuCell(k, it.v)), mk('td', null, stagePillEl(it.from)), mk('td', null, stagePillEl(it.to)), mk('td', null, it.v.status_override), mk('td', {class:'small'}, it.v.status_reason||'—'), mk('td', {class:'small'}, it.reason))))))) : null;
+  openModal(tx('Current Status 업데이트'), '', ' ');
+  if(!items.length){
+    el('modal-body').replaceChildren(...[intro, heldLine, mk('div', {class:'muted', style:'padding:20px;text-align:center'}, tx('자동 전환 대상이 없습니다.')), heldGroup].filter(Boolean)); // heldGroup null이면 제외(replaceChildren은 null을 'null' 문자로 넣는다)
+    el('modal-foot').replaceChildren(mk('button', {class:'btn', onclick:closeModal}, tx('닫기')));
+    return;
+  }
+  const excluded = new Set(); // 제외한 Commission No
+  const applyBtn = mk('button', {class:'btn primary'});
+  const exInfo = mk('span', {class:'muted small', style:'margin-right:auto;align-self:center'});
+  const sync = ()=>{ const n = items.length - excluded.size; applyBtn.textContent = tx('반영 ({n}건)', {n:num(n)}); applyBtn.disabled = n===0; exInfo.textContent = tx('제외 {n}건', {n:num(excluded.size)}); };
+  const groups = [...new Set(items.map(it=>it.rule))].sort().map(rule=>{
+    const gi = items.filter(it=>it.rule===rule); const {from, to} = gi[0];
+    const boxes = [];
+    const rowEl = it=>{ const box = mk('input', {type:'checkbox', class:'rowsel', onchange:e=>{ if(e.target.checked) excluded.add(it.v.commission_no); else excluded.delete(it.v.commission_no); sync(); }}); boxes.push(box);
+      return mk('tr', null, mk('td', null, box), cols.map(k=>cuCell(k, it.v)), mk('td', null, stagePillEl(it.from)), mk('td', null, stagePillEl(it.to)), mk('td', {class:'small'}, it.reason)); };
+    const allBox = mk('input', {type:'checkbox', title:tx('반영 제외'), onchange:e=>{ boxes.forEach(b=>{ b.checked = e.target.checked; }); gi.forEach(it=>{ if(e.target.checked) excluded.add(it.v.commission_no); else excluded.delete(it.v.commission_no); }); sync(); }});
+    const froms = [...new Set(gi.map(it=>it.from))]; // 규칙 7은 In Production·Shipment scheduled 두 상태에서 출발
+    return mk('div', null,
+      mk('div', {class:'section-h'}, froms.map(f=>stagePillEl(f)), '→', stagePillEl(to), mk('span', {class:'sub'}, tx('{n}건 · 규칙 {r}: {c}', {n:num(gi.length), r:rule, c:ruleCond(rule)}))),
+      mk('div', {class:'tbl-wrap', style:'max-height:220px'}, mk('table', {class:'tbl compact'},
+        mk('thead', null, mk('tr', null, mk('th', {title:tx('반영 제외')}, allBox), cols.map(k=>mk('th', null, tx(keyinLabel(k)))), mk('th', null, tx('변경 전')), mk('th', null, tx('변경 후')), mk('th', null, tx('수정 이유')))),
+        mk('tbody', null, gi.map(rowEl)))));
+  });
+  el('modal-body').replaceChildren(...[intro, heldLine, mk('div', {class:'muted small', style:'margin-bottom:4px'}, tx('첫 열 체크 = 반영 제외 (머리글 체크 = 그룹 전체 제외)')), ...groups, heldGroup].filter(Boolean));
+  applyBtn.onclick = ()=>{
+    const picked = items.filter(it=>!excluded.has(it.v.commission_no)); if(!picked.length) return;
+    const r = Store.vehicles.applyStatusUpdate(picked, excluded.size, state.user);
+    closeModal(); renderGrid(); syncStatusBtn();
+    toast(`Current Status 업데이트 ${num(r.n)}건 반영`, `${Object.entries(r.by).map(([k,n])=>`${k} ${num(n)}`).join(' · ')} · 제외 ${num(r.excluded)}건 · Vehicle_History ${num(r.n)}건(출처: 규칙) · Audit_Log 기록${held.length? ` · override 보류 ${num(held.length)}건` : ''}`);
+  };
+  el('modal-foot').replaceChildren(exInfo, mk('button', {class:'btn', onclick:closeModal, title:"닫기만 합니다. 상단 '상태 업데이트 대상' 배지로 다시 열 수 있습니다"}, tx('나중에')), applyBtn);
+  sync();
 }
 
 // 날짜 열은 연·월(YYYY-MM) 단위로 필터 (10/19 No.3)

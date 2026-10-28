@@ -1,6 +1,15 @@
 'use strict';
 /* ===== Store: data.js 데이터 쓰기 함수 (조회는 각 화면에서 data.js 변수를 직접 읽음) ===== */
 function nowStamp(){ const d=new Date(); return TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes()); } // Vehicle_History changed_at (기준일 + 현재 시각)
+// Current Status 자동 전환 규칙 (10/28, 상태 규칙 3·5·7 · 기준일 TODAY_S/BASE_YM): 차량 1대 → {v, from, to, rule, reason} 또는 null. override 여부는 보지 않는다(호출 쪽에서 구분)
+// 규칙 3 Ordered(Changeable) → Ordered(Fixed): Changeability Date 경과 · 규칙 5 Ordered(Fixed) → In Production: PM 도래 · 규칙 7 In Production/Shipment scheduled → In Transit: Shipping Date 경과
+function statusRuleOf(v){
+  const s = v.current_status;
+  if(s==='Ordered(Changeable)' && v.changeability_date && v.changeability_date<=TODAY_S) return {v, from:s, to:'Ordered(Fixed)', rule:3, reason:`Changeability Date ${v.changeability_date} 경과`};
+  if(s==='Ordered(Fixed)' && v.pm && v.pm<=BASE_YM) return {v, from:s, to:'In Production', rule:5, reason:`PM ${v.pm} 도래`};
+  if((s==='In Production'||s==='Shipment scheduled') && v.shipping && v.shipping<=TODAY_S) return {v, from:s, to:'In Transit', rule:7, reason:`Shipping Date ${v.shipping} 경과`};
+  return null;
+}
 const Store = {
   vehicles: {
     // Commission No로 찾은 차량 행에 patch 필드 대입. 없으면 null.
@@ -54,6 +63,25 @@ const Store = {
         Object.assign(v, patch); vehicles++; });
       Store.history.add(hist);
       return {vehicles, fields:hist.length, cleared};
+    },
+    // Current Status 자동 업데이트 후보 (10/28): 기준일 TODAY_S·BASE_YM 기준 상태 규칙 3·5·7 판정(statusRuleOf). 쓰지 않고 후보만 돌려준다 (반영은 applyStatusUpdate).
+    // status_override가 있는 차량은 제외(override 우선 → statusUpdateHeld에서 따로 조회) · 한 번에 한 단계만(연쇄 전환은 다음 점검에서). 반환 [{v, from, to, rule, reason}]
+    statusUpdateCandidates(){
+      return VEHICLES.filter(v=>!v.status_override).map(v=>statusRuleOf(v)).filter(Boolean);
+    },
+    // 규칙에는 맞지만 status_override 때문에 자동 전환하지 않는 차량 (10/28): 팝업에 '보류'로 표시해 override 때문인지 확인할 수 있게 한다. 쓰기 없음. 반환 형식은 statusUpdateCandidates와 동일
+    statusUpdateHeld(){
+      return VEHICLES.filter(v=>v.status_override).map(v=>statusRuleOf(v)).filter(Boolean);
+    },
+    // Current Status 자동 업데이트 반영 (10/28): items = 후보 중 제외하지 않은 것 · excluded = 제외한 건수 · by = 사용자.
+    // current_status 대입 + Vehicle_History(출처 규칙) + Audit_Log 1건. 반환 {n, by:{'A → B': n}, excluded}
+    applyStatusUpdate(items, excluded, by){
+      const at = nowStamp(); const byT = {};
+      const hist = items.map(it=>{ it.v.current_status = it.to; const k = `${it.from} → ${it.to}`; byT[k] = (byT[k]||0)+1;
+        return {commission_no:it.v.commission_no, field:'current_status', old_value:it.from, new_value:it.to, changed_by:by, changed_at:at, source:'규칙'}; });
+      Store.history.add(hist);
+      AUDIT_LOG.unshift({at, user:by, action:'Current Status 업데이트', target:'Vehicles', detail:`${items.length}건 전환 (${Object.entries(byT).map(([k,n])=>`${k} ${n}`).join(' · ')}) · 제외 ${excluded}건`});
+      return {n:items.length, by:byT, excluded};
     },
   },
   history: {

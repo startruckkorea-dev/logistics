@@ -129,6 +129,7 @@ body.notes .note{display:inline-block}
 .card-h .filters{margin-bottom:0}
 .editbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;background:var(--accent-soft);border:1px solid #b9d3f5;border-radius:8px;padding:6px 10px;margin-bottom:8px}
 .editbar[hidden]{display:none}
+.btn[hidden]{display:none} /* 10/28: Current Status 업데이트 배지 버튼(0건이면 숨김) — .btn의 inline-flex가 hidden을 덮지 않도록 */
 .grid .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .grid .dot.ok{background:var(--ok)}.grid .dot.bad{background:var(--danger)}.grid .dot.warn{background:#e6b800}
 .grid .dot.r{float:right;margin:5px 0 0 8px}

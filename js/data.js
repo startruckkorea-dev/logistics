@@ -165,6 +165,16 @@ function genVehicles(){
 }
 const VEHICLES = genVehicles();
 const VEHICLE_BY_COMM = Object.fromEntries(VEHICLES.map(v=>[v.commission_no, v]));
+// ---- Current Status 자동 업데이트 시연용 샘플 (10/28): 기준일 2026-10-07에 상태 규칙 3·5·7에 걸리는 차량 12대를 만든다. 난수 미사용(앞에서부터 고정 선택) → 기존 가짜값·rndX 순서 불변 ----
+(function(){
+  // 규칙 3: Ordered(Changeable) 5대 — Changeability Date 경과(10/02~10/06) → AFAB 수정 불가(N), D-day 없음
+  VEHICLES.filter(v=>v.current_status==='Ordered(Changeable)' && v.pm==='2026-12').slice(0,5).forEach((v,i)=>{ v.changeability_date='2026-10-0'+(2+i); v.afab_editable='N'; v.changeability_dday=null; });
+  // 규칙 5: Ordered(Fixed) 4대 — PM 2026-10 도래(TDD 10월, ETA From TDD = TDD+75)
+  VEHICLES.filter(v=>v.current_status==='Ordered(Fixed)').slice(0,4).forEach((v,i)=>{ v.pm='2026-10'; if(v.original_pm==='2026-11') v.original_pm='2026-10'; v.tdd_calc='2026-10-'+(20+i*3); v.tdd_month='2026-10'; v.eta_from_tdd=fmtD(addD(parseD(v.tdd_calc),75)); });
+  // 규칙 7: In Production 3대 — Eukor Pioneer(V6, 선적 2026-10-04)에 선적됨(AFAB에 Vessel·B/L·Shipping Date 반영, 단계는 아직 In Production)
+  const y = VOYAGES.find(x=>x.id==='V6');
+  VEHICLES.filter(v=>v.current_status==='In Production' && v.dispatch && v.dispatch<=y.shipping).slice(0,3).forEach(v=>{ v.vessel=y.vessel; v.bl_no=y.bl; v.shipping=y.shipping; v.shipping_month=y.shipping.slice(0,7); v.invoice=fmtD(addD(parseD(y.shipping),2)); v.planned_arrival=y.pl; });
+})();
 
 // ---- 사용자 ----
 const USERS = [

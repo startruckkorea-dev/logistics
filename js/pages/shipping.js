@@ -18,22 +18,24 @@ PAGES.shipping = {
     // 월별 입항 예정: 엑셀 'Arrival Schedule' 피벗 구조 (행: 구분 > 차종 > 모델 / 열: 월 > 선박, 월 Total, Grand Total / 값: 선박별 선적 대수)
     // 기간 (10/22): 'rest' = 이번달~연말, 'year' = 올해 1~12월 · 당월 이전 달은 입항 실적(ATA) · 선박 없는 달도 Total 열 유지(값 없으면 공란)
     const year = BASE_YM.slice(0,4); const range = { from: SH.range==='year'? year+'-01' : BASE_YM, to: year+'-12' };
-    const sched = arrivalSchedule(null, range); const {yms, voyByYm} = sched; // 10/20: 집계·정렬은 data.js arrivalSchedule() 공용 (대시보드 당월 도착 예정과 동일 규칙) · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
+    const sched = arrivalSchedule(null, range, {unassigned:true}); const {yms, voyByYm} = sched; // 10/27 #14: 미배정 열(Vessel 없이 ETA From TDD만 있는 오더)은 선적·입항 표에서만 // 10/20: 집계·정렬은 data.js arrivalSchedule() 공용 (대시보드 당월 도착 예정과 동일 규칙) · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
     const kOf = y=> y.key||y.vessel; // 열 key: 항차 = 선박명, 입항 실적 = 'YYYY-MM|선박명'
     const cur = k=> (SH.range==='year' && k===BASE_YM)? ' cur' : ''; // 당월 열 강조는 올해 전체 보기에서만 (10/22)
     const shown = k=> (SH.range!=='year' || k===BASE_YM || SH.open.has(k))? voyByYm[k] : []; // 올해 전체: 당월 외 월은 기본 Total만, 머리글 클릭으로 선박 열 펼침 (10/22)
     const togglable = k=> SH.range==='year' && k!==BASE_YM && voyByYm[k].length>0;
     // 수량 셀 클릭 → Logistics 열 필터 링크 (10/22): 선박(쉼표 구분) + Current Status + 실적 열은 ATA 월. 10/27: 링크는 Grand Total 행(선박·월 Total 셀)에만, 모델·그룹 행은 표시 전용 · 0 셀·Grand Total 열은 링크 없음
-    const cellHref = voys=>{ if(!voys.length) return null; const arrived = !!voys[0].arrived;
+    // 10/27 #14: 미배정 열 셀 → Vessel 빈 값 + 선적 전 3단계 + 해당 월 ETA From TDD 필터 · 월 Total은 선박분만 연결(미배정 제외, 열 필터는 AND라 OR 조합 불가)
+    const cellHref = voys=>{ if(voys.length===1 && voys[0].unassigned) return '#/logistics?vessel=&current_status=' + encodeURIComponent('Ordered(Changeable),Ordered(Fixed),In Production') + '&eta_from_tdd=' + voys[0].key.slice(0,7);
+      voys = voys.filter(y=>!y.unassigned); if(!voys.length) return null; const arrived = !!voys[0].arrived;
       const q = { vessel: [...new Set(voys.map(y=>y.vessel))].join(',') };
       q.current_status = arrived? 'Bonded Stock,OH Stock,Sold' : 'In Transit,Shipment scheduled';
       if(arrived) q.ata = voys[0].key.slice(0,7);
       return '#/logistics?' + Object.entries(q).map(([k,v])=>k+'='+encodeURIComponent(v==null? '' : String(v))).join('&'); };
-    const cellN = (n, href)=> n? mk('td', {class:'num'+(href?' lnk':''), 'data-href':href||null, title: href? tx('클릭 → Logistics 목록') : null}, num(n)) : mk('td', {class:'num'}); // 0은 공란 (10/22)
+    const cellN = (n, href, title)=> n? mk('td', {class:'num'+(href?' lnk':''), 'data-href':href||null, title: href? (title||tx('클릭 → Logistics 목록')) : null}, num(n)) : mk('td', {class:'num'}); // 0은 공란 (10/22) · title: 미배정 포함 월 Total용 (10/27 #14)
     const sumRow = by=> ({ perV: yms.flatMap(k=>voyByYm[k].map(y=>by[kOf(y)]||0)), perM: yms.map(k=>voyByYm[k].reduce((a,y)=>a+(by[kOf(y)]||0),0)) });
     // row = {by} · linked = Grand Total 행만 true · 당월 Total 셀에 'cur' (당월 열 강조)
     const valueCells = (row, linked)=>{ const by=row.by, s=sumRow(by); const cells=[]; const link = voys=> linked? cellHref(voys) : null;
-      yms.forEach((k,mi)=>{ shown(k).forEach(y=>cells.push(cellN(by[kOf(y)]||0, link([y])))); const t=cellN(s.perM[mi], link(voyByYm[k])); t.classList.add('tot'); if(cur(k)) t.classList.add('cur'); cells.push(t); });
+      yms.forEach((k,mi)=>{ shown(k).forEach(y=>cells.push(cellN(by[kOf(y)]||0, link([y])))); const t=cellN(s.perM[mi], link(voyByYm[k]), voyByYm[k].some(y=>y.unassigned)? tx('클릭 → Logistics 목록 (미배정 제외)') : null); t.classList.add('tot'); if(cur(k)) t.classList.add('cur'); cells.push(t); });
       const g=mk('td', {class:'num gt'}, num(s.perM.reduce((a,b)=>a+b,0))); cells.push(g); return cells; };
     const nCols = 1 + yms.reduce((a,k)=>a+shown(k).length,0) + yms.length + 1;
     const rangeBtn = (r, label)=> mk('button', {class:'btn sm'+(SH.range===r?' primary':''), onclick:()=>{ SH.range=r; SH.open.clear(); PAGES.shipping.render(root); }}, label);
@@ -48,15 +50,15 @@ PAGES.shipping = {
       g.vehicles.forEach(t=>{ bodyRows.push(mk('tr', {class:'g2'}, mk('td', null, t.vehicle), valueCells({by:sumBy(t.rows)}, false)));
         t.rows.forEach(r=>bodyRows.push(mk('tr', null, mk('td', {class:'model'}, r.label), valueCells(r, false)))); }); });
     const monthly = mk('div', {class:'card'},
-      mk('div', {class:'card-h'}, mk('h2', null, tx('월별 입항 예정·실적 (Arrival Schedule)')), mk('span', {class:'desc'}, tx('행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)') + ' · ' + tx('당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)')),
+      mk('div', {class:'card-h'}, mk('h2', null, tx('월별 입항 예정·실적 (Arrival Schedule)')), mk('span', {class:'desc'}, tx('행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)') + ' · ' + tx('당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)') + ' · ' + tx('미배정 = Vessel 없이 ETA From TDD만 있는 오더 (ETA From TDD 월)')),
         mk('span', {class:'spacer'}), mk('div', {class:'btn-group'}, rangeBtn('rest', tx('이번달~연말 ({a}~{b})', {a:ymLabel(BASE_YM), b:ymLabel(range.to)})), rangeBtn('year', tx('올해 전체 ({y})', {y:year})))),
       mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot fixcol'},
         mk('thead', null,
           mk('tr', null, mk('th', {rowspan:2}, 'Model'), yms.flatMap(k=> shown(k).length? [mk('th', {class:'ym'+cur(k), colspan:shown(k).length}, ymLabel(k)), totTh(k)] : [totTh(k)]), mk('th', {class:'num gt', rowspan:2}, 'Grand Total')),
-          mk('tr', null, yms.flatMap(k=>shown(k).map(y=>mk('th', {class:'num'+cur(k), title: y.arrived? tx('입항 실적 (ATA 기준)') : `${y.carrier} · Shipping ${y.shipping}`}, y.vessel)))),
+          mk('tr', null, yms.flatMap(k=>shown(k).map(y=> y.unassigned? mk('th', {class:'num unas'+cur(k), title:tx('Vessel 미배정 · ETA From TDD 월 기준 (Ordered(Changeable) · Ordered(Fixed) · In Production) · Pl. Arrival·Shipping·Vessel 반영 시 선박 열로 이동')}, tx('미배정')) : mk('th', {class:'num'+cur(k), title: y.arrived? tx('입항 실적 (ATA 기준)') : `${y.carrier} · Shipping ${y.shipping}`}, y.vessel)))), // 10/27 #14: 미배정 열은 달의 마지막
           mk('tr', {class:'total'}, mk('td', null, 'Grand Total'), valueCells({by:sched.grand}, true))), // 합계 행은 머리글 안 3번째 줄 — 세로 스크롤 시 고정 (10/22) · 링크는 이 행에만 (10/27)
         mk('tbody', null, bodyRows))),
-      mk('div', {class:'muted small', style:'margin-top:6px'}, tx('선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. Grand Total 행의 수량 셀·월 Total 클릭 → 해당 선박 Logistics 목록(같은 건수). 모델 행과 Grand Total 열은 표시 전용.') + (SH.range==='year'? ' '+tx('올해 전체에서 당월 외 월은 Total만 표시 — 월 Total 머리글(▸) 클릭으로 선박 열 펼침.') : '')));
+      mk('div', {class:'muted small', style:'margin-top:6px'}, tx('선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. Grand Total 행의 수량 셀·월 Total 클릭 → 해당 선박 Logistics 목록(같은 건수). 모델 행과 Grand Total 열은 표시 전용.') + ' ' + tx('미배정 셀 클릭 → 해당 월 ETA From TDD · Vessel 빈 값 목록, 미배정이 있는 달의 월 Total 링크는 선박분만.') + (SH.range==='year'? ' '+tx('올해 전체에서 당월 외 월은 Total만 표시 — 월 Total 머리글(▸) 클릭으로 선박 열 펼침.') : '')));
 
     // 선박별 현황: B/L · Shipping · Pl. arrival · ETA 선사 · ATA · TSC Arrival Date · 대수
     const dash = ()=>mk('span', {class:'muted'}, '—');

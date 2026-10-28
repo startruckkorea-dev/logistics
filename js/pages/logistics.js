@@ -7,7 +7,7 @@ const LOGI_TABS = [['grid','Logistics'], ['req','수입 통관 신청'], ['input
 
 const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
 // 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&model=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
-const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','tsc_arrival_date','customs_clearance_date']; // 10/26 No.9: TSC Arrival Date 추가
+const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping_calc','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','tsc_arrival_date','customs_clearance_date']; // 10/26 No.9: TSC Arrival Date 추가
 const FILTER_COLS = ['current_status','gen','vehicle','series','model','axle','cab','option', ...DATE_FILTER_COLS, 'vessel']; // gen: 선적·입항 구분 그룹 행 링크용 (10/22)
 const STAGE_ORDER = [...STAGES.filter(s=>s!=='Rejected'), 'Cancelled']; STAGE_ORDER.splice(STAGE_ORDER.indexOf('In Production'), 0, 'Rejected'); // Current Status 열 필터 값 순서 (10/22 No.2): Rejected는 In Production 앞 (STAGE_RULES 순서와 동일)
 const SEARCH_COLS = ['commission_no','vin_no','bl_no','vessel','model','engine_no','order_note','option_remarks']; // 검색 대상 열 (10/19 No.4: VIN·Comm·Order Note·Option Note 필수 포함)
@@ -195,6 +195,13 @@ function cellHtml(c, v){
     return `${val? esc(val) : '<span class="dim">·</span>'}${dd}${dot}`;
   }
   if(c.key==='color_code') return `<span title="${esc(COLOR_NAMES[val]||'')}">${val}</span>`;
+  // 10/27 #7 Shipping Calc = PM 1일 + 리드타임(일, PM~Shipping) — 편집 중 PM·모델 변경도 즉시 반영 · #8: 기준일 기준 Shipping 미입력 + Shipping Calc 경과 시 '+n일' 배지 (선적 전 단계 Ordered(Changeable)·Ordered(Fixed)·In Production만)
+  if(c.key==='shipping_calc'){
+    const calc = shippingCalc(pendingVal(v,'pm'), pendingVal(v,'lead_days'));
+    if(!calc) return '<span class="dim">·</span>';
+    const over = !pendingVal(v,'shipping') && calc < TODAY_S && ['Ordered(Changeable)','Ordered(Fixed)','In Production'].includes(v.current_status);
+    return esc(calc) + (over? ` <span class="pill danger" title="${esc(tx('Shipping 미입력 · Shipping Calc 경과 {n}일 (기준일 {d})', {n:diffDays(TODAY, parseD(calc)), d:TODAY_S}))}">${esc(tx('+{n}일', {n:diffDays(TODAY, parseD(calc))}))}</span>` : '');
+  }
   if(c.num) return num(val);
   if(val==null||val==='') return '<span class="dim">·</span>';
   return SEARCH_COLS.includes(c.key)? hl(val) : esc(val);
@@ -411,7 +418,7 @@ function openAddOrder(){
   const attrs = mk('div', {class:'kv small', style:'grid-template-columns:140px 1fr'});
   const drawAttrs = ()=>{ attrs.replaceChildren();
     const m = active[Number(modelSel.value)]; if(!m){ attrs.append(mk('dt', {class:'muted'}, tx('모델을 선택하면 속성이 표시됩니다.'))); return; }
-    [['BM', m.prefix+'-'+m.code2], ['Baumuster', m.prefix+' '+m.suffix], ['Model In AFAB', m.type_desc], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Option', m.option||'—'], ['Gen', m.gen], [tx('리드타임(월)'), String(m.lead)], ['MY', mySel.value]]
+    [['BM', m.prefix+'-'+m.code2], ['Baumuster', m.prefix+' '+m.suffix], ['Model In AFAB', m.type_desc], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Option', m.option||'—'], ['Gen', m.gen], [tx('리드타임(일)'), String(m.lead_days)], [tx('리드타임(월)'), String(m.lead)], ['MY', mySel.value]]
       .forEach(([k,v])=>attrs.append(mk('dt', null, k), mk('dd', {class:'mono'}, v))); };
   // 6. Original PM(생산월) · 수량 · Current Status
   const pmIn = mk('input', {placeholder:'YYYY-MM', value: ymAdd(BASE_YM,3), style:'width:100%'});

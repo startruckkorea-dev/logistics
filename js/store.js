@@ -15,12 +15,14 @@ const Store = {
     // Commission No로 찾은 차량 행에 patch 필드 대입. 없으면 null.
     update(comm, patch){
       const v = VEHICLE_BY_COMM[comm]; if(!v) return null;
-      Object.assign(v, patch); return v;
+      Object.assign(v, patch);
+      if('pm' in patch || 'lead_days' in patch) v.shipping_calc = shippingCalc(v.pm, v.lead_days); // 10/27 #7: PM·모델(리드타임) 변경 시 Shipping Calc 재계산
+      return v;
     },
     updateMany(comms, patch){ return comms.map(c=>Store.vehicles.update(c, patch)).filter(Boolean); },
     // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
     modelMasterPatch(m){
-      const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead, // series = 차량 마스터 'Model' 열 (10/19 No.16)
+      const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead, lead_days:m.lead_days, // series = 차량 마스터 'Model' 열 (10/19 No.16)
         baumuster:m.prefix+' '+m.suffix, bm:m.prefix+'-'+m.code2 };
       p.model_classification = [p.gen,p.model,p.axle,p.cab,p.option].filter(Boolean).join(' ');
       p.dms_model_name = [p.vehicle,p.model,p.axle,p.cab].join(' ');
@@ -44,6 +46,7 @@ const Store = {
         eta_month:'', tdd_month:'', shipping_month:'', in_afab_today:false, order_class:'—', changeability_dday:null,
         modified:TODAY_S, modified_by:o.by };
       Object.assign(v, Store.vehicles.modelMasterPatch(o.m));
+      v.shipping_calc = shippingCalc(v.pm, v.lead_days); // PM 공란 → '' (10/27 #7)
       v.series = o.m.series; v.spec = [v.vehicle, v.series, v.model, v.axle, v.cab].join(' ');
       return v;
     },

@@ -29,29 +29,29 @@ function monthEnd(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,
 function randDate(a,b){ const da=parseD(a), db=parseD(b); return addD(da, ri(0, diffDays(db,da))); }
 function randDateInMonth(ym){ const e=monthEnd(ym); return new Date(e.getFullYear(), e.getMonth(), ri(1,e.getDate())); }
 
-// ---- Model_Master (baumuster 접두 8자리 + type_desc → 모델 속성) ----
+// ---- Model_Master (baumuster 접두 8자리 + type_desc → 모델 속성) · lead = 리드타임(월, PM~ETA, 입항 예정월 계산용) · lead_days = 리드타임(일, PM~Shipping, 10/27 #7 Shipping Calc용) ----
 const MODEL_MASTER = [
-  {prefix:'96340312', code2:'7AA', suffix:'LSDNA6x2', type_desc:'2863 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2863LS',     axle:'6x2', cab:'S5F', option:'ProCabin', lead:3, w:300, active:true},
-  {prefix:'96340313', code2:'7AB', suffix:'LSDNA6x2', type_desc:'2863 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2863LS',     axle:'6x2', cab:'G5F', option:'ProCabin', lead:3, w:180, active:true},
-  {prefix:'96340210', code2:'6AA', suffix:'LSDNA6x2', type_desc:'2653 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2653LS',     axle:'6x2', cab:'S5F', option:'',         lead:3, w:200, active:true},
-  {prefix:'96340211', code2:'6AB', suffix:'LSDNA6x2', type_desc:'2653 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2653LS',     axle:'6x2', cab:'G5F', option:'CTT',      lead:3, w:100, active:true},
-  {prefix:'96340110', code2:'5AA', suffix:'LSDNA4x2', type_desc:'1853 LSDNA4x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'1853LS',     axle:'4x2', cab:'S5F', option:'',         lead:2, w:150, active:true},
-  {prefix:'96340410', code2:'6AC', suffix:'LSDNA6x2', type_desc:'2663 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2663LS',     axle:'6x2', cab:'S5F', option:'6900WB',   lead:3, w:174, active:true},
-  {prefix:'99040010', code2:'9EA', suffix:'LS 6x2',   type_desc:'eActros 600 LS 6x2',  vehicle:'Tractor',   series:'eActros', gen:'eActros', model:'eActros600', axle:'6x2', cab:'S5F', option:'',         lead:4, w:20,  active:true},
-  {prefix:'96302110', code2:'3AA', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2135L',      axle:'4x2', cab:'C3H', option:'',         lead:2, w:150, active:true},
-  {prefix:'96302111', code2:'3AB', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2135L',      axle:'4x2', cab:'M',   option:'',         lead:2, w:80,  active:true},
-  {prefix:'96302210', code2:'3BA', suffix:'L 6x2',    type_desc:'2540 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2540L',      axle:'6x2', cab:'C3H', option:'',         lead:3, w:60,  active:true},
-  {prefix:'96302310', code2:'3BB', suffix:'L 6x2',    type_desc:'2545 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2545L',      axle:'6x2', cab:'C3M', option:'',         lead:3, w:57,  active:true},
-  {prefix:'96303110', code2:'4AA', suffix:'L 6x2',    type_desc:'3253 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'3253L',      axle:'6x2', cab:'B5F', option:'',         lead:4, w:100, active:true},
-  {prefix:'96303210', code2:'4BA', suffix:'L 8x4',    type_desc:'4153 L 8x4 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'4153L',      axle:'8x4', cab:'B5F', option:'',         lead:5, w:80,  active:true},
-  {prefix:'96303310', code2:'4AB', suffix:'L 6x2',    type_desc:'2553 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2553L',      axle:'6x2', cab:'C3M', option:'',         lead:4, w:60,  active:true},
-  {prefix:'96303410', code2:'4AC', suffix:'L 6x2',    type_desc:'3263 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'3263L',      axle:'6x2', cab:'S5F', option:'',         lead:4, w:64,  active:true},
-  {prefix:'96304110', code2:'5KA', suffix:'K 8x4',    type_desc:'4148 K 8x4 F 16',     vehicle:'Tipper',    series:'Arocs',   gen:'MP5',     model:'4148K',      axle:'8x4', cab:'M',   option:'',         lead:4, w:100, active:true},
-  {prefix:'96304210', code2:'5KB', suffix:'K 6x4',    type_desc:'3348 K 6x4 F 16',     vehicle:'Tipper',    series:'Arocs',   gen:'MP5',     model:'3348K',      axle:'6x4', cab:'M',   option:'',         lead:4, w:50,  active:true},
-  {prefix:'96304310', code2:'5KC', suffix:'K 8x4',    type_desc:'4153 K 8x4 F 16',     vehicle:'Tipper',    series:'Arocs',   gen:'MP5',     model:'4153K',      axle:'8x4', cab:'B5F', option:'',         lead:5, w:35,  active:true},
-  {prefix:'96305110', code2:'8BA', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'BB',        series:'Arocs',   gen:'MP5',     model:'4440',       axle:'8x4', cab:'C3H', option:'Export',   lead:5, w:60,  active:true},
-  {prefix:'96305111', code2:'8BB', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'BB',        series:'Arocs',   gen:'MP5',     model:'4440',       axle:'8x4', cab:'L',   option:'Domestic', lead:5, w:41,  active:true},
-  {prefix:'96340510', code2:'7AC', suffix:'LSDNA6x2', type_desc:'2863 LSDNA6x2 F 17',  vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2863LS',     axle:'6x2', cab:'S5F', option:'ProCabin', lead:3, w:0,   active:false},
+  {prefix:'96340312', code2:'7AA', suffix:'LSDNA6x2', type_desc:'2863 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2863LS',     axle:'6x2', cab:'S5F', option:'ProCabin', lead:3, lead_days:40, w:300, active:true},
+  {prefix:'96340313', code2:'7AB', suffix:'LSDNA6x2', type_desc:'2863 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2863LS',     axle:'6x2', cab:'G5F', option:'ProCabin', lead:3, lead_days:40, w:180, active:true},
+  {prefix:'96340210', code2:'6AA', suffix:'LSDNA6x2', type_desc:'2653 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2653LS',     axle:'6x2', cab:'S5F', option:'',         lead:3, lead_days:40, w:200, active:true},
+  {prefix:'96340211', code2:'6AB', suffix:'LSDNA6x2', type_desc:'2653 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2653LS',     axle:'6x2', cab:'G5F', option:'CTT',      lead:3, lead_days:40, w:100, active:true},
+  {prefix:'96340110', code2:'5AA', suffix:'LSDNA4x2', type_desc:'1853 LSDNA4x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'1853LS',     axle:'4x2', cab:'S5F', option:'',         lead:2, lead_days:35, w:150, active:true},
+  {prefix:'96340410', code2:'6AC', suffix:'LSDNA6x2', type_desc:'2663 LSDNA6x2 F 16', vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2663LS',     axle:'6x2', cab:'S5F', option:'6900WB',   lead:3, lead_days:45, w:174, active:true},
+  {prefix:'99040010', code2:'9EA', suffix:'LS 6x2',   type_desc:'eActros 600 LS 6x2',  vehicle:'Tractor',   series:'eActros', gen:'eActros', model:'eActros600', axle:'6x2', cab:'S5F', option:'',         lead:4, lead_days:60, w:20,  active:true},
+  {prefix:'96302110', code2:'3AA', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2135L',      axle:'4x2', cab:'C3H', option:'',         lead:2, lead_days:40, w:150, active:true},
+  {prefix:'96302111', code2:'3AB', suffix:'L 4x2',    type_desc:'2135 L 4x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2135L',      axle:'4x2', cab:'M',   option:'',         lead:2, lead_days:40, w:80,  active:true},
+  {prefix:'96302210', code2:'3BA', suffix:'L 6x2',    type_desc:'2540 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2540L',      axle:'6x2', cab:'C3H', option:'',         lead:3, lead_days:45, w:60,  active:true},
+  {prefix:'96302310', code2:'3BB', suffix:'L 6x2',    type_desc:'2545 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2545L',      axle:'6x2', cab:'C3M', option:'',         lead:3, lead_days:45, w:57,  active:true},
+  {prefix:'96303110', code2:'4AA', suffix:'L 6x2',    type_desc:'3253 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'3253L',      axle:'6x2', cab:'B5F', option:'',         lead:4, lead_days:55, w:100, active:true},
+  {prefix:'96303210', code2:'4BA', suffix:'L 8x4',    type_desc:'4153 L 8x4 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'4153L',      axle:'8x4', cab:'B5F', option:'',         lead:5, lead_days:65, w:80,  active:true},
+  {prefix:'96303310', code2:'4AB', suffix:'L 6x2',    type_desc:'2553 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'2553L',      axle:'6x2', cab:'C3M', option:'',         lead:4, lead_days:55, w:60,  active:true},
+  {prefix:'96303410', code2:'4AC', suffix:'L 6x2',    type_desc:'3263 L 6x2 F 16',     vehicle:'Rigid',     series:'Actros',  gen:'MP5',     model:'3263L',      axle:'6x2', cab:'S5F', option:'',         lead:4, lead_days:55, w:64,  active:true},
+  {prefix:'96304110', code2:'5KA', suffix:'K 8x4',    type_desc:'4148 K 8x4 F 16',     vehicle:'Tipper',    series:'Arocs',   gen:'MP5',     model:'4148K',      axle:'8x4', cab:'M',   option:'',         lead:4, lead_days:60, w:100, active:true},
+  {prefix:'96304210', code2:'5KB', suffix:'K 6x4',    type_desc:'3348 K 6x4 F 16',     vehicle:'Tipper',    series:'Arocs',   gen:'MP5',     model:'3348K',      axle:'6x4', cab:'M',   option:'',         lead:4, lead_days:60, w:50,  active:true},
+  {prefix:'96304310', code2:'5KC', suffix:'K 8x4',    type_desc:'4153 K 8x4 F 16',     vehicle:'Tipper',    series:'Arocs',   gen:'MP5',     model:'4153K',      axle:'8x4', cab:'B5F', option:'',         lead:5, lead_days:65, w:35,  active:true},
+  {prefix:'96305110', code2:'8BA', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'BB',        series:'Arocs',   gen:'MP5',     model:'4440',       axle:'8x4', cab:'C3H', option:'Export',   lead:5, lead_days:70, w:60,  active:true},
+  {prefix:'96305111', code2:'8BB', suffix:'8x4',      type_desc:'4440 8x4 F 16',       vehicle:'BB',        series:'Arocs',   gen:'MP5',     model:'4440',       axle:'8x4', cab:'L',   option:'Domestic', lead:5, lead_days:75, w:41,  active:true},
+  {prefix:'96340510', code2:'7AC', suffix:'LSDNA6x2', type_desc:'2863 LSDNA6x2 F 17',  vehicle:'Tractor',   series:'Actros',  gen:'MP5',     model:'2863LS',     axle:'6x2', cab:'S5F', option:'ProCabin', lead:3, lead_days:40, w:0,   active:false},
 ];
 const VEHICLE_TYPES = ['Tractor','Tipper','Rigid','BB']; // 10/15 No.16: 4종 통일 (Heavy-MDT·HDT-Rigid → Rigid, Rigid(BB) → BB)
 const COLORS = ['9147','7350','3589','5361','9040','1636','9134','7755'];
@@ -81,7 +81,7 @@ function myLetterFromPm(pm){ // VIN 익명화 대체: 3월 생산부터 다음 �
 function makeVehicle(p, m){
   const s=p.stage;
   const v={ current_status:s, status_override:'', status_reason:'', vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option,
-    baumuster:m.prefix+' '+m.suffix, model_in_afab:m.type_desc, lead_time:m.lead, color_code:pick(COLORS), sub_cat: m.vehicle==='Tipper'?'KIP':(m.vehicle==='Tractor'?'SZM':'LKW'),
+    baumuster:m.prefix+' '+m.suffix, model_in_afab:m.type_desc, lead_time:m.lead, lead_days:m.lead_days, color_code:pick(COLORS), sub_cat: m.vehicle==='Tipper'?'KIP':(m.vehicle==='Tractor'?'SZM':'LKW'),
     vessel:'', bl_no:'', import_license:'', b1_factory_order:'', co:'', option_remarks:'', tires:'', order_note:'', tsc_arrival_date:'' }; // 10/20 No.14: fleet_co → co · 10/26 No.9: TSC Arrival Date (샘플은 전부 공란, 선적·입항 선박별 현황에서 입력)
   let orderD=null, pm='', tdd=null, prodDone=null, exf=null, ship=null, inv=null, pl=null, etaC=null, etaF=null, cust=null, saleD=null, chg=null;
   const seaChain=()=>{ ship=addD(etaF,-ri(40,60)); pl=addD(etaF,-ri(0,6)); etaC=addD(pl,ri(-2,3)); inv=addD(ship,2); exf=addD(ship,-ri(5,15)); prodDone=addD(exf,-ri(1,4)); tdd=addD(prodDone,-ri(1,8)); pm=ymOf(tdd); orderD=addD(tdd,-ri(100,240)); v.vessel=pick(VESSEL_PAST); v.bl_no=(rnd()<0.5?'EUKO':'MOLU')+pick(['HAM','BRV'])+ymOf(ship).slice(2,4)+ymOf(ship).slice(5,7)+String(ri(100,999)); };
@@ -174,6 +174,13 @@ const VEHICLE_BY_COMM = Object.fromEntries(VEHICLES.map(v=>[v.commission_no, v])
   // 규칙 7: In Production 3대 — Eukor Pioneer(V6, 선적 2026-10-04)에 선적됨(AFAB에 Vessel·B/L·Shipping Date 반영, 단계는 아직 In Production)
   const y = VOYAGES.find(x=>x.id==='V6');
   VEHICLES.filter(v=>v.current_status==='In Production' && v.dispatch && v.dispatch<=y.shipping).slice(0,3).forEach(v=>{ v.vessel=y.vessel; v.bl_no=y.bl; v.shipping=y.shipping; v.shipping_month=y.shipping.slice(0,7); v.invoice=fmtD(addD(parseD(y.shipping),2)); v.planned_arrival=y.pl; });
+})();
+// ---- 10/27 #14·#7 샘플 보정 (난수 미사용) ----
+(function(){
+  // #14 전제: 실제 데이터에서는 ETA From TDD의 달이 지나면 다음 달 1일로 이월되므로(#9 규칙, 이 목업에서는 규칙 자체는 미구현) 지난 달 ETA From TDD만 남은 건이 없다 → 샘플도 그 상태로 맞춘다 (Pl. Arrival·Vessel 없는 Cancelled 외 차량, 기준월 1일로)
+  VEHICLES.forEach(v=>{ if(v.current_status==='Cancelled' || v.planned_arrival || v.vessel || !v.eta_from_tdd || v.eta_from_tdd>=BASE_YM+'-01') return; v.eta_from_tdd = BASE_YM+'-01'; });
+  // #7 Shipping Calc = PM 1일 + 모델 리드타임(일, PM~Shipping). 위 IIFE에서 PM을 바꾼 차량까지 포함해 마지막에 한 번 계산 (이후 PM·모델 변경은 Store.vehicles.update가 재계산)
+  VEHICLES.forEach(v=>{ v.shipping_calc = shippingCalc(v.pm, v.lead_days); });
 })();
 
 // ---- 사용자 ----
@@ -321,13 +328,15 @@ const CUSTOMS_REQUESTS = (function(){
 
 // ---- 공통 집계 헬퍼 ----
 function countBy(list, fn){ const m={}; list.forEach(v=>{ const k=fn(v); if(k==null||k==='') return; m[k]=(m[k]||0)+1; }); return m; }
+function shippingCalc(pm, leadDays){ return (pm && leadDays) ? fmtD(addD(parseD(pm+'-01'), leadDays)) : ''; } // 10/27 #7: Shipping Calc = PM 1일 + 리드타임(일, PM~Shipping)
 function expectedArrivalYm(v){ // 입항 예정월: eta_final → pl_arrival_afab → PM + 리드타임
   if(v.ata) return v.ata.slice(0,7);
   if(v.planned_arrival) return v.planned_arrival.slice(0,7);
   if(v.pm) return ymAdd(v.pm, v.lead_time||3);
   return '';
 }
-function closingStock(ym){ // 월말 마감 재고 (ym='current' 는 현재 상태 기준)
+function closingStock(ym, view){ // 월말 마감 재고 (ym='current' 는 현재 상태 기준) · view='pipe' (10/27 #15 재고 현황 확장 뷰): 현재 기준에서 Ordered(Fixed) ~ OH Stock 6단계
+  if(ym==='current' && view==='pipe') return VEHICLES.filter(v=>STAGES.slice(3,9).includes(v.current_status)).map(v=>({v, cleared: !!v.customs_clearance_date}));
   if(ym==='current') return VEHICLES.filter(v=>v.current_status==='Bonded Stock'||v.current_status==='OH Stock').map(v=>({v, cleared: !!v.customs_clearance_date}));
   const end=monthEnd(ym); const endS=fmtD(end);
   return VEHICLES.filter(v=> v.current_status!=='Cancelled' && v.ata && v.ata<=endS && (!v.sales_month || v.sales_month>ym))
@@ -338,7 +347,7 @@ function closingStock(ym){ // 월말 마감 재고 (ym='current' 는 현재 상�
 // 선박 입항월 = ATA → ETA 선사 → Pl. arrival(AFAB) · 대상 = 그 선박에 실린 In Transit + Shipment scheduled · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
 function voyageYm(y){ return (y.eta_final||y.eta_carrier||y.pl).slice(0,7); }
 function arrivalModelLabel(v){ return [v.vehicle, v.series, v.model, v.axle, v.cab, v.option].filter(Boolean).join(' '); }
-function arrivalSchedule(onlyYm, range){ // onlyYm: 특정 월만 집계(대시보드 당월). 반환 {yms, voyByYm:{ym:[항차(선적일 순)]}, groups:[{gen, vehicles:[{vehicle, rows:[{label, attrs:{vehicle,series,model,axle,cab,option}, by:{열key:n}, total}]}]}], grand:{열key:n}, total} · attrs = Logistics 열 필터 링크용(10/22)
+function arrivalSchedule(onlyYm, range, opts){ // onlyYm: 특정 월만 집계(대시보드 당월). opts.unassigned (10/27 #14, 선적·입항만): 월마다 '미배정' 열 추가 = Vessel 없이 ETA From TDD만 있는 Ordered(Changeable)·Ordered(Fixed)·In Production을 ETA From TDD 월에 집계 (당월 이후 월만 · AFAB에서 Pl. Arrival·Shipping·Vessel이 반영되면 선박 열로 이동). 반환 {yms, voyByYm:{ym:[항차(선적일 순)]}, groups:[{gen, vehicles:[{vehicle, rows:[{label, attrs:{vehicle,series,model,axle,cab,option}, by:{열key:n}, total}]}]}], grand:{열key:n}, total} · attrs = Logistics 열 필터 링크용(10/22)
   // range {from, to} (10/22 선적·입항 기간 보기): 기간 안의 모든 월을 열로 두고(선박 없는 달도 포함), 당월(BASE_YM) 이전 달은 이미 입항한 차량(Bonded·OH·Sold, ATA 월)을 실적으로 집계 · 열 key = 항차 선박명, 실적 열은 'YYYY-MM|선박명'(같은 선박이 여러 달 입항하므로)
   const inRange = k=> !range || (k>=range.from && k<=range.to);
   const voyByYm = {}; if(range) for(let k=range.from; k<=range.to; k=ymAdd(k,1)) voyByYm[k]=[];
@@ -348,6 +357,8 @@ function arrivalSchedule(onlyYm, range){ // onlyYm: 특정 월만 집계(대시�
   if(range) VEHICLES.forEach(v=>{ if(!v.ata || !v.vessel || !['Bonded Stock','OH Stock','Sold'].includes(v.current_status)) return; const ym=v.ata.slice(0,7); if(ym>=BASE_YM || !inRange(ym)) return;
     const key=ym+'|'+v.vessel; if(!voyByYm[ym].some(y=>y.key===key)) voyByYm[ym].push({vessel:v.vessel, key, carrier:'', shipping:'', arrived:true}); items.push({v, key}); });
   const yms = Object.keys(voyByYm).sort(); yms.forEach(k=>voyByYm[k].sort((a,b)=> a.shipping!==b.shipping ? (a.shipping<b.shipping?-1:1) : (a.vessel<b.vessel?-1:1)));
+  if(opts && opts.unassigned) VEHICLES.forEach(v=>{ if(v.vessel || !v.eta_from_tdd || !['Ordered(Changeable)','Ordered(Fixed)','In Production'].includes(v.current_status)) return; const ym=v.eta_from_tdd.slice(0,7); if(ym<BASE_YM || !inRange(ym) || (onlyYm && ym!==onlyYm)) return;
+    const key=ym+'|미배정'; const col = voyByYm[ym] = voyByYm[ym]||[]; if(!col.some(y=>y.key===key)) col.push({vessel:'미배정', key, carrier:'', shipping:'', unassigned:true}); items.push({v, key}); }); // 미배정 열은 정렬 뒤에 넣어 그 달의 마지막 열
   const byKey = {}, grand = {};
   items.forEach(({v, key})=>{ const label=arrivalModelLabel(v); const k=v.gen+'|'+v.vehicle+'|'+label; const c = byKey[k] = byKey[k] || {gen:v.gen, vehicle:v.vehicle, label, attrs:{vehicle:v.vehicle, series:v.series, model:v.model, axle:v.axle, cab:v.cab, option:v.option}, by:{}, total:0};
     c.by[key]=(c.by[key]||0)+1; c.total++; grand[key]=(grand[key]||0)+1; });

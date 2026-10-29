@@ -15,20 +15,31 @@ PAGES.dashboard = {
     const stockVs = VEHICLES.filter(v=>v.current_status==='Bonded Stock'||v.current_status==='OH Stock');
     const soldYtd = VEHICLES.filter(v=>v.current_status==='Sold'&&v.sales_month.startsWith(year));
     const factoryStages = ['In Production','Shipment scheduled'];
+    const changeable = VEHICLES.filter(v=>v.current_status==='Ordered(Changeable)'), fixed = VEHICLES.filter(v=>v.current_status==='Ordered(Fixed)'), factory = VEHICLES.filter(v=>factoryStages.includes(v.current_status));
+    const base = VEHICLES.length - (byStage['Cancelled']||0); // 10/29 #11: 카드 비율의 분모 = 전체(Cancelled 제외, 제목 줄 수치와 동일)
     const cards = [
-      // 3행(sub) 문구 (10/19 No.5): 확정 재고·재고 유지 · 당월 입항 예정·판매는 괄호 안 문구만 · 그 외 삭제
-      {label:tx('수정 가능 주문'), icon:'changeable', n:byStage['Ordered(Changeable)']||0, color:STAGE_COLOR['Ordered(Changeable)'], sub:'', href:'#/logistics?stage=Ordered(Changeable)', to:'Logistics 목록 (Ordered(Changeable))'},
-      {label:tx('확정 주문'), icon:'fixed', n:byStage['Ordered(Fixed)']||0, color:STAGE_COLOR['Ordered(Fixed)'], sub:'', href:'#/logistics?stage=Ordered(Fixed)', to:'Logistics 목록 (Ordered(Fixed))'},
-      {label:tx('확정 재고 (Factory Stock)'), icon:'factory', n:factoryStages.reduce((a,s)=>a+(byStage[s]||0),0), color:STAGE_COLOR['In Production'], sub:`In Production ${num(byStage['In Production']||0)} · Shipment scheduled ${num(byStage['Shipment scheduled']||0)}`, href:'#/logistics?stage='+encodeURIComponent(factoryStages.join(',')), to:'Logistics 목록 (In Production + Shipment scheduled)'},
-      {label:tx('운송 중'), icon:'transit', n:transit.length, color:STAGE_COLOR['In Transit'], sub:tx('당월 입항 예정({m}월) {n}대', {m:curMon.m, mon:curMon.mon, n:num(sched.total)}), href:'#/logistics?stage=In%20Transit', to:'Logistics 목록 (In Transit)'}, // 10/26 No.13: 하단 = 당월 입항 예정 대수 (당월 도착 예정 표와 동일 기준 · 월 표기는 'N월' 유지)
-      {label:tx('재고 (보세 + 통관)'), icon:'stock', n:stockVs.length, color:STAGE_COLOR['Bonded Stock'], sub:`Bonded ${num(byStage['Bonded Stock']||0)} · OH ${num(byStage['OH Stock']||0)}`, href:'#/stock', to:'재고현황'},
-      {label:tx('판매 ({y} YTD)', {y:year}), icon:'sold', n:soldYtd.length, color:STAGE_COLOR['Sold'], sub:tx('전월 {n}', {n:num(byMonth('sales_month')[ymAdd(BASE_YM,-1)]||0)}), href:'#/logistics?stage=Sold', to:'Logistics 목록 (Sold)'},
+      // 3행(sub) 문구 (10/19 No.5): 확정 재고·재고 유지 · 당월 입항 예정·판매는 괄호 안 문구만 · 그 외 삭제 · 10/29 #11: vs = 해당 차량 목록 → 비율·연식별 대수 줄 + 연식 색 미니 막대
+      {label:tx('수정 가능 주문'), icon:'changeable', n:changeable.length, vs:changeable, color:STAGE_COLOR['Ordered(Changeable)'], sub:'', href:'#/logistics?stage=Ordered(Changeable)', to:'Logistics 목록 (Ordered(Changeable))'},
+      {label:tx('확정 주문'), icon:'fixed', n:fixed.length, vs:fixed, color:STAGE_COLOR['Ordered(Fixed)'], sub:'', href:'#/logistics?stage=Ordered(Fixed)', to:'Logistics 목록 (Ordered(Fixed))'},
+      {label:tx('확정 재고 (Factory Stock)'), icon:'factory', n:factory.length, vs:factory, color:STAGE_COLOR['In Production'], sub:`In Production ${num(byStage['In Production']||0)} · Shipment scheduled ${num(byStage['Shipment scheduled']||0)}`, href:'#/logistics?stage='+encodeURIComponent(factoryStages.join(',')), to:'Logistics 목록 (In Production + Shipment scheduled)'},
+      {label:tx('운송 중'), icon:'transit', n:transit.length, vs:transit, color:STAGE_COLOR['In Transit'], sub:tx('당월 입항 예정({m}월) {n}대', {m:curMon.m, mon:curMon.mon, n:num(sched.total)}), href:'#/logistics?stage=In%20Transit', to:'Logistics 목록 (In Transit)'}, // 10/26 No.13: 하단 = 당월 입항 예정 대수 (당월 도착 예정 표와 동일 기준 · 월 표기는 'N월' 유지)
+      {label:tx('재고 (보세 + 통관)'), icon:'stock', n:stockVs.length, vs:stockVs, color:STAGE_COLOR['Bonded Stock'], sub:`Bonded ${num(byStage['Bonded Stock']||0)} · OH ${num(byStage['OH Stock']||0)}`, href:'#/stock', to:'재고현황'},
+      {label:tx('판매 ({y} YTD)', {y:year}), icon:'sold', n:soldYtd.length, vs:soldYtd, color:STAGE_COLOR['Sold'], sub:tx('전월 {n}', {n:num(byMonth('sales_month')[ymAdd(BASE_YM,-1)]||0)}), href:'#/logistics?stage=Sold', to:'Logistics 목록 (Sold)'},
     ];
+    // 10/29 #11 (재고현황 차트 가상안 A1): 카드 위 장소 띠(공장 = 확정 주문·확정 재고 / 바다 = 운송 중 / 아산 센터 = 재고 · 수정 가능 주문·판매 위는 빈칸) + 항구 알약 라벨·세로 점선(확정 재고|운송 중 = Antwerp항 · 운송 중|재고 = 평택항) · .flow 6열 grid 간격 8px
+    const ports = [{name:PORT_DEFS.antwerp, left:gridBoundaryLeft(3, 6, 8)}, {name:PORT_DEFS.pyeongtaek, left:gridBoundaryLeft(4, 6, 8)}];
+    const bandCell = (loc, vs, stages) => locBandEl(LOC_DEFS[loc], vs.length, locTip(LOC_DEFS[loc], stages, vs.length));
+    const gapCell = () => mk('div', {class:'locb gap'});
+    const factoryBand = bandCell('factory', [...fixed, ...factory], tx('확정 주문 · 확정 재고')); factoryBand.style.gridColumn = 'span 2';
+    const band = [gapCell(), factoryBand, bandCell('sea', transit, tx('운송 중')), bandCell('center', stockVs, tx('재고 (보세 + 통관)')), gapCell()];
     const flow = mk('div', {class:'card'},
       mk('div', {class:'card-h'}, mk('h2', null, tx('차량 주문·재고 흐름')), noteEl('D1'),
-        mk('span', {class:'desc'}, tx('6개 지표 · 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 재고 → 판매 · 전체 {n} (Cancelled 제외)', {n:num(VEHICLES.length - (byStage['Cancelled']||0))}))),
-      mk('div', {class:'flow'}, cards.map((c,i)=>mk('div', {class:'stage-box', style:`--c:${c.color}`, 'data-href':c.href, title:'클릭 → '+c.to},
-        cardIcon(c.icon), mk('div', {class:'n num'}, num(c.n)), mk('div', {class:'l'}, c.label), c.sub? mk('div', {class:'s'}, c.sub) : null, i<cards.length-1? mk('span', {class:'arrow'}, '›') : null))),
+        mk('span', {class:'desc'}, tx('6개 지표 · 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 재고 → 판매 · 전체 {n} (Cancelled 제외)', {n:num(base)}))),
+      mk('div', {class:'flowwrap'}, portsRowEl(ports),
+        mk('div', {class:'flow'}, band, cards.map((c,i)=>mk('div', {class:'stage-box', style:`--c:${c.color}`, 'data-href':c.href, title:'클릭 → '+c.to},
+          cardIcon(c.icon), mk('div', {class:'n num'}, num(c.n)), mk('div', {class:'l'}, c.label), c.sub? mk('div', {class:'s'}, c.sub) : null,
+          mk('div', {class:'s my'}, `${pct(c.n, base)} · ${myCountText(c.vs)}`), miniStackEl(c.label, c.vs), i<cards.length-1? mk('span', {class:'arrow'}, '›') : null))),
+        vlinesEl(ports)),
       mk('div', {class:'muted small', style:'margin-top:8px'}, tx('카드 클릭 시 관련 목록으로 이동합니다.')));
 
     // D2 월별 추이: 당해 1월 ~ 익년 12월 24개월 중 당월 기준 이전 5개월~이후 6개월(12개월)만 표시, 나머지는 가로 스크롤 (10/19 No.14)
@@ -124,7 +135,7 @@ const CARD_ICON_PATHS = {
   fixed: ['M5 3h8l4 4v5', 'M5 3v18h7', 'M13 3v4h4', 'M8 10h6M8 13h4', circ(17,17,4), 'M15 17l1.5 1.5 3-3'],              // 주문서 + 확인 표시 (확정 주문)
   factory: ['M3 21V11l5 3v-3l5 3v-3l5 3v7H3z', 'M16 11V5h3v10', 'M7 17h2M11 17h2M15 17h2'],                              // 공장 (확정 재고, 현행 유지)
   transit: ['M3 15l2 5h14l2-5z', 'M6 15v-4h12v4', 'M9 11V8h6v3', 'M12 5v3', 'M2 23c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0'], // 선박 (운송 중, 현행 유지)
-  stock: ['M2.5 20V10L12 4l9.5 6v10', 'M2 20h20', 'M5 12.5h7.5v5H5z', 'M12.5 14h3l2 2.2v1.3h-5', circ(7.5,18.6,1.1), circ(15,18.6,1.1), circ(12,8.4,2.5), 'M12 8.4V5.9', 'M12 8.4l-2.17 1.25', 'M12 8.4l2.17 1.25'], // 창고 안 트럭 (재고) — 10/20 No.19 첨부 SVG · 10/27 #3: 지붕 박공 안에 벤츠 스타(원 + 삼각별, docs/MB Trucks 로고 참고)
+  stock: ['M2.5 21V12.5L12 7.5l9.5 5V21', 'M2 21h20', 'M5 13.5h7.5v5H5z', 'M12.5 15h3l2 2.2v1.3h-5', circ(7.5,19.6,1.1), circ(15,19.6,1.1), circ(12,4,2.8), 'M12 4V1.2', 'M12 4l-2.42 1.4', 'M12 4l2.42 1.4'], // 창고 안 트럭 (재고) — 10/20 No.19 첨부 SVG · 10/27 #3: 벤츠 스타(원 + 삼각별, docs/MB Trucks 로고 참고) · 10/29: 창고를 3.5 내려 지붕 위에 스타를 올림
   sold: ['M2.5 8.5h11v8.5h-11z', 'M13.5 11h4.2l2.8 3.3V17h-7', circ(6.5,18.3,1.7), circ(17,18.3,1.7), 'M8 8.5V17', 'M8 8.5c-1.4-2.6-3.8-2.7-3.8-1.2 0 .9 1.6 1.2 3.8 1.2zM8 8.5c1.4-2.6 3.8-2.7 3.8-1.2 0 .9-1.6 1.2-3.8 1.2z'], // 리본 달린 트럭 (판매) — 10/20 No.19 첨부 SVG
 };
 function cardIcon(kind){

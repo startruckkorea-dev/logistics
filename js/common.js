@@ -6,6 +6,16 @@ const STAGE_CLASS = {'Ordered(Dummy)':'st-ordered','Rejected':'st-cancel','Order
 const STAGE_COLOR = {'Ordered(Dummy)':'var(--st-ordered)','Rejected':'var(--st-cancel)','Ordered(Changeable)':'var(--st-ordered)','Ordered(Fixed)':'var(--st-ordered)','In Production':'var(--st-prod)','Shipment scheduled':'var(--st-sched)','In Transit':'var(--st-transit)','Bonded Stock':'var(--st-bonded)','OH Stock':'var(--st-oh)','Sold':'var(--st-sold)','Cancelled':'var(--st-cancel)'};
 const STAGE_SHORT = {'Ordered(Dummy)':'Ordered(Dummy)','Rejected':'Rejected','Ordered(Changeable)':'Ordered(Changeable)','Ordered(Fixed)':'Ordered(Fixed)','In Production':'In Production','Shipment scheduled':'Shipment scheduled','In Transit':'In Transit (Shipped / Invoiced)','Bonded Stock':'Bonded Stock','OH Stock':'OH Stock','Sold':'Sold','Cancelled':'Cancelled'};
 const SERIES = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)','var(--s7)','var(--s8)'];
+// 연식(MY) 표시 키·색 (10/29: stock.js → 공용, MY28 추가 — 대시보드 카드도 사용) · MY28 색 --s8은 dataviz 팔레트 검증(인접 색각 분리) 통과 · '기타' = MY23 이하·판독 불가
+const MY_KEYS = ['MY24','MY25','MY26','MY27','MY28'];
+const MY_COLORS = {'MY24':'var(--s7)','MY25':'var(--s1)','MY26':'var(--s3)','MY27':'var(--s4)','MY28':'var(--s8)','기타':'#9aa5b1'};
+// 장소 띠·항구 표시 정의 (10/29 재고현황 차트 가상안 확정): 화면은 한글 이름(EN 모드는 I18N), 영문(en)은 툴팁 · 아이콘 = 독일 국기 깃발 · 바다 그림 · 태극기 깃발 · 항구는 띠가 아니라 구간 경계 세로선
+const LOC_DEFS = {
+  factory:{name:'독일 Wörth 공장', en:'Wörth Factory in Germany', icon:'de', color:'var(--st-prod)'},
+  sea:{name:'바다', en:'At Sea', icon:'sea', color:'var(--st-transit)'},
+  center:{name:'대한민국 아산 트럭 스타 센터', en:'Asan Truck Star Center in Korea', icon:'kr', color:'var(--st-oh)'},
+};
+const PORT_DEFS = {antwerp:'Antwerp항', pyeongtaek:'평택항'};
 
 // Logistics 그리드 48열 — docs/data-dictionary_v2_1_2.csv "최종 컬럼 순서" 기준 (Commission No 고정열 → Current Status → 사전 순서 → Order Note) + TSC Arrival Date(10/26 No.9, ATA 다음)
 // 뒤쪽 블록: 사전 '제외' 열(v2_1_1·v2_2) 중 남긴 1개(AFAB 수정 가능) + 사전 미언급 열 1개(Baumuster). group은 상세 Drawer·열 설정 모달의 묶음에만 사용.
@@ -72,7 +82,7 @@ const NOTES = {
   L1:'탭 4개: Logistics(홈 그리드) · 수입 통관 신청(Sales 통관 신청 · 신청 접수 처리 · 통관 여부 조회) · Update Customs Clearance Info(템플릿 Excel 업로드로 통관일·수입필증번호 반영) · Insurance(보험 조회 · Excel Export). 편집 중 저장 대기 값이 있으면 탭 전환 차단',
   L2:'열 필터(Current Status 단계 순 10단계 + Cancelled · 모델 관련 Vehicle~Option · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순)', L3:'Comm No. 기준 한 행에 전체 48열을 data-dictionary 순서로 표시(Shipping Calc = PM 1일 + 리드타임(일), 10/27 #7), Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가 · Current Status 업데이트(편집자 진입 시 하루 1회 자동 점검 팝업, 규칙 3·5·7, 제외 선택 후 즉시 반영, 배지로 재열기) · 엑셀 내보내기',
   S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박 + 미배정 열 = Vessel 없이 ETA From TDD만 있는 오더, 10/27 #14)', S2:'선박별 현황(Vessel·단계·대수·B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC Arrival Date). 선박 단위 입력은 해당 선박 차량의 차량 마스터 열에 반영·Vehicle_History 기록. TSC 입고일은 예정(선박 단위) 저장 후 배지 클릭으로 확정 → 차량 마스터 반영 + In Transit → Bonded Stock. ETA 불일치 카드·탭·표시는 제외',
-  K1:'상단 탭(Bonded + OH Stock / Ordered(Fixed) ~ OH Stock 확장 뷰, 확장 뷰는 현재 기준만, 10/27 #15) → 기준월 선택(최근 5개월 월말 마감 + 현재) → 요약 카드(Total Stock + 연식 MY24~27 대수·비율) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
+  K1:'상단 탭(TSC 재고 = Bonded + OH Stock 월말 마감 / 현재 및 미래 재고현황 = Ordered(Fixed) ~ OH Stock 현재 기준만, 10/27 #15 · 10/29 #7) → 기준월 선택(최근 5개월 월말 마감 + 현재) → TSC 재고: 요약 카드(Total Stock + 연식 MY24~28 대수·비율) · 현재 및 미래: 여정 지도(5구역 원 + 장소 띠·항구 세로선) → 모델별 구역 현황(모델 × 5구역 연식 막대) → 상태 × 연식 히트맵 (10/29 #8~#10) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
   P1:'연도·차종 선택, 판매계획 입력 모드(Editor), 범례(실적/확정/계획)', P2:'모델 그룹 접기, 행 = Production/Arrival/Sales/OH Stock/In Transit/재고월수, 기준월 열 강조', P3:'전체 합계 + Fixed Order', P4:'계획 확정·시나리오(2차)·Kufri Excel',
   C1:'아키텍처·연결 정보', C2:'모델 마스터(Model_Master)', C3:'AFAB 매핑', C4:'상태 규칙(§7)', C5:'기준값(Settings)', C6:'사용자·권한(M365 그룹)', C7:'변경 이력(Vehicle_History)', C8:'감사 로그(Audit_Log)',
@@ -215,6 +225,13 @@ const I18N = {
   // 10/27 #14 미배정 열 · #15 재고 현황 확장 뷰
   '미배정':'Unassigned', 'Vessel 미배정 · ETA From TDD 월 기준 (Ordered(Changeable) · Ordered(Fixed) · In Production) · Pl. Arrival·Shipping·Vessel 반영 시 선박 열로 이동':'No vessel assigned · by ETA From TDD month (Ordered(Changeable) · Ordered(Fixed) · In Production) · moves to the vessel column once Pl. Arrival·Shipping·Vessel are set', '클릭 → Logistics 목록 (미배정 제외)':'Click → Logistics list (excl. unassigned)', '미배정 셀 클릭 → 해당 월 ETA From TDD · Vessel 빈 값 목록, 미배정이 있는 달의 월 Total 링크는 선박분만.':'Unassigned cell → list filtered by that month ETA From TDD and empty Vessel; a month Total link covers vessels only.', '미배정 = Vessel 없이 ETA From TDD만 있는 오더 (ETA From TDD 월)':'Unassigned = orders with ETA From TDD but no Vessel (by ETA From TDD month)',
   'Ordered(Fixed) ~ OH Stock':'Ordered(Fixed) ~ OH Stock', 'Bonded + OH Stock':'Bonded + OH Stock', '현재 ({d}, 상태 Ordered(Fixed) ~ OH Stock 기준)':'Current ({d}, status Ordered(Fixed) ~ OH Stock)', '확장 뷰는 현재 기준만 지원 (월말 마감 없음)':'Extended view is current-basis only (no month-end closing)', 'Total (Ordered(Fixed) ~ OH Stock)':'Total (Ordered(Fixed) ~ OH Stock)', '단계별 {s}':'By stage: {s}',
+  // 10/29 #7~#11 재고현황 탭명 · 장소 띠 · 항구 · 현재 및 미래 재고현황 차트 3종 · 대시보드 카드 연식 줄
+  'TSC 재고':'Overall OH Stock(TSC)', '현재 및 미래 재고현황':'Current & Future Stock Status',
+  '독일 Wörth 공장':'Wörth Factory in Germany', '바다':'At Sea', '대한민국 아산 트럭 스타 센터':'Asan Truck Star Center in Korea', 'Antwerp항':'Port of Antwerp', '평택항':'Pyeongtaek Port',
+  '여정 지도':'Journey Map', 'Ordered(Fixed) ~ OH Stock {n}대 · 원 면적 = 대수 · 원 아래 막대 = 연식 구성 · Factory Stock = In Production + Shipment scheduled':'Ordered(Fixed) ~ OH Stock {n} units · circle area = units · bar under circle = model-year mix · Factory Stock = In Production + Shipment scheduled',
+  '모델별 구역 현황':'Models by Zone', '행 = 구분 > 차종 > 모델(Vehicle Series Model Axle Cab Option) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)':'Rows = Gen > Vehicle > Model (Vehicle Series Model Axle Cab Option) · 5 equal zones · bar = stacked by MY, length = units (same scale within model rows and within group rows)',
+  '상태 × 연식 히트맵':'Status × Model Year Heatmap', '행 = 구분 > 차종 > 모델 · 열 = 장소 > Current Status > 연식 + Total · 셀 색 농도 = 대수(상태 색) · 0은 공란':'Rows = Gen > Vehicle > Model · columns = location > Current Status > MY + Total · cell shade = units (status color) · 0 left blank',
+  '확정 주문 · 확정 재고':'Fixed Orders · Factory Stock', '운송 중':'In Transit', '재고 (보세 + 통관)':'Stock (Bonded + OH)',
   '＋ 모델 추가':'＋ Add Model', '실적 중앙값':'Actual Median', '차량 수':'Vehicles',
   'AFAB(SDISP) → 시스템 필드 매핑':'AFAB (SDISP) → System Field Mapping', '헤더 32개 명칭·순서가 바뀌면 업로드 검증에서 차단':'Upload validation blocks the file if the 32 header names or order change', 'AFAB 헤더(독일어)':'AFAB Header (German)',
   'Current Status 판정 규칙':'Current Status Rules', '상태별 Source · 판정 기준 (10/20 확정) · 1대 = 1단계 · 수동 override 시 사유 필수':'Source & rule per status (fixed 10/20) · 1 vehicle = 1 stage · reason required for manual override',
@@ -431,3 +448,52 @@ function stackChartEl(opts){
     svg.append(mkSvg('text', {x:x+bw/2, y:H-padB+16, 'text-anchor':'middle'}, c)); });
   return mk('div', null, svg, legendEl(opts.series.map(s=>({name:s.name, color:s.color}))));
 }
+
+// ---- 10/29: 재고현황 차트 가상안(docs/재고현황_차트_가상안.html) 채택분 공용 컴포넌트 — 연식 세그먼트 · hbar DOM 버전 · 모델 묶음 · 그림 아이콘 · 장소 띠 · 항구 세로선 ----
+function myOf(v){ return MY_KEYS.includes(v.model_year) ? v.model_year : '기타'; }
+function mySegs(vs){ const c = countBy(vs, myOf); return [...MY_KEYS, '기타'].map(k=>({name:tx(k), color:MY_COLORS[k], value:c[k]||0})); } // value 0 포함 (그리는 쪽에서 거름)
+function myCountText(vs){ return mySegs(vs).filter(s=>s.value).map(s=>`${s.name} ${num(s.value)}`).join(' · '); }
+function miniStackEl(label, vs){ const n=vs.length; return mk('div', {class:'mini'}, mySegs(vs).filter(s=>s.value>0).map(s=>mk('div', {style:`flex:${s.value};background:${s.color}`, 'data-tip':`${label} · ${s.name} ${tx('{v}대',{v:s.value})} (${pct(s.value,n)})`}))); }
+// hbar의 DOM 버전 (같은 CSS 클래스, innerHTML 없이 생성) · grand가 있으면 우측에 비율
+function hbarEl(label, segs, n, max, grand, cls){ const w = max ? n/max*100 : 0;
+  const track = mk('div', {class:'track'}, segs.filter(s=>s.value>0).map(s=>mk('div', {class:'seg', style:`width:${(s.value/n*w).toFixed(2)}%;background:${s.color}`, 'data-tip':`${label} · ${s.name} ${tx('{v}대',{v:s.value})} (${pct(s.value,n)})`})));
+  return mk('div', {class:'hbar '+(cls||'')}, mk('div', {class:'lbl', title:label}, label), track, mk('div', {class:'val num'}, mk('b', null, num(n)), grand ? ' · '+pct(n,grand) : '')); }
+// 선적·입항 표와 같은 모델 묶음: 구분(Gen, Model_Master 순) > 차종(VEHICLE_TYPES 순) > 모델(arrivalModelLabel, 사전순) · rows[].vs = 차량 목록
+function modelGroups(vs){ const byKey={}; vs.forEach(v=>{ const label=arrivalModelLabel(v); const k=v.gen+'|'+v.vehicle+'|'+label; const c = byKey[k] = byKey[k] || {gen:v.gen, vehicle:v.vehicle, label, vs:[]}; c.vs.push(v); });
+  const rows = Object.values(byKey);
+  return [...new Set(MODEL_MASTER.map(m=>m.gen))].filter(g=>rows.some(r=>r.gen===g)).map(g=>({gen:g, vehicles: VEHICLE_TYPES.filter(t=>rows.some(r=>r.gen===g&&r.vehicle===t)).map(t=>({vehicle:t, rows: rows.filter(r=>r.gen===g&&r.vehicle===t).sort((a,b)=>a.label<b.label?-1:1)}))})); }
+// CSS 변수 색('var(--x)') → hex · rgba 문자열 (히트맵 농도 · SVG 띠 배경)
+function cssColor(c){ const m=/var\((--[\w-]+)\)/.exec(c); return m ? getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() : c; }
+function rgbaOf(c, a){ const h=cssColor(c).replace('#',''); const n=parseInt(h.length===3 ? h.split('').map(x=>x+x).join('') : h, 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+// 그림 아이콘 (24×24 좌표): de = 독일 국기 깃발 · kr = 태극기 깃발 · sea = 바다 그림(하늘·해·갈매기·파도) — 틀(d) 안에 무늬를 clipPath로 잘라 넣고 테두리, clipPath id는 전역 카운터로 고유
+let _picSeq = 0;
+const _picPath = (d, a) => mkSvg('path', Object.assign({d, fill:'none', 'stroke-linecap':'round', 'stroke-linejoin':'round'}, a||{}));
+const PIC_FLAG_D = 'M5.5 4C10 2.2 14 6 21 4.3V15.3C14 17 10 13.2 5.5 15Z', PIC_SEA_D = 'M2 3h20v18H2z';
+function _picFrame(d, inner){ const id = 'picclip'+(++_picSeq); return [mkSvg('clipPath', {id}, mkSvg('path', {d})), mkSvg('g', {'clip-path':`url(#${id})`}, inner), mkSvg('path', {d, fill:'none', stroke:'#8a95a3', 'stroke-width':.8})]; }
+function _picFlag(inner){ return [..._picFrame(PIC_FLAG_D, inner), mkSvg('line', {x1:4.5, y1:2.5, x2:4.5, y2:22, stroke:'#5b6b82', 'stroke-width':1.6, 'stroke-linecap':'round'}), mkSvg('circle', {cx:4.5, cy:2.2, r:1.1, fill:'#5b6b82'})]; }
+function picNodes(kind){
+  if(kind==='de') return _picFlag([mkSvg('rect', {x:5, y:2, width:17, height:5.3, fill:'#000'}), mkSvg('rect', {x:5, y:7.3, width:17, height:5, fill:'#dd0000'}), mkSvg('rect', {x:5, y:12.3, width:17, height:5.5, fill:'#ffce00'})]);
+  if(kind==='kr') return _picFlag([mkSvg('rect', {x:5, y:2, width:17, height:16, fill:'#fff'}),
+    mkSvg('path', {d:'M10 9.7a3.2 3.2 0 0 1 6.4 0a1.6 1.6 0 0 1-3.2 0a1.6 1.6 0 0 0-3.2 0z', fill:'#cd2e3a'}), mkSvg('path', {d:'M16.4 9.7a3.2 3.2 0 0 1-6.4 0a1.6 1.6 0 0 1 3.2 0a1.6 1.6 0 0 0 3.2 0z', fill:'#0047a0'}), // 태극 (빨강 위 · 파랑 아래)
+    ...[[6.3,4.6],[17.6,5.2],[6.3,12.3],[17.6,12.9]].flatMap(([x,y])=>[0,1,2].map(i=>mkSvg('rect', {x, y:y+i*1.1, width:2.6, height:.6, fill:'#1d2733'})))]); // 4괘 = 짧은 막대 3줄
+  if(kind==='sea') return _picFrame(PIC_SEA_D, [mkSvg('rect', {x:2, y:3, width:20, height:18, fill:'#dceefb'}), mkSvg('circle', {cx:16.8, cy:8.2, r:2.7, fill:'#ffce00'}),
+    _picPath('M5 8.2c1.3-1.6 2.6-1.9 3.9-.9 1.3-1 2.6-.7 3.9.9', {stroke:'#3a4553', 'stroke-width':1.1}), _picPath('M8.5 11.6c.9-1.1 1.8-1.3 2.7-.6.9-.7 1.8-.5 2.7.6', {stroke:'#3a4553', 'stroke-width':.9}),
+    mkSvg('path', {d:'M2 14.5c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0 2 0 2 0V21H2z', fill:'#2a78d6'}), _picPath('M2 14.5c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0', {stroke:'#fff', 'stroke-width':.9, opacity:.85}),
+    mkSvg('path', {d:'M2 18.2c2-1.6 4-1.6 6 0s4 1.6 6 0 4-1.6 6 0 2 0 2 0V21H2z', fill:'#1b4f9b'})]);
+  return [];
+}
+function picIconEl(kind){ const s = mkSvg('svg', {class:'loc-ic', viewBox:'0 0 24 24', 'aria-hidden':'true'}); picNodes(kind).forEach(n=>s.append(n)); return s; }
+function picIconSvg(kind, x, y, k){ const g = mkSvg('g', {transform:`translate(${x},${y}) scale(${k})`}); picNodes(kind).forEach(n=>g.append(n)); return g; }
+// 장소 띠 (DOM / SVG) · 항구 라벨 행·세로 점선 (DOM / SVG)
+function locTip(loc, stages, n){ return [tx(loc.name), state.lang==='en' ? null : loc.en, stages, tx('{v}대', {v:num(n)})].filter(Boolean).join(' · '); }
+function locBandEl(loc, n, tip){ return mk('div', {class:'locb', style:`--c:${loc.color}`, 'data-tip':tip||locTip(loc, '', n)}, picIconEl(loc.icon), mk('div', {class:'nm'}, tx(loc.name)), mk('div', {class:'ct num'}, tx('{v}대', {v:num(n)}))); }
+function portsRowEl(ports){ return mk('div', {class:'ports'}, ports.map(p=>mk('span', {style:`left:${p.left}`}, tx(p.name)))); } // ports: [{name, left(CSS 값)}]
+function vlinesEl(ports){ return ports.map(p=>mk('div', {class:'vline', style:`left:${p.left}`})); }
+function gridBoundaryLeft(i, cols, gap){ return `calc(${(i/cols*100).toFixed(3)}% + ${(gap*(i/cols-0.5)).toFixed(2)}px)`; } // 등폭 grid(열 cols, 간격 gap px)에서 i-1열과 i열 사이의 left
+const _textW = s => [...s].reduce((a,ch)=>a+(/[가-힣]/.test(ch) ? 11 : 6.3), 0); // SVG 글자 폭 추정 (한글 11px · 영숫자 6.3px)
+function svgLocBand(svg, loc, n, x0, x1, y, h, tip){ const col=cssColor(loc.color), w=x1-x0, iw=26, name=tx(loc.name);
+  svg.append(mkSvg('rect', {x:x0, y, width:w, height:h, rx:7, fill:rgbaOf(col,.08), stroke:rgbaOf(col,.45), 'data-tip':tip||locTip(loc, '', n)}));
+  let tx0 = x0+10; if(w >= iw+8+_textW(name)+60){ svg.append(picIconSvg(loc.icon, x0+10, y+(h-26)/2, 26/24)); tx0 = x0+10+iw+8; } // 아이콘 + 이름 + 대수가 들어갈 폭일 때만 아이콘
+  svg.append(mkSvg('text', {class:'bn', x:tx0, y:y+h/2+5}, name), mkSvg('text', {class:'bc', x:x1-10, y:y+h/2+5, 'text-anchor':'end'}, tx('{v}대', {v:num(n)}))); }
+function svgPorts(svg, ports, yTop, yBottom){ ports.forEach(p=>{ const name=tx(p.name), w=_textW(name)+16, x=p.x; // ports: [{name, x}] · 알약 라벨 + 점선(yTop+5 → yBottom)
+  svg.append(mkSvg('line', {x1:x, x2:x, y1:yTop+5, y2:yBottom, stroke:'var(--line-strong)', 'stroke-dasharray':'3 3'}), mkSvg('rect', {x:x-w/2, y:yTop-13, width:w, height:18, rx:9, fill:'#fff', stroke:'var(--line)'}), mkSvg('text', {class:'bs', x, y:yTop, 'text-anchor':'middle', style:'pointer-events:none'}, name)); }); }

@@ -1,20 +1,18 @@
 'use strict';
-/* ===== AFAB 업로드 (A1~A5) ===== */
+/* ===== AFAB 업로드 (A1~A5) — 10/29 #4: 상단 메뉴에서 Logistics 차량 마스터의 탭(Logistics 옆)으로 이동. renderAfabTab(root)는 logistics.js renderLogiBody가 탭 본문(#lgBody)에 그린다. 옛 주소 #/afab 는 app.js route가 #/logistics?tab=afab 로 보낸다 ===== */
 const AF = { step:1, tab:'changed', file:null };
-PAGES.afab = {
-  title:'AFAB 업로드', sub:'SDISP Raw data 수동 업로드 → 검증 → 변경점 확인 → 반영',
-  render(root){
+// SDISP Raw data 수동 업로드 → 검증 → 변경점 확인 → 반영
+function renderAfabTab(root){
     AF.step=1; AF.tab='changed';
-    root.innerHTML = `<div class="card"><div class="stepper" id="stepper"></div><div id="stepBody"></div></div>
-      <div class="grid2"><div class="card"><div class="card-h"><h2>${tx('반영 이력')}</h2>${note('A4')}<span class="desc">${tx('AFAB_Uploads · 하루 2회 이상 가능')}</span></div>
+    root.innerHTML = `<div class="stepper" id="stepper"></div><div id="stepBody"></div>
+      <div class="grid2" style="margin-top:14px"><div class="card"><div class="card-h"><h2>${tx('반영 이력')}</h2>${note('A4')}<span class="desc">${tx('AFAB_Uploads · 하루 2회 이상 가능')}</span></div>
         <div class="tbl-wrap" style="max-height:320px"><table class="tbl compact"><thead><tr><th>${tx('일시')}</th><th>${tx('사용자')}</th><th>${tx('파일')}</th><th class="num">${tx('행')}</th><th class="num">${tx('신규')}</th><th class="num">${tx('변경')}</th><th class="num">${tx('제외')}</th><th>${tx('상태')}</th></tr></thead><tbody>
         ${AFAB_UPLOADS.map(u=>`<tr><td class="mono">${u.upload_at}</td><td>${u.user}</td><td><a href="#" onclick="describe('원본 파일 열기','/AFAB_Raw/${u.upload_at.slice(0,4)}/${u.upload_at.slice(5,7)}/${u.file_name} (문서 라이브러리)');return false;">${u.file_name}</a></td><td class="num">${num(u.rows)}</td><td class="num">${u.new_count}</td><td class="num">${u.changed_count}</td><td class="num">${u.removed_count}</td><td class="wrap">${u.status.startsWith('검증 실패')?statusPill('danger',u.status):statusPill('ok',u.status)}${u.error_log?`<div class="small muted">${esc(u.error_log)}</div>`:''}</td></tr>`).join('')}</tbody></table></div></div>
       <div class="card"><div class="card-h"><h2>${tx('매핑 요약')}</h2>${note('A5')}<span class="desc">${tx('SDISP 32열 → 시스템 필드 (✓ 사용 · △ 보관 · ✗ 미사용)')}</span></div>
         <div class="tbl-wrap" style="max-height:320px"><table class="tbl"><thead><tr><th>${tx('열')}</th><th>${tx('AFAB 헤더')}</th><th>${tx('시스템 필드')}</th><th>${tx('변환')}</th><th>${tx('사용')}</th></tr></thead><tbody>
         ${AFAB_MAP.map(r=>`<tr><td class="mono">${r[0]}</td><td>${esc(r[1])}</td><td class="mono">${esc(r[2])}</td><td class="muted">${esc(r[3])}</td><td>${r[4]==='✓'?statusPill('ok',tx('✓ 사용')):r[4]==='△'?statusPill('neutral',tx('△ 보관')):statusPill('danger',tx('✗ 미사용'))}</td></tr>`).join('')}</tbody></table></div></div></div>`;
     renderStep();
-  }
-};
+}
 // CHANGES(변경점 샘플)는 data.js에 선언 — 여기서는 참조만
 function renderStep(){
   const steps = ['파일 선택','검증','변경점 확인','반영'].map(x=>tx(x));

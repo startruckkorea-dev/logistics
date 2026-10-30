@@ -42,7 +42,10 @@ PAGES.shipping = {
     // 월 Total 머리글: 올해 전체에서 당월 외 월은 클릭으로 선박 열 펼침/접기 (▸/▾)
     const totTh = k=>{ const open = shown(k).length>0, tg = togglable(k);
       return mk('th', {class:'num tot'+cur(k)+(tg?' tg':''), rowspan:2, title: !voyByYm[k].length? tx('해당 월 입항 선박 없음') : tg? (open? tx('클릭 → 선박 열 접기') : tx('클릭 → 선박 열 펼치기')) : null,
-        onclick: tg? ()=>{ if(SH.open.has(k)) SH.open.delete(k); else SH.open.add(k); PAGES.shipping.render(root); } : null}, ymLabel(k)+' Total'+(tg? (open?' ▾':' ▸') : '')); };
+        onclick: tg? ()=>{ if(SH.open.has(k)) SH.open.delete(k); else SH.open.add(k); // 10/29 #6: 다시 그린 뒤 세로(창)·가로(표) 스크롤 위치 복원
+          const y = window.scrollY, wrap = root.querySelector('.pivot') ? root.querySelector('.pivot').closest('.tbl-wrap') : null, x = wrap? wrap.scrollLeft : 0;
+          PAGES.shipping.render(root); window.scrollTo(0, y);
+          const wrap2 = root.querySelector('.pivot') ? root.querySelector('.pivot').closest('.tbl-wrap') : null; if(wrap2) wrap2.scrollLeft = x; } : null}, ymLabel(k)+' Total'+(tg? (open?' ▾':' ▸') : '')); };
     const bodyRows = [];
     // 그룹 행(구분·차종)에도 열별 합계 (10/22): 하위 모델 행의 by 합산 · 10/27: 모델·그룹 행 링크 해제
     const sumBy = rows=>{ const by={}; rows.forEach(r=>Object.entries(r.by).forEach(([k,n])=>by[k]=(by[k]||0)+n)); return by; };

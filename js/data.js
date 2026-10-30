@@ -313,7 +313,7 @@ const CUSTOMS_UPLOAD_SAMPLE = (function(){
 
 // ---- 통관 신청 (10/27): 영업(Sales)이 Bonded Stock 차량을 골라 물류 담당자에게 보낸 신청 — 별도 List Customs_Requests. 차량 행에는 기록하지 않는다 ----
 // 상태는 Commission No별 items[].status (10/27 #11·#12): '신청' = Sales 요청(미처리) · '접수' = PMM(Editor) Confirm · '거절' = PMM Reject(사유 필수, 신청자에게 메일). at·by = 처리일시·처리자
-// 샘플 1 = 업로드 샘플과 같은 5대(신청 4 + 거절 1 → 접수 후 Unipass 업로드로 통관하는 시연 흐름) · 샘플 2 = OH Stock 3대(전부 접수). 난수 미사용
+// 샘플 1 = 업로드 샘플과 같은 5대(신청 4 + 거절 1 → 접수 후 Unipass 업로드로 통관하는 시연 흐름) · 샘플 2 = OH Stock 3대(전부 접수). 난수 미사용 · id = 신청번호 Customs-YYYY-MM-DD-N (10/29)
 const CUSTOMS_REQUESTS = (function(){
   const bonded = CUSTOMS_UPLOAD_SAMPLE.filter(r=>VEHICLE_BY_COMM[r.commission]).map(r=>r.commission);
   const done = VEHICLES.filter(v=>v.current_status==='OH Stock').slice(0,3).map(v=>v.commission_no);
@@ -321,8 +321,8 @@ const CUSTOMS_REQUESTS = (function(){
   const items1 = bonded.map((c,i)=> i===bonded.length-1 ? item(c, '거절', '2026-10-07 09:10', '정물류', '미인증 차량 — 인증 서류 접수 후 재신청') : item(c, '신청'));
   const items2 = done.map(c=>item(c, '접수', '2026-10-02 11:00', '정물류'));
   return [
-    {id:'CR-20261006-01', requested_at:'2026-10-06 14:20', requested_by:'최영업', dept:'영업', items:items1, n:items1.length, note:'10월 판매분 우선 통관 요청'},
-    {id:'CR-20261002-01', requested_at:'2026-10-02 09:40', requested_by:'최영업', dept:'영업', items:items2, n:items2.length, note:''},
+    {id:'Customs-2026-10-06-1', requested_at:'2026-10-06 14:20', requested_by:'최영업', dept:'영업', items:items1, n:items1.length, note:'10월 판매분 우선 통관 요청'},
+    {id:'Customs-2026-10-02-1', requested_at:'2026-10-02 09:40', requested_by:'최영업', dept:'영업', items:items2, n:items2.length, note:''},
   ];
 })();
 

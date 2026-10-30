@@ -1,7 +1,7 @@
 'use strict';
 /* ===== 앱 셸: 메뉴 바(G1) · 역할(G3) · 해시 라우터 ===== */
 const MENU = [
-  ['dashboard','대시보드'], ['logistics','Logistics 차량 마스터'], ['shipping','선적 · 입항'], ['stock','재고현황'], ['afab','AFAB 업로드'], ['kufri','KUFRI 생산판매계획'], ['settings','마스터 · 설정'],
+  ['dashboard','대시보드'], ['logistics','Logistics 차량 마스터'], ['shipping','선적 · 입항'], ['stock','재고현황'], ['kufri','KUFRI 생산판매계획'], ['settings','마스터 · 설정'], // 10/29 #4: AFAB 업로드는 Logistics 차량 마스터의 탭으로 이동
 ];
 // 10/27: 역할별 허용 화면 — Sales는 대시보드·선적·입항(읽기 전용)·Logistics(수입 통관 신청 탭만). 목록에 없는 역할은 전체 허용. 메뉴에서 숨기고, 주소로 직접 들어와도 대시보드로 보낸다
 const ROLE_PAGES = { Sales:['dashboard','shipping','logistics'] };
@@ -13,6 +13,7 @@ function renderTop(){
 }
 function route(){
   const {page, params} = parseHash();
+  if(page==='afab'){ location.hash='#/logistics?tab=afab'; return; } // 10/29 #4: 옛 AFAB 업로드 주소 → Logistics 탭 (hashchange로 다시 route)
   if(PAGES[page] && !pageAllowed(page)){ location.hash='#/dashboard'; return; } // 허용되지 않은 화면 → 대시보드 (hashchange로 다시 route)
   const p = PAGES[page] || PAGES.dashboard;
   renderTop(); closeDrawer(); closeModal();

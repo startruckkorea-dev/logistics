@@ -84,19 +84,31 @@ function renderCuRequestSales(body){
     mk('div', {class:'muted small', style:'margin-bottom:8px'}, tx('대상 {n}건 · 신청 중 제외 {m}건', {n:num(list.length), m:num(all.length-list.length)})+' · '+tx('체크박스 또는 Commission No 클릭 → 선택')),
     cuTable(CU_REQ_COLS, list, {set:sel, onChange:sync}));
 }
-// 신청 목록 표 (10/27): CUSTOMS_REQUESTS 최신순 — 신청일시 · 신청자 · 건수 · Commission No(앞 3개 + 외 n건) · 상태(신청 n · 접수 n · 거절 n, 0건은 생략 · #11) · 메모. onRow(r)가 있으면 행 클릭 가능
+// 신청 목록 표 (10/27): CUSTOMS_REQUESTS 최신순 — 신청번호(10/29) · 신청일시 · 신청자 · 건수 · Commission No(앞 3개 + 외 n건) · 상태(신청 n · 접수 n · 거절 n, 0건은 생략 · #11). onRow(r)가 있으면 행 클릭 가능. Sales '신청 내역'과 Editor '신청 접수' 공용
 function statusPills(r){ const c = reqCount(r); return [['신청','warn'],['접수','ok'],['거절','danger']].filter(([s])=>c[s]).map(([s,k])=>pillEl(k, tx(s)+' '+num(c[s]))); }
 function cuRequestList(onRow){
   if(!CUSTOMS_REQUESTS.length) return mk('div', {class:'muted small', style:'margin-bottom:14px'}, tx('신청 내역이 없습니다.'));
   const rows = CUSTOMS_REQUESTS.map(r=>{ const comms = reqComms(r); return mk('tr', {onclick: onRow? ()=>onRow(r) : null},
-    mk('td', {class:'mono'}, r.requested_at), mk('td', null, r.requested_by, r.dept? mk('span', {class:'muted small'}, ' · '+r.dept) : null), mk('td', {class:'num'}, num(r.n)),
+    mk('td', {class:'mono'}, r.id), mk('td', {class:'mono'}, r.requested_at), mk('td', null, r.requested_by, r.dept? mk('span', {class:'muted small'}, ' · '+r.dept) : null), mk('td', {class:'num'}, num(r.n)),
     mk('td', {class:'mono'}, comms.slice(0,3).join(' · '), comms.length>3? mk('span', {class:'muted'}, ' '+tx('외 {n}건', {n:num(comms.length-3)})) : null),
     mk('td', {style:'white-space:nowrap'}, statusPills(r).flatMap((p,i)=> i? [' ', p] : [p]))); }); // 10/28: 메모 열 삭제
   return mk('div', {class:'tbl-wrap', style:'max-height:240px;margin-bottom:14px'}, mk('table', {class:'tbl compact'+(onRow? ' clickable' : '')},
-    mk('thead', null, mk('tr', null, mk('th', null, tx('신청일시')), mk('th', null, tx('신청자')), mk('th', {class:'num'}, tx('건수')), mk('th', null, 'Commission No'), mk('th', null, tx('상태')))),
+    mk('thead', null, mk('tr', null, mk('th', null, tx('신청번호')), mk('th', null, tx('신청일시')), mk('th', null, tx('신청자')), mk('th', {class:'num'}, tx('건수')), mk('th', null, 'Commission No'), mk('th', null, tx('상태')))),
     mk('tbody', null, rows)));
 }
-// 신청 확인 모달: 신청자 · 수신(Ordering & Logistics Editor) · 선택 차량 표(클릭 없음 — Drawer가 모달 위로 열리지 않도록) → Store.customsRequests.add → 메일 발송 토스트(시연)
+// 메일 템플릿 (10/29, 시연은 토스트 · 실제 구현은 Graph sendMail · 본문은 발송 언어인 한국어 고정): kind 'request' = 신청 메일(Sales → Ordering & Logistics Editor) · 'result' = 처리 메일(물류 → 신청자, res = Store.customsRequests.process 반환값)
+// 반환 {subject, to:[upn], body:[줄…]}. 신청 메일 본문에는 차량 표·메모를 넣지 않는다(Commission No 목록만)
+function cuMail(kind, r, res){
+  const upn = name=>{ const u = USERS.find(x=>x.name===name); return u? u.upn : name; };
+  if(kind==='request'){
+    const to = USERS.filter(u=>u.role==='Editor' && u.dept==='Ordering & Logistics').map(u=>u.upn);
+    return {subject:`[Logistics Hub] ${r.id} 통관 신청 — ${r.n}대 · ${r.requested_by}${r.dept? '('+r.dept+')' : ''}`, to,
+      body:[`신청번호: ${r.id}`, `신청자: ${r.requested_by}${r.dept? ' · '+r.dept : ''}`, `신청일시: ${r.requested_at}`, `건수: ${r.n}`, `Commission No: ${reqComms(r).join(' · ')}`, '처리: Logistics Hub › Logistics › 수입 통관 신청 › 신청 접수']};
+  }
+  const lines = res.accepted.map(c=>`${c} · 접수`).concat(res.rejected.map(x=>`${x.comm} · 거절 — ${x.reason}`));
+  return {subject:`[Logistics Hub] ${r.id} 통관 신청 처리 — 접수 ${res.accepted.length} · 거절 ${res.rejected.length}`, to:[upn(r.requested_by)], body:lines};
+}
+// 신청 확인 모달: 신청자 · 수신(Ordering & Logistics Editor) · 선택 차량 표(클릭 없음 — Drawer가 모달 위로 열리지 않도록) → Store.customsRequests.add → 메일 발송 토스트(시연, 제목·본문 = cuMail)
 function openCuRequestConfirm(comms){
   const vs = comms.map(c=>VEHICLE_BY_COMM[c]).filter(Boolean); if(!vs.length) return;
   const me = USERS.find(u=>u.name===state.user), to = USERS.filter(u=>u.role==='Editor' && u.dept==='Ordering & Logistics');
@@ -113,8 +125,8 @@ function openCuRequestConfirm(comms){
   el('modal-body').replaceChildren(body);
   el('modal-foot').replaceChildren(
     mk('button', {class:'btn', onclick:closeModal}, tx('취소')),
-    mk('button', {class:'btn primary', onclick:()=>{ const r = Store.customsRequests.add(vs.map(v=>v.commission_no), state.user); closeModal();
-      toast(`통관 신청 ${num(r.req.n)}건 · 물류 담당자에게 메일 발송`, `수신: ${r.to.join(', ')} · 신청 ID ${r.req.id} · Customs_Requests 저장 · Audit_Log 기록 (실제 구현: Graph sendMail로 담당자 메일 발송)`);
+    mk('button', {class:'btn primary', onclick:()=>{ const r = Store.customsRequests.add(vs.map(v=>v.commission_no), state.user); closeModal(); const m = cuMail('request', r.req);
+      toast(`통관 신청 ${num(r.req.n)}건 · 물류 담당자에게 메일 발송`, `제목: ${m.subject} · 수신: ${m.to.join(', ')} · 본문: ${m.body.join(' / ')} · Customs_Requests 저장 · Audit_Log 기록 (실제 구현: Graph sendMail)`);
       renderLogiBody(); }}, tx('신청 ({n}건)', {n:num(vs.length)})));
 }
 // Editor·Viewer 화면 (10/27 #12 처리 프로세스): 신청 접수 목록(최신순) → 행 클릭 → 아래 조회 목록에 그 신청의 Commission No가 조회되고, 행별로 접수/거절(사유)을 고른 뒤 '처리 제출'.
@@ -132,12 +144,14 @@ function renderCuRequestInbox(body){
     box, info, out);
 }
 // 처리 패널 (10/27 #12·#13, PMM = Editor): 조회 결과 표(CU_REQ_COLS) 끝에 상태 · 처리 선택(접수/거절 라디오) · 거절 사유 열을 붙이고, 위에 신청 요약 + '처리 해제' · '처리 제출' 버튼.
-// '신청' 상태 행만 선택 가능(이미 접수/거절된 행은 처리자·일시·사유 표시). 제출 → Store.customsRequests.process → 거절 건이 있으면 신청자 메일 토스트. Viewer는 라디오 비활성 + 제출 버튼 숨김
+// '신청' 상태 행만 선택 가능(이미 접수/거절된 행은 처리자·일시·사유 표시). 10/29: 신청 건 전체를 한 번에 처리 — '신청' 행을 모두 고른 뒤에만 제출 가능. 제출 → Store.customsRequests.process → 처리 건(접수·거절)에 대해 신청자 메일 토스트(제목·본문 = cuMail). Viewer는 라디오 비활성 + 제출 버튼 숨김
 function cuReviewPanel(r, found){
   const editable = isEditor(); const itemOf = {}; r.items.forEach(i=>{ itemOf[i.comm] = i; });
   const submit = mk('button', {class:'btn primary editor-only'});
   const counts = ()=>{ let a=0, b=0; Object.entries(CU.dec).forEach(([c,d])=>{ if(!itemOf[c] || itemOf[c].status!=='신청') return; if(d.status==='접수') a++; else if(d.status==='거절') b++; }); return {a, b}; };
-  const sync = ()=>{ const c = counts(); submit.textContent = tx('처리 제출 (접수 {a} · 거절 {b})', {a:num(c.a), b:num(c.b)}); submit.disabled = !(c.a+c.b); };
+  const pendingN = r.items.filter(i=>i.status==='신청').length;
+  const sync = ()=>{ const c = counts(); submit.textContent = tx('처리 제출 (접수 {a} · 거절 {b})', {a:num(c.a), b:num(c.b)}); submit.disabled = !(c.a+c.b) || (c.a+c.b) < pendingN;
+    submit.title = submit.disabled && pendingN? tx('신청 건 전체(남은 {n}건)를 접수/거절로 고른 뒤 제출', {n:num(pendingN-c.a-c.b)}) : ''; };
   const stPill = s=> s==='신청'? pillEl('warn', tx('신청')) : s==='접수'? pillEl('ok', tx('접수')) : pillEl('danger', tx('거절'));
   const cells = v=>{ const it = itemOf[v.commission_no];
     if(!it) return [mk('td', null, mk('span', {class:'muted'}, '·')), mk('td', {class:'muted small'}, tx('이 신청에 없는 차량')), mk('td')]; // 조회창에 다른 Commission No를 섞은 경우
@@ -153,9 +167,9 @@ function cuReviewPanel(r, found){
     const dec = Object.entries(CU.dec).filter(([c,d])=>itemOf[c] && itemOf[c].status==='신청' && d.status).map(([comm,d])=>({comm, status:d.status, reason:(d.reason||'').trim()}));
     const noReason = dec.filter(d=>d.status==='거절' && !d.reason);
     if(noReason.length){ toast('거절 사유를 입력하세요.', `${noReason.map(d=>d.comm).join(', ')} — 거절 건은 사유가 필수이며 신청자에게 메일로 전달됩니다.`); return; }
-    const res = Store.customsRequests.process(r.id, dec, state.user); CU.dec = {};
+    const res = Store.customsRequests.process(r.id, dec, state.user); CU.dec = {}; const m = cuMail('result', r, res);
     toast(`통관 신청 처리 · ${r.id} · 접수 ${num(res.accepted.length)}건 · 거절 ${num(res.rejected.length)}건`,
-      (res.rejected.length? `신청자 ${res.to}에게 거절 사유 메일 발송 — ${res.rejected.map(x=>x.comm+': '+x.reason).join(' / ')} · ` : '') + 'Customs_Requests 갱신 · Audit_Log 기록' + (res.rejected.length? ' (실제 구현: Graph sendMail로 신청자 메일 발송)' : '')); // 10/27 #13
+      `신청자 ${res.to}(${m.to.join(', ')})에게 메일 발송 — 제목: ${m.subject} · 본문: ${m.body.join(' / ')} · Customs_Requests 갱신 · Audit_Log 기록 (실제 구현: Graph sendMail)`); // 10/27 #13 · 10/29 접수·거절 모두 메일
     renderLogiBody(); }; // procId 유지 → 조회창 자동 재조회로 처리 결과가 같은 표에 표시
   sync();
   return mk('div', null,
@@ -163,7 +177,7 @@ function cuReviewPanel(r, found){
       mk('span', null, mk('b', null, tx('처리 중: {id}', {id:r.id})), ` · ${r.requested_by}${r.dept? ' · '+r.dept : ''} · `, mk('span', {class:'mono'}, r.requested_at), ' · ', statusPills(r).flatMap((p,i)=> i? [' ', p] : [p]), r.note? mk('span', {class:'muted'}, ' · '+r.note) : null),
       mk('span', {class:'spacer'}),
       mk('button', {class:'btn sm', onclick:()=>{ CU.procId=null; CU.dec={}; renderLogiBody(); }}, tx('처리 해제')), submit),
-    mk('div', {class:'muted small', style:'margin-bottom:6px'}, tx('행별로 접수/거절을 선택한 뒤 제출 · 거절은 사유 필수 · 이미 처리된 행은 선택 불가')),
+    mk('div', {class:'muted small', style:'margin-bottom:6px'}, tx('행별로 접수/거절을 선택한 뒤 제출 · 거절은 사유 필수 · 이미 처리된 행은 선택 불가')+' · '+tx('신청 건 전체를 한 번에 처리(모든 행 선택 후 제출)')),
     cuTable(CU_REQ_COLS, found, null, {heads:[tx('상태'), tx('처리 선택'), tx('거절 사유')], cells, noClick:true}));
 }
 

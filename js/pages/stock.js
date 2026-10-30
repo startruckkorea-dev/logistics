@@ -21,10 +21,10 @@ PAGES.stock = {
     const stageTip = s => `${s} (${tx(LOC_DEFS[locOfStatus(s)].name)})`;
     const zoneVs = (vs, z) => vs.filter(v=>z.stages.includes(v.current_status));
 
-    // ---- A2 여정 지도 (10/29 #8·#9): 항로선 위 5구역 원(면적 = 대수) + 장소 띠 3구역 + 항구 알약 라벨·세로 점선 + 원 아래 연식 막대 ----
+    // ---- A2 여정 지도 (10/29 #8·#9): 항로선 위 5구역 원(면적 = 대수) + 장소 띠 3구역 + 항구 알약 라벨·세로 점선 · 10/29 #3: 연식 구분 없음(원 아래 연식 막대·연식별 수량 삭제, 높이 축소) ----
     const cfsJourney = list=>{
       const total=list.length, zn = z=>zoneVs(list,z).length;
-      const W=Math.max(900, (el('stockBody')?.clientWidth||1200)-32), H=312, yr=192, portY=14, bandY=32, bandH=50, gw=W/ZONES.length; const xs = ZONES.map((z,i)=>gw*i+gw/2); const bx = i=>xs[i]-gw/2; // W = 카드 실제 폭(패딩 16px×2 제외, 최소 900)으로 1:1 렌더 → 글자 크기가 다른 차트와 동일 px · bx = 구역 i의 왼쪽 경계
+      const W=Math.max(900, (el('stockBody')?.clientWidth||1200)-32), H=258, yr=180, portY=14, bandY=32, bandH=50, gw=W/ZONES.length; const xs = ZONES.map((z,i)=>gw*i+gw/2); const bx = i=>xs[i]-gw/2; // W = 카드 실제 폭(패딩 16px×2 제외, 최소 900)으로 1:1 렌더 → 글자 크기가 다른 차트와 동일 px · bx = 구역 i의 왼쪽 경계
       const svg = mkSvg('svg', {class:'chart', viewBox:`0 0 ${W} ${H}`, role:'img', style:`max-width:${W}px`});
       LOC_ZONES.forEach(([k,i0,i1])=>{ const zs=ZONES.slice(i0,i1+1), n=zs.reduce((a,z)=>a+zn(z),0); svgLocBand(svg, LOC_DEFS[k], n, bx(i0)+6, bx(i1)+gw-6, bandY, bandH, locTip(LOC_DEFS[k], zs.map(z=>z.name).join(' · '), n)); });
       // 항로선: 공장~Antwerp 실선 · 바다 구간(Antwerp~평택) 파선 · 평택 이후 실선 + 화살표
@@ -36,11 +36,8 @@ PAGES.stock = {
         svg.append(mkSvg('circle', {cx:x, cy:yr, r, fill:z.color, stroke:'#fff', 'stroke-width':2, 'data-tip':tip}));
         svg.append(r>=15 ? mkSvg('text', {class:'w', x, y:yr+4, 'text-anchor':'middle', style:'font-size:12.5px;pointer-events:none'}, num(n)) : mkSvg('text', {class:'t', x, y:yr-r-6, 'text-anchor':'middle'}, num(n)));
         svg.append(mkSvg('text', {class:'sl', x, y:yr+66, 'text-anchor':'middle'}, z.name));
-        const segs = mySegs(vs).filter(q=>q.value>0); const bw=140, gap=2, usable=bw-gap*(segs.length-1); let cx=x-bw/2; // 연식 미니 누적 막대 (2px 간격)
-        segs.forEach(q=>{ const w=q.value/n*usable; svg.append(mkSvg('rect', {x:cx, y:yr+76, width:w, height:9, rx:2, fill:q.color, 'data-tip':`${z.name} · ${q.name} ${tx('{v}대',{v:q.value})} (${pct(q.value,n)})`})); cx+=w+gap; });
-        svg.append(mkSvg('text', {class:'bs', x, y:yr+100, 'text-anchor':'middle'}, myCountText(vs)));
       });
-      return mk('div', {class:'card cfs1'}, mk('div', {class:'card-h'}, mk('h2', null, tx('여정 지도')), noteEl('K1'), mk('span', {class:'desc'}, tx('Ordered(Fixed) ~ OH Stock {n}대 · 원 면적 = 대수 · 원 아래 막대 = 연식 구성 · Factory Stock = In Production + Shipment scheduled', {n:num(total)}))), svg); // 연식 범례는 카드 위(페이지 범례)로 이동
+      return mk('div', {class:'card cfs1'}, mk('div', {class:'card-h'}, mk('h2', null, tx('여정 지도')), noteEl('K1'), mk('span', {class:'desc'}, tx('Ordered(Fixed) ~ OH Stock {n}대 · 원 면적 = 대수 · Factory Stock = In Production + Shipment scheduled', {n:num(total)}))), svg); // 연식 범례는 모델별 구역 현황 위(페이지 범례, 10/29 #3)
     };
 
     // ---- A3 모델별 구역 현황 (10/29 #10): 행 = 구분 > 차종 > 모델 · 열 = 5구역 균등 · 셀 = 연식 누적 가로 막대(길이 = 대수) + 대수 · 열 위 장소 띠 + 항구 세로선 ----
@@ -61,17 +58,17 @@ PAGES.stock = {
 
     // ---- B2 상태 × 연식 히트맵 (10/29 #8, 6상태 그대로): 선적·입항 표와 같은 뼈대(.pivot.fixcol) · 머리글 3줄(장소 / 상태 / 연식 + Total) + Grand Total 행 · 모델 행 셀 = 상태 색 농도 ----
     const cfsHeat = list=>{
-      const myCols = [...MY_KEYS, '기타'].filter(k=>list.some(v=>myOf(v)===k)), per = myCols.length+1; // 대상에 있는 연식만 열로
+      const colsOf = {}; PIPE_STAGES.forEach(s=>{ colsOf[s] = [...MY_KEYS, '기타'].filter(k=>list.some(v=>v.current_status===s && myOf(v)===k)); }); const per = s=>colsOf[s].length+1; // 10/29 #4: 상태별로 대수 있는 연식만 열로(Total 열은 항상) · 열 순서 MY24→MY28→기타 고정
       const keyOf = v => v.current_status+'|'+myOf(v), rowCounts = r => countBy(r.vs, keyOf);
       const groups = modelGroups(list), allRows = groups.flatMap(g=>g.vehicles.flatMap(t=>t.rows));
       const maxCell = Math.max(1, ...allRows.flatMap(r=>Object.values(rowCounts(r))));
       const locCols = [['factory', PIPE_STAGES.slice(0,3)], ['sea', ['In Transit']], ['center', ['Bonded Stock','OH Stock']]];
       const th = (txt, attrs) => mk('th', attrs, txt);
-      const head1 = mk('tr', null, th('Model', {rowspan:3}), locCols.map(([k, sts])=>{ const n=list.filter(v=>sts.includes(v.current_status)).length; return mk('th', {class:'loc', colspan:sts.length*per, 'data-tip':locTip(LOC_DEFS[k], sts.join(' · '), n)}, mk('span', {class:'lh'}, picIconEl(LOC_DEFS[k].icon), mk('span', null, tx(LOC_DEFS[k].name)), mk('b', {class:'num'}, num(n)))); }), th('Grand Total', {class:'num gt', rowspan:3}));
-      const head2 = mk('tr', null, PIPE_STAGES.map(s=>mk('th', {class:'st', colspan:per}, stagePillEl(s))));
-      const head3 = mk('tr', null, PIPE_STAGES.flatMap(s=>[...myCols.map(k=>th(tx(k), {class:'num my'})), th('Total', {class:'num tot'})]));
+      const head1 = mk('tr', null, th('Model', {rowspan:3}), locCols.map(([k, sts])=>{ const n=list.filter(v=>sts.includes(v.current_status)).length; return mk('th', {class:'loc', colspan:sts.reduce((a,s)=>a+per(s),0), 'data-tip':locTip(LOC_DEFS[k], sts.join(' · '), n)}, mk('span', {class:'lh'}, picIconEl(LOC_DEFS[k].icon), mk('span', null, tx(LOC_DEFS[k].name)), mk('b', {class:'num'}, num(n)))); }), th('Grand Total', {class:'num gt', rowspan:3}));
+      const head2 = mk('tr', null, PIPE_STAGES.map(s=>mk('th', {class:'st', colspan:per(s)}, stagePillEl(s))));
+      const head3 = mk('tr', null, PIPE_STAGES.flatMap(s=>[...colsOf[s].map(k=>th(tx(k), {class:'num my'})), th('Total', {class:'num tot'})]));
       const cells = (by, label, heat)=>{ const out=[]; let grand=0; // 0은 공란 · heat = 모델 행만 상태 색 농도(대수/최대) · Total·Grand Total 음영 없음
-        PIPE_STAGES.forEach(s=>{ let st=0; myCols.forEach(k=>{ const v=by[s+'|'+k]||0; st+=v; const td = mk('td', {class:'num', 'data-tip': v ? `${label} · ${stageTip(s)} · ${tx(k)} · ${tx('{v}대',{v})}` : null}, v ? num(v) : ''); if(heat && v) td.style.background = rgbaOf(STAGE_COLOR[s], 0.08+0.5*Math.min(1, v/maxCell)); out.push(td); });
+        PIPE_STAGES.forEach(s=>{ let st=0; colsOf[s].forEach(k=>{ const v=by[s+'|'+k]||0; st+=v; const td = mk('td', {class:'num', 'data-tip': v ? `${label} · ${stageTip(s)} · ${tx(k)} · ${tx('{v}대',{v})}` : null}, v ? num(v) : ''); if(heat && v) td.style.background = rgbaOf(STAGE_COLOR[s], 0.08+0.5*Math.min(1, v/maxCell)); out.push(td); });
           out.push(mk('td', {class:'num tot'}, st ? num(st) : '')); grand+=st; });
         out.push(mk('td', {class:'num gt'}, num(grand))); return out; };
       const sumBy = rows => { const by={}; rows.forEach(r=>Object.entries(rowCounts(r)).forEach(([k,n])=>by[k]=(by[k]||0)+n)); return by; };
@@ -81,7 +78,7 @@ PAGES.stock = {
         g.vehicles.forEach(t=>{ body.push(mk('tr', {class:'g2'}, mk('td', null, t.vehicle), cells(sumBy(t.rows), g.gen+' '+t.vehicle, false)));
           t.rows.forEach(r=>body.push(mk('tr', null, mk('td', {class:'model', title:r.label}, r.label), cells(rowCounts(r), r.label, true)))); }); });
       const table = mk('table', {class:'tbl compact pivot fixcol'}, mk('thead', null, head1, head2, head3, grandRow), mk('tbody', null, body));
-      return mk('div', {class:'card cfs2'}, mk('div', {class:'card-h'}, mk('h2', null, tx('상태 × 연식 히트맵')), mk('span', {class:'desc'}, tx('행 = 구분 > 차종 > 모델 · 열 = 장소 > Current Status > 연식 + Total · 셀 색 농도 = 대수(상태 색) · 0은 공란'))), mk('div', {class:'tbl-wrap'}, table));
+      return mk('div', {class:'card cfs2'}, mk('div', {class:'card-h'}, mk('h2', null, tx('상태 × 연식 히트맵')), mk('span', {class:'desc'}, tx('행 = 구분 > 차종 > 모델 · 열 = 장소 > Current Status > 연식 + Total · 셀 색 농도 = 대수(상태 색) · 0은 공란 · 대수 0인 연식 열은 숨김'))), mk('div', {class:'tbl-wrap'}, table));
     };
 
     const draw = ()=>{
@@ -106,9 +103,9 @@ PAGES.stock = {
       const byModel = `<div class="card"><div class="section-h" style="margin-top:0">By Model<span class="sub">${tx('차종 섹션 안 모델별 · 모델명 = Gen · Model · Type · Cab · Option')}</span></div>
         ${byVeh.map(x=>{ const groups = Object.values(x.vs.reduce((a,v)=>{ const k=modelName(v); (a[k]=a[k]||{k,vs:[]}).vs.push(v); return a; },{})).sort((a,b)=>b.vs.length-a.vs.length);
           return `<div class="section-h">${x.t}<span class="sub">${tx('{n}대', {n:num(x.vs.length)})} · ${pct(x.vs.length,total)}</span></div><div class="hbars">${groups.map(g=>hbar(g.k, segsOf(g.vs), g.vs.length, maxV, 'model')).join('')}</div>`; }).join('')}</div>`;
-      // 10/29 #8: 현재 및 미래 탭 = 기준 문구 → 연식 범례 → 여정 지도 → 모델별 구역 현황 → 히트맵(cfsSlot에 DOM으로 삽입) → By Vehicle → By Model (10/29 오후: 범례를 여정 지도 위로)
-      el('stockBody').innerHTML = `<div class="muted small" style="margin:-4px 0 10px">${label} · ${view==='pipe'? tx('확장 뷰는 현재 기준만 지원 (월말 마감 없음)') : tx('월말 마감 판정 = Cancelled 제외 · 입고일(ETA Final Arrival) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)')}</div>` + (view==='pipe' ? legend + '<div id="cfsSlot"></div>' : cards + legend) + byVehicle + byModel;
-      if(view==='pipe') el('cfsSlot').replaceWith(cfsJourney(list), cfsMatrix(list), cfsHeat(list));
+      // 10/29 #8: 현재 및 미래 탭 = 기준 문구 → 여정 지도 → 연식 범례 → 모델별 구역 현황 → 히트맵(cfsSlot·cfsSlot2에 DOM으로 삽입) → By Vehicle → By Model (10/29 #3: 여정 지도에 연식 구분이 없어져 범례를 모델별 구역 현황 바로 위로)
+      el('stockBody').innerHTML = `<div class="muted small" style="margin:-4px 0 10px">${label} · ${view==='pipe'? tx('확장 뷰는 현재 기준만 지원 (월말 마감 없음)') : tx('월말 마감 판정 = Cancelled 제외 · 입고일(ETA Final Arrival) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)')}</div>` + (view==='pipe' ? '<div id="cfsSlot"></div>' + legend + '<div id="cfsSlot2"></div>' : cards + legend) + byVehicle + byModel;
+      if(view==='pipe'){ el('cfsSlot').replaceWith(cfsJourney(list)); el('cfsSlot2').replaceWith(cfsMatrix(list), cfsHeat(list)); }
       // 10/27 #15: 탭 강조 · 확장 뷰에서는 기준월 select를 '현재'로 고정
       qa('#stockTabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.view===view));
       const s = el('stockSel'); s.value = sel; s.disabled = view==='pipe'; s.title = view==='pipe'? tx('확장 뷰는 현재 기준만 지원 (월말 마감 없음)') : '';

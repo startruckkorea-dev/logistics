@@ -179,8 +179,8 @@ const VEHICLE_BY_COMM = Object.fromEntries(VEHICLES.map(v=>[v.commission_no, v])
 (function(){
   // #14 전제: 실제 데이터에서는 ETA From TDD의 달이 지나면 다음 달 1일로 이월되므로(#9 규칙, 이 목업에서는 규칙 자체는 미구현) 지난 달 ETA From TDD만 남은 건이 없다 → 샘플도 그 상태로 맞춘다 (Pl. Arrival·Vessel 없는 Cancelled 외 차량, 기준월 1일로)
   VEHICLES.forEach(v=>{ if(v.current_status==='Cancelled' || v.planned_arrival || v.vessel || !v.eta_from_tdd || v.eta_from_tdd>=BASE_YM+'-01') return; v.eta_from_tdd = BASE_YM+'-01'; });
-  // #7 Shipping Calc = PM 1일 + 모델 리드타임(일, PM~Shipping). 위 IIFE에서 PM을 바꾼 차량까지 포함해 마지막에 한 번 계산 (이후 PM·모델 변경은 Store.vehicles.update가 재계산)
-  VEHICLES.forEach(v=>{ v.shipping_calc = shippingCalc(v.pm, v.lead_days); });
+  // #7 Shipping Calc = PM 1일 + 모델 리드타임(일, PM~Shipping). 10/30: Current Status가 In Production이 되는 시점에 1회 작성하고 이후 수정 없음(Store stampShippingCalc) → 샘플은 In Production 이후 단계만 현재 PM 기준으로 심고 Ordered·Cancelled·Rejected는 공란
+  VEHICLES.forEach(v=>{ v.shipping_calc = ['In Production','Shipment scheduled','In Transit','Bonded Stock','OH Stock','Sold'].includes(v.current_status) ? shippingCalc(v.pm, v.lead_days) : ''; });
 })();
 
 // ---- 사용자 ----

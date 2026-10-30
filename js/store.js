@@ -1,5 +1,7 @@
 'use strict';
 /* ===== Store: data.js 데이터 쓰기 함수 (조회는 각 화면에서 data.js 변수를 직접 읽음) ===== */
+// 10/30: Shipping Calc는 그 행의 Current Status가 In Production이 되는 시점에 PM 1일 + 모델 리드타임(일)로 1회 작성, 이후 PM·리드타임·상태가 바뀌어도 수정하지 않는다 (값이 있으면 덮어쓰지 않음)
+function stampShippingCalc(v){ if(v.current_status==='In Production' && !v.shipping_calc) v.shipping_calc = shippingCalc(v.pm, v.lead_days); }
 function nowStamp(){ const d=new Date(); return TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes()); } // Vehicle_History changed_at (기준일 + 현재 시각)
 // Current Status 자동 전환 규칙 (10/28, 상태 규칙 3·5·7 · 기준일 TODAY_S/BASE_YM): 차량 1대 → {v, from, to, rule, reason} 또는 null. override 여부는 보지 않는다(호출 쪽에서 구분)
 // 규칙 3 Ordered(Changeable) → Ordered(Fixed): Changeability Date 경과 · 규칙 5 Ordered(Fixed) → In Production: PM 도래 · 규칙 7 In Production/Shipment scheduled → In Transit: Shipping Date 경과
@@ -16,7 +18,7 @@ const Store = {
     update(comm, patch){
       const v = VEHICLE_BY_COMM[comm]; if(!v) return null;
       Object.assign(v, patch);
-      if('pm' in patch || 'lead_days' in patch) v.shipping_calc = shippingCalc(v.pm, v.lead_days); // 10/27 #7: PM·모델(리드타임) 변경 시 Shipping Calc 재계산
+      if('current_status' in patch) stampShippingCalc(v); // 10/30: In Production 진입 시 Shipping Calc 1회 작성 (PM·리드타임 변경으로는 재계산하지 않음)
       return v;
     },
     updateMany(comms, patch){ return comms.map(c=>Store.vehicles.update(c, patch)).filter(Boolean); },
@@ -46,7 +48,7 @@ const Store = {
         eta_month:'', tdd_month:'', shipping_month:'', in_afab_today:false, order_class:'—', changeability_dday:null,
         modified:TODAY_S, modified_by:o.by };
       Object.assign(v, Store.vehicles.modelMasterPatch(o.m));
-      v.shipping_calc = shippingCalc(v.pm, v.lead_days); // PM 공란 → '' (10/27 #7)
+      v.shipping_calc = ''; stampShippingCalc(v); // 10/30: 생성 상태가 In Production이면 즉시 작성, 그 외 공란
       v.series = o.m.series; v.spec = [v.vehicle, v.series, v.model, v.axle, v.cab].join(' ');
       return v;
     },
@@ -80,7 +82,7 @@ const Store = {
     // current_status 대입 + Vehicle_History(출처 규칙) + Audit_Log 1건. 반환 {n, by:{'A → B': n}, excluded}
     applyStatusUpdate(items, excluded, by){
       const at = nowStamp(); const byT = {};
-      const hist = items.map(it=>{ it.v.current_status = it.to; const k = `${it.from} → ${it.to}`; byT[k] = (byT[k]||0)+1;
+      const hist = items.map(it=>{ it.v.current_status = it.to; stampShippingCalc(it.v); const k = `${it.from} → ${it.to}`; byT[k] = (byT[k]||0)+1;
         return {commission_no:it.v.commission_no, field:'current_status', old_value:it.from, new_value:it.to, changed_by:by, changed_at:at, source:'규칙'}; });
       Store.history.add(hist);
       AUDIT_LOG.unshift({at, user:by, action:'Current Status 업데이트', target:'Vehicles', detail:`${items.length}건 전환 (${Object.entries(byT).map(([k,n])=>`${k} ${n}`).join(' · ')}) · 제외 ${excluded}건`});

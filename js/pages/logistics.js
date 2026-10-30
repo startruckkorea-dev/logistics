@@ -1,6 +1,6 @@
 'use strict';
 /* ===== Logistics 차량 마스터 (L1~L7) ===== */
-const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50, tab:'grid' }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18) · 단계는 상단 필터 대신 Current Status 열 필터로 (10/22 No.2) · tab: 페이지 탭 (10/26 No.1)
+const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50, tab:'grid', delayed:false }; // col: 열 필터 {key: Set(선택값)} (10/15 No.18) · 기본 정렬 Commission No 최신순 (10/19 No.18) · 단계는 상단 필터 대신 Current Status 열 필터로 (10/22 No.2) · tab: 페이지 탭 (10/26 No.1)
 // 페이지 탭 5개 (10/26 No.1 · 10/29 #3·#4): 1번 = 차량 마스터 그리드(홈), 2번 = AFAB 업로드(상단 메뉴에서 이동, js/pages/afab.js renderAfabTab), 3~5번 = 통관·보험(js/pages/customs.js). ?tab= 으로 진입 가능, 없으면 grid
 // 10/29 #3: 한글 탭명 확정(EN 모드는 I18N으로 영문) · 10/29 #5: 역할별 표시 — Editor 전체 · Viewer 'Logistics'만 · Sales '수입통관 신청'만
 const LOGI_TABS = [['grid','Logistics'], ['afab','AFAB 업로드'], ['req','수입통관 신청'], ['input','통관 완료 처리'], ['ins','보험 조회']];
@@ -17,7 +17,7 @@ const EDIT = { on:false, sel:new Set(), pending:{} }; // 편집 모드(오더 �
 PAGES.logistics = {
   title:'Logistics 차량 마스터', sub:`Commission No. 기준 1행 · ${COLUMNS.length}열 · Customs · Insurance`,
   render(root, params){
-    LF.q = params.get('q')||''; LF.page=1; LF.col={};
+    LF.q = params.get('q')||''; LF.page=1; LF.col={}; LF.delayed = params.get('delayed')==='1'; // 10/30 재검토 1단계: ?delayed=1 → 경과 배지 행만
     const st = params.get('stage'); if(st) LF.col.current_status = new Set(st.split(',')); // ?stage= (대시보드 카드·파이프라인·AFAB 링크, 쉼표 구분 복수) → Current Status 열 필터
     FILTER_COLS.forEach(k=>{ const v = params.get(k); if(v!=null) LF.col[k] = new Set(v.split(',').map(x=> x===''? '(빈 값)' : x)); }); // 열 필터 파라미터 (10/22 선적·입항 수량 셀 클릭): 쉼표 구분 복수 · 빈 문자열 = '(빈 값)'
     const tabs = logiTabsForRole(); // 10/27: Sales는 수입통관 신청 탭만 · 10/29 #5: Viewer는 Logistics 탭만
@@ -137,6 +137,7 @@ function searchTerms(){
 function filtered(){
   const terms = searchTerms();
   let rows = VEHICLES.filter(v=>
+    (!LF.delayed || shipDelayDays(v)>0) && // 10/30 재검토 1단계: 경과 배지 행만
     FILTER_COLS.every(k=> !LF.col[k] || LF.col[k].has(filterVal(v,k))) &&
     (!terms.length || terms.some(qq=>SEARCH_COLS.some(k=>v[k]&&String(v[k]).toLowerCase().includes(qq)))));
   const k=LF.sort, d=LF.dir;
@@ -152,7 +153,7 @@ function renderFilters(){
     <button class="btn sm editor-only" id="btnEdit"></button>
     <span class="muted small" id="fCount"></span>`;
   el('fQ').oninput = e=>{ LF.q=e.target.value; LF.page=1; renderGrid(); scrollToMatch(); };
-  el('fReset').onclick = ()=>{ Object.assign(LF,{q:'',page:1}); LF.col={}; renderFilters(); renderGrid(); };
+  el('fReset').onclick = ()=>{ Object.assign(LF,{q:'',page:1, delayed:false}); LF.col={}; renderFilters(); renderGrid(); };
   el('btnEdit').onclick = toggleEdit; syncEditBtn();
 }
 // 편집 버튼: '초기화' 옆 (10/19 No.1) · 라벨·상태는 편집 모드에 맞춰 갱신
@@ -185,6 +186,11 @@ function hl(s){
 }
 // 편집 중 저장 대기 값이 있으면 그 값을, 없으면 저장된 값을 돌려준다
 function pendingVal(v, key){ const p = EDIT.pending[v.commission_no]; return (p && key in p)? p[key].nw : v[key]; }
+// 10/30 #8·재검토 1단계: 경과 배지 일수. 선적 후 = Shipping − Shipping Calc(저장값 기준이라 고정) · 선적 전 = 기준일 − Shipping Calc(In Production만, 매일 증가). 0 이하·Cancelled·Calc 없음 = 0. calc·ship 인자는 편집 중 pending 값용
+function shipDelayDays(v, calc, ship){ calc = calc===undefined? v.shipping_calc : calc; ship = ship===undefined? v.shipping : ship;
+  if(!calc || v.current_status==='Cancelled') return 0;
+  if(ship) return Math.max(0, diffDays(parseD(ship), parseD(calc)));
+  return (calc < TODAY_S && v.current_status==='In Production') ? diffDays(TODAY, parseD(calc)) : 0; }
 function cellHtml(c, v){
   const val = pendingVal(v, c.key);
   if(c.key==='current_status') return stagePill(val);
@@ -197,12 +203,15 @@ function cellHtml(c, v){
     return `${val? esc(val) : '<span class="dim">·</span>'}${dd}${dot}`;
   }
   if(c.key==='color_code') return `<span title="${esc(COLOR_NAMES[val]||'')}">${val}</span>`;
-  // 10/27 #7 Shipping Calc = PM 1일 + 리드타임(일, PM~Shipping) — 편집 중 PM·모델 변경도 즉시 반영 · #8: 기준일 기준 Shipping 미입력 + Shipping Calc 경과 시 '+n일' 배지 (선적 전 단계 Ordered(Changeable)·Ordered(Fixed)·In Production만)
+  // 10/27 #7 Shipping Calc = PM 1일 + 리드타임(일, PM~Shipping) — 편집 중 PM·모델 변경도 즉시 반영 · 10/30 #8: 경과 배지 '+n일'은 회색(비강조) 하나, 선적 전엔 매일 증가 · Shipping 입력 후엔 Shipping − Shipping Calc로 고정되어 유지(재검토 후보 표시용, 숫자는 참고값)
   if(c.key==='shipping_calc'){
-    const calc = shippingCalc(pendingVal(v,'pm'), pendingVal(v,'lead_days'));
+    const calc = v.shipping_calc; // 10/30: In Production 진입 시 저장된 값만 표시 (편집 중 PM 변경으로 재계산하지 않음)
     if(!calc) return '<span class="dim">·</span>';
-    const over = !pendingVal(v,'shipping') && calc < TODAY_S && ['Ordered(Changeable)','Ordered(Fixed)','In Production'].includes(v.current_status);
-    return esc(calc) + (over? ` <span class="pill danger" title="${esc(tx('Shipping 미입력 · Shipping Calc 경과 {n}일 (기준일 {d})', {n:diffDays(TODAY, parseD(calc)), d:TODAY_S}))}">${esc(tx('+{n}일', {n:diffDays(TODAY, parseD(calc))}))}</span>` : '');
+    const ship = pendingVal(v,'shipping'), n = shipDelayDays(v, calc, ship);
+    if(n<=0) return esc(calc);
+    const tip = ship? tx('Shipping {s} · 실적 PM~Shipping {m}일 (계획 {p}일, 초과 {n}일)', {s:ship, m:diffDays(parseD(ship), parseD(v.pm+'-01')), p:v.lead_days, n})
+                    : tx('Shipping 미입력 · Shipping Calc 경과 {n}일 (기준일 {d})', {n, d:TODAY_S});
+    return esc(calc) + ` <span class="pill ${ship? 'neutral' : 'danger'}" title="${esc(tip)}">D+${n}</span>`; // 선적 전 빨강(증가 중) · 선적 후 회색(확정)
   }
   if(c.num) return num(val);
   if(val==null||val==='') return '<span class="dim">·</span>';
@@ -212,14 +221,14 @@ function renderGrid(){
   const rows = filtered(); const cols = EDIT.on ? COLUMNS : visibleCols(); // 편집 모드에서는 숨긴 열도 머리글(체크박스)만 표시 (10/15 No.15)
   const totalPages = Math.max(1, Math.ceil(rows.length/LF.size)); if(LF.page>totalPages) LF.page=totalPages;
   const pageRows = rows.slice((LF.page-1)*LF.size, LF.page*LF.size);
-  const fkeys = Object.keys(LF.col);
+  const fkeys = Object.keys(LF.col); if(LF.delayed && !LF.col.shipping_calc) fkeys.push('shipping_calc'); // 10/30: '경과 배지 행만'도 Shipping Calc 열 필터로 요약
   el('fCount').textContent = tx('{n}건 / 전체 {m}', {n:num(rows.length), m:num(VEHICLES.length)}) + (fkeys.length? tx(' · 열 필터: {cols}', {cols:fkeys.map(keyinLabel).join(' · ')}) : '');
   // 헤더 2줄 (10/19 No.2): 1행 = 열 이름만 · 2행 = 체크박스 · 출처 배지 · 정렬 표시 · 열 필터 (Comm No.는 첫 열 고정)
   const sortIcon = k=> LF.sort===k? `<span class="sort">${LF.dir>0?'▲':'▼'}</span>`:'';
   const canEdit = isEditor();
   const hid = c=> EDIT.on && state.hiddenCols.has(c.key);
   const colBox = c=> EDIT.on? `<input type="checkbox" class="colvis" data-col="${c.key}" ${hid(c)?'':'checked'} title="열 표시/숨김 (체크 해제 → 숨김)">` : '';
-  const filtBtn = c=> FILTER_COLS.includes(c.key)? `<button class="cf ${LF.col[c.key]?'on':''}" data-filter="${c.key}" title="${esc(c.label)} 열 필터">▼</button>` : '';
+  const filtBtn = c=> FILTER_COLS.includes(c.key)? `<button class="cf ${(LF.col[c.key] || (c.key==='shipping_calc' && LF.delayed))?'on':''}" data-filter="${c.key}" title="${esc(c.label)} 열 필터">▼</button>` : '';
   const rest = cols.filter(c=>c.key!=='commission_no');
   let h = `<table class="grid"><thead><tr class="fld"><th class="sticky" data-sort="commission_no" title="commission_no">Commission No</th>`;
   h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}" title="${c.key}">${esc(tx(c.label))}</th>`).join('') + '</tr>';
@@ -384,16 +393,19 @@ function openColFilter(btn, key){
     }
     if(!list.childElementCount) list.append(mk('div', {class:'muted small'}, tx('일치하는 값이 없습니다.'))); };
   search.oninput = draw; draw();
+  // 10/30 재검토 1단계: Shipping Calc 열 필터 맨 위 '경과 배지 행만' (연·월 체크와 AND · LF.delayed · '적용' 때 반영)
+  const delayedCb = key==='shipping_calc'? mk('input', {type:'checkbox', checked: LF.delayed||null}) : null;
+  const delayedRow = delayedCb? mk('label', {class:'cf-delayed', title:tx('Shipping Calc 경과 배지가 있는 행만 표시 (선적 전·후 모두) · 리드타임 재검토 후보')}, delayedCb, mk('span', null, tx('경과 배지 행만')), mk('span', {class:'muted small'}, num(VEHICLES.filter(x=>shipDelayDays(x)>0).length))) : null;
   const pop = mk('div', {class:'colfilter', id:'colfilter'},
     mk('div', {class:'cf-h'}, mk('b', null, tx('{c} 열 필터', {c:tx(c.label)})), mk('button', {class:'x', title:'닫기', onclick: closeColFilter}, '×')),
-    search,
+    delayedRow, search,
     mk('div', {class:'cf-tools'},
       mk('button', {class:'btn sm', onclick:()=>{ shown().forEach(x=>checked.add(x)); draw(); }}, tx('표시된 값 전체 선택')),
       mk('button', {class:'btn sm', onclick:()=>{ shown().forEach(x=>checked.delete(x)); draw(); }}, tx('표시된 값 해제'))),
     list,
     mk('div', {class:'cf-foot'},
-      mk('button', {class:'btn sm', onclick:()=>{ delete LF.col[key]; LF.page=1; closeColFilter(); renderGrid(); }}, tx('필터 해제')),
-      mk('button', {class:'btn sm primary', onclick:()=>{ if(checked.size>=vals.length) delete LF.col[key]; else LF.col[key]=new Set(checked); LF.page=1; closeColFilter(); renderGrid(); }}, tx('적용'))));
+      mk('button', {class:'btn sm', onclick:()=>{ delete LF.col[key]; if(delayedCb) LF.delayed=false; LF.page=1; closeColFilter(); renderGrid(); }}, tx('필터 해제')),
+      mk('button', {class:'btn sm primary', onclick:()=>{ if(checked.size>=vals.length) delete LF.col[key]; else LF.col[key]=new Set(checked); if(delayedCb) LF.delayed = delayedCb.checked; LF.page=1; closeColFilter(); renderGrid(); }}, tx('적용'))));
   const r = btn.getBoundingClientRect();
   pop.style.top = (r.bottom+4)+'px'; pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth-296))+'px';
   document.body.append(pop); search.focus();

@@ -97,18 +97,29 @@ function cuRequestList(onRow){
     mk('tbody', null, rows)));
 }
 // 메일 템플릿 (10/29, 시연은 토스트 · 실제 구현은 Graph sendMail · 본문은 발송 언어인 한국어 고정): kind 'request' = 신청 메일(Sales → Ordering & Logistics Editor) · 'result' = 처리 메일(물류 → 신청자, res = Store.customsRequests.process 반환값)
-// 반환 {subject, to:[upn], body:[줄…]}. 신청 메일 본문에는 차량 표·메모를 넣지 않는다(Commission No 목록만)
+// 반환 {subject, to:[upn], body:[줄…]}. 신청 메일 본문 = 신청번호 · 신청일시 · 건수 세 줄만 (10/30, 차량 표·Commission No·메모 없음)
 function cuMail(kind, r, res){
   const upn = name=>{ const u = USERS.find(x=>x.name===name); return u? u.upn : name; };
   if(kind==='request'){
     const to = USERS.filter(u=>u.role==='Editor' && u.dept==='Ordering & Logistics').map(u=>u.upn);
-    return {subject:`[Logistics Hub] ${r.id} 통관 신청 — ${r.n}대 · ${r.requested_by}${r.dept? '('+r.dept+')' : ''}`, to,
-      body:[`신청번호: ${r.id}`, `신청자: ${r.requested_by}${r.dept? ' · '+r.dept : ''}`, `신청일시: ${r.requested_at}`, `건수: ${r.n}`, `Commission No: ${reqComms(r).join(' · ')}`, '처리: Logistics Hub › Logistics › 수입 통관 신청 › 신청 접수']};
+    return {subject:`[Logistics Hub] ${r.id} 통관 신청 — ${r.n}대`, to,
+      body:[`신청번호: ${r.id}`, `신청일시: ${r.requested_at}`, `건수: ${r.n}`]};
   }
   const lines = res.accepted.map(c=>`${c} · 접수`).concat(res.rejected.map(x=>`${x.comm} · 거절 — ${x.reason}`));
   return {subject:`[Logistics Hub] ${r.id} 통관 신청 처리 — 접수 ${res.accepted.length} · 거절 ${res.rejected.length}`, to:[upn(r.requested_by)], body:lines};
 }
-// 신청 확인 모달: 신청자 · 수신(Ordering & Logistics Editor) · 선택 차량 표(클릭 없음 — Drawer가 모달 위로 열리지 않도록) → Store.customsRequests.add → 메일 발송 토스트(시연, 제목·본문 = cuMail)
+// 메일 미리보기 모달 (10/30): 신청·처리 직후 발송되는 메일(cuMail 반환값)을 제목·수신·본문 그대로 보여준다(시연 · 실제 구현은 Graph sendMail 자동 발송). head = 모달 위 안내 한 줄
+function openMailPreview(m, head){
+  const f = (k, v, wide)=> mk('div', {class:'f'+(wide? ' wide' : '')}, mk('div', {class:'k'}, tx(k)), mk('div', {class:'v'}, v));
+  openModal(tx('발송 메일 미리보기'), '', ' ');
+  el('modal-body').replaceChildren(
+    mk('div', {class:'callout'}, head),
+    mk('div', {class:'fields'}, f('제목', m.subject, true), f('수신', m.to.join(', '), true),
+      f('본문', mk('div', {class:'mail-body'}, m.body.map(line=>mk('div', null, line))), true)),
+    mk('div', {class:'muted small', style:'margin-top:8px'}, tx('실제 구현에서는 Graph sendMail로 자동 발송됩니다 (목업은 미리보기만)')));
+  el('modal-foot').replaceChildren(mk('button', {class:'btn', onclick:closeModal}, tx('닫기')));
+}
+// 신청 확인 모달: 신청자 · 수신(Ordering & Logistics Editor) · 선택 차량 표(클릭 없음 — Drawer가 모달 위로 열리지 않도록) → Store.customsRequests.add → 메일 미리보기 모달 + 저장 토스트(시연, 제목·본문 = cuMail)
 function openCuRequestConfirm(comms){
   const vs = comms.map(c=>VEHICLE_BY_COMM[c]).filter(Boolean); if(!vs.length) return;
   const me = USERS.find(u=>u.name===state.user), to = USERS.filter(u=>u.role==='Editor' && u.dept==='Ordering & Logistics');
@@ -126,8 +137,8 @@ function openCuRequestConfirm(comms){
   el('modal-foot').replaceChildren(
     mk('button', {class:'btn', onclick:closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick:()=>{ const r = Store.customsRequests.add(vs.map(v=>v.commission_no), state.user); closeModal(); const m = cuMail('request', r.req);
-      toast(`통관 신청 ${num(r.req.n)}건 · 물류 담당자에게 메일 발송`, `제목: ${m.subject} · 수신: ${m.to.join(', ')} · 본문: ${m.body.join(' / ')} · Customs_Requests 저장 · Audit_Log 기록 (실제 구현: Graph sendMail)`);
-      renderLogiBody(); }}, tx('신청 ({n}건)', {n:num(vs.length)})));
+      toast(`통관 신청 ${num(r.req.n)}건 · 물류 담당자에게 메일 발송`, `신청번호 ${r.req.id} · Customs_Requests 저장 · Audit_Log 기록`);
+      renderLogiBody(); openMailPreview(m, tx('통관 신청 {id} 등록 · 물류 담당자에게 아래 메일이 발송됩니다.', {id:r.req.id})); }}, tx('신청 ({n}건)', {n:num(vs.length)})));
 }
 // Editor·Viewer 화면 (10/27 #12 처리 프로세스): 신청 접수 목록(최신순) → 행 클릭 → 아래 조회 목록에 그 신청의 Commission No가 조회되고, 행별로 접수/거절(사유)을 고른 뒤 '처리 제출'.
 // 조회창을 직접 고치면 처리 모드가 풀리고 기존 Commission No 조회로 돌아간다
@@ -169,8 +180,8 @@ function cuReviewPanel(r, found){
     if(noReason.length){ toast('거절 사유를 입력하세요.', `${noReason.map(d=>d.comm).join(', ')} — 거절 건은 사유가 필수이며 신청자에게 메일로 전달됩니다.`); return; }
     const res = Store.customsRequests.process(r.id, dec, state.user); CU.dec = {}; const m = cuMail('result', r, res);
     toast(`통관 신청 처리 · ${r.id} · 접수 ${num(res.accepted.length)}건 · 거절 ${num(res.rejected.length)}건`,
-      `신청자 ${res.to}(${m.to.join(', ')})에게 메일 발송 — 제목: ${m.subject} · 본문: ${m.body.join(' / ')} · Customs_Requests 갱신 · Audit_Log 기록 (실제 구현: Graph sendMail)`); // 10/27 #13 · 10/29 접수·거절 모두 메일
-    renderLogiBody(); }; // procId 유지 → 조회창 자동 재조회로 처리 결과가 같은 표에 표시
+      `신청자 ${res.to}에게 메일 발송 · Customs_Requests 갱신 · Audit_Log 기록`); // 10/27 #13 · 10/29 접수·거절 모두 메일 · 10/30 메일 본문은 미리보기 모달
+    renderLogiBody(); openMailPreview(m, tx('처리 결과가 신청자 {who}에게 아래 메일로 발송됩니다.', {who:res.to})); }; // procId 유지 → 조회창 자동 재조회로 처리 결과가 같은 표에 표시
   sync();
   return mk('div', null,
     mk('div', {class:'cu-proc'},

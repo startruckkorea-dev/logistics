@@ -379,6 +379,7 @@ body.viewer .viewer-only{display:inline}
 .grid mark{background:#ffe766;color:inherit;padding:0;border-radius:2px}
 .colfilter .cf-list label.yr{font-weight:600}
 .colfilter .cf-list label.mo{padding-left:22px}
+.colfilter .cf-delayed{display:flex;gap:6px;align-items:center;padding:4px 0 6px;border-bottom:1px dashed var(--line);margin-bottom:6px;cursor:pointer} /* 10/30: Shipping Calc 열 필터 '경과 배지 행만' */
 .stage-box .ic{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:52px;height:52px;color:var(--c,#999);opacity:.9} /* 10/19 No.4: 약 2배 확대 */
 .stage-box{padding-right:70px}
 .stage-box .n{padding-right:0}
@@ -405,6 +406,8 @@ body.viewer .viewer-only{display:inline}
 .cu-dec{margin-right:10px;white-space:nowrap;cursor:pointer}
 .cu-reason{width:220px;border:1px solid var(--line-strong);border-radius:6px;padding:4px 6px;font:inherit}
 .cu-reason:disabled{background:var(--soft);color:var(--muted)}
+/* 10/30: 메일 미리보기 모달 본문 — 줄 단위 표시 */
+.mail-body{white-space:pre-wrap;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:10px 12px;line-height:1.6;font-size:13px}
 /* 10/28: Update Customs Clearance Info 미리보기 — 반영되는 차량 마스터 열(Customs Clearance Date · Import License) 음영 */
 .tbl th.cu-apply,.tbl td.cu-apply{background:var(--accent-soft)}
 .tbl td.cu-set{font-weight:700;color:var(--accent)} /* 반영 결과 화면에서 새로 들어간 값 */

@@ -116,6 +116,7 @@ const I18N = {
   // 차량 상세 Drawer
   '파생·상태':'Derived · Status', '저장하지 않고 계산':'Calculated, not stored', '(VIN 10번째 자리)':'(VIN 10th digit)', 'AFAB 금일 존재':'In AFAB Today',
   '있음':'Yes', '없음 — 확인 필요':'No — check', '해당 없음':'N/A', '(자동 판정)':'(Auto)', 'override 시 사유 필수':'Reason required for override',
+  'Order Note 토글 저장':'Order Note toggle saved', '{comm} · {val} · Vehicle_History 기록 (출처: 입력)':'{comm} · {val} · Vehicle_History recorded (source: Input)', 'On = 검토가 필요한 오더 · 토글 즉시 저장 + 변경 이력 기록':'On = order needs review · saved immediately + change history', // 10/30 리뷰 #7
   '변경 이력':'Change History', 'Vehicle_History · 필드 단위 before/after':'Vehicle_History · field-level before/after', '미부여':'not assigned', '수정':'Modified',
   '상태 override':'Status override', '취소 처리':'Cancel Vehicle', '이력 전체':'Full History', '마일스톤 타임라인':'Milestone Timeline',
   // 대시보드
@@ -307,10 +308,12 @@ function openVehicle(comm){
     const val = v[c.key];
     let inner;
     if(c.key==='current_status') inner = stagePill(val);
+    else if(c.key==='order_note') inner = editable? '<textarea rows="6" data-f="order_note"></textarea>' : ''; // 10/30 리뷰 #7: 6줄 칸 · 값은 openDrawer 뒤 DOM에서 대입(규칙 2) · Viewer는 .v.note 텍스트
     else if(srcEditable(c.src) && editable) inner = `<input value="${esc(val)}" data-f="${c.key}" placeholder="${c.key.includes('date')?'YYYY-MM-DD': c.key==='sales_month'?'YYYY-MM':''}">`;
     else if(editable) inner = `<input value="${esc(c.num?num(val):val)}" readonly title="${esc((SRC_BADGE[c.src]||{}).tip||'')}">`;
     else inner = `<span>${esc(c.num?num(val):val)||'<span class="muted">—</span>'}</span>`;
-    return `<div class="f ${c.memo?'wide':''}"><div class="k">${esc(tx(c.label))} ${srcBadge(c.src, c.keyin)}${srcEditable(c.src)?'':'<span class="lock">🔒</span>'}</div><div class="v">${inner}</div></div>`;
+    const isNote = c.key==='order_note';
+    return `<div class="f ${c.memo?'wide':''}"><div class="k">${esc(tx(c.label))} ${srcBadge(c.src, c.keyin)}${srcEditable(c.src)?'':'<span class="lock">🔒</span>'}${isNote?'<span class="sw-slot"></span>':''}</div><div class="v${isNote&&!editable?' note':''}">${inner}</div></div>`; // 10/30 리뷰 #7: sw-slot = On/Off 스위치 자리
   };
   const groups = GROUPS.map(g=>`<div class="card"><div class="card-h"><h2>${tx(g)}</h2></div><div class="fields">${COLUMNS.filter(c=>c.group===g).map(field).join('')}</div></div>`).join('');
   const extra = `<div class="card"><div class="card-h"><h2>${tx('파생·상태')}</h2><span class="desc">${tx('저장하지 않고 계산')}</span></div><div class="fields">
@@ -337,6 +340,24 @@ function openVehicle(comm){
       <button class="btn sm" onclick="describe('이력 보기', 'Vehicle_History 전체를 마스터·설정 > 변경 이력에서 Comm 필터로 조회합니다.')">${tx('이력 전체')}</button>
     </div></div>`;
   openDrawer(head, `<div class="card"><div class="card-h"><h2>${tx('마일스톤 타임라인')}</h2>${note('L6')}</div><div class="timeline">${tl}</div></div>${groups}${extra}${histHtml}`);
+  // 10/30 리뷰 #7: Order Note 값 대입(규칙 2: innerHTML 대신 DOM) + On/Off 스위치 삽입
+  const body = el('drawer-body');
+  const ta = q('textarea[data-f="order_note"]', body); if(ta) ta.value = v.order_note||'';
+  const nt = q('.v.note', body); if(nt){ if(v.order_note) nt.textContent = v.order_note; else nt.replaceChildren(mk('span', {class:'muted'}, '—')); }
+  const slot = q('.sw-slot', body); if(slot) slot.replaceWith(orderNoteSwitch(v, body));
+}
+// Order Note On/Off 스위치 (10/30 리뷰 #7): On = 검토가 필요한 오더. Editor만 조작(그 외 비활성·상태만 표시), 바꾸면 즉시 저장(Store.vehicles.setOrderNoteFlag) + Vehicle_History 기록 + 드로어 '변경 이력' 표 맨 위에 행 추가
+function orderNoteSwitch(v, body){
+  const txt = mk('span', {class:'sw-txt'}, v.order_note_flag?'On':'Off');
+  const input = mk('input', {type:'checkbox', checked: v.order_note_flag||null, disabled: isEditor()?null:true, onchange: e=>{
+    const row = Store.vehicles.setOrderNoteFlag(v.commission_no, e.target.checked, state.user);
+    txt.textContent = v.order_note_flag?'On':'Off';
+    if(!row) return;
+    const tb = q('.tbl tbody', body);
+    if(tb) tb.prepend(mk('tr', null, mk('td', {class:'mono'}, row.changed_at), mk('td', {class:'mono'}, row.field), mk('td', {class:'muted'}, row.old_value), mk('td', null, mk('b', null, row.new_value)), mk('td', null, row.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, row.source))));
+    toast(tx('Order Note 토글 저장'), tx('{comm} · {val} · Vehicle_History 기록 (출처: 입력)', {comm:v.commission_no, val:row.new_value}));
+  }});
+  return mk('label', {class:'sw', title: tx('On = 검토가 필요한 오더 · 토글 즉시 저장 + 변경 이력 기록')}, input, mk('span', {class:'sw-track'}), txt);
 }
 
 // ---- SVG 세로 막대 차트 (그룹 막대, 기준월 이후 음영) ----

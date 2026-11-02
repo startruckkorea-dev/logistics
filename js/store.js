@@ -22,6 +22,14 @@ const Store = {
       return v;
     },
     updateMany(comms, patch){ return comms.map(c=>Store.vehicles.update(c, patch)).filter(Boolean); },
+    // Order Note On/Off 토글 (10/30 리뷰 #7): 검토가 필요한 오더 표시. 상세 Drawer에서 토글 즉시 저장 + Vehicle_History 기록(출처 '입력'). 값이 같으면 null, 기록한 이력 행을 반환
+    setOrderNoteFlag(comm, on, by){
+      const v = VEHICLE_BY_COMM[comm]; if(!v) return null;
+      const nw = !!on; if(!!v.order_note_flag === nw) return null;
+      Store.vehicles.update(comm, {order_note_flag: nw});
+      const row = {commission_no:comm, field:'order_note_flag', old_value: nw?'Off':'On', new_value: nw?'On':'Off', changed_by:by, changed_at:nowStamp(), source:'입력'};
+      Store.history.add([row]); return row;
+    },
     // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
     modelMasterPatch(m){
       const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead, lead_days:m.lead_days, // series = 차량 마스터 'Model' 열 (10/19 No.16)
@@ -44,7 +52,7 @@ const Store = {
       const v = { commission_no:o.commission_no, current_status:o.status, status_override:'', status_reason:'', model_year:o.model_year, vin_no:'',
         changeability_date:'', pm:'', original_pm:o.pm, tdd_calc:'', production_done:'', dispatch:'', shipping:'', invoice:'', planned_arrival:'', eta_from_tdd:'', eta_from_eukor_pirt:'', ata:'', tsc_arrival_date:'', // 10/20 No.22: 입력받는 생산월은 Original PM에만 기록, PM은 공란(AFAB 확정 후 채움)
         bl_no:'', vessel:'', customs_clearance_date:'', color_code:'', color_name:'', tires:'', model_in_afab:o.m.type_desc, engine_no:'', import_license:'', ref_commission_no:'',
-        option_remarks:'', order_note:'', b1_factory_order:'', sales_month:'', sub_cat: o.m.vehicle==='Tipper'?'KIP':(o.m.vehicle==='Tractor'?'SZM':'LKW'), co:'', afab_editable:'', create_order_date:TODAY_S, // 10/20 No.14 co · No.10 시스템 오더 등록일
+        option_remarks:'', order_note:'', order_note_flag:false, b1_factory_order:'', sales_month:'', sub_cat: o.m.vehicle==='Tipper'?'KIP':(o.m.vehicle==='Tractor'?'SZM':'LKW'), co:'', afab_editable:'', create_order_date:TODAY_S, // 10/20 No.14 co · No.10 시스템 오더 등록일
         eta_month:'', tdd_month:'', shipping_month:'', in_afab_today:false, order_class:'—', changeability_dday:null,
         modified:TODAY_S, modified_by:o.by };
       Object.assign(v, Store.vehicles.modelMasterPatch(o.m));

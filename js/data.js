@@ -82,7 +82,7 @@ function makeVehicle(p, m){
   const s=p.stage;
   const v={ current_status:s, status_override:'', status_reason:'', vehicle:m.vehicle, gen:m.gen, model:m.model, axle:m.axle, cab:m.cab, option:m.option,
     baumuster:m.prefix+' '+m.suffix, model_in_afab:m.type_desc, lead_time:m.lead, lead_days:m.lead_days, color_code:pick(COLORS), sub_cat: m.vehicle==='Tipper'?'KIP':(m.vehicle==='Tractor'?'SZM':'LKW'),
-    vessel:'', bl_no:'', import_license:'', b1_factory_order:'', co:'', option_remarks:'', tires:'', order_note:'', tsc_arrival_date:'' }; // 10/20 No.14: fleet_co → co · 10/26 No.9: TSC Arrival Date (샘플은 전부 공란, 선적·입항 선박별 현황에서 입력)
+    vessel:'', bl_no:'', import_license:'', b1_factory_order:'', co:'', option_remarks:'', tires:'', order_note:'', order_note_flag:false, tsc_arrival_date:'' }; // 10/30 리뷰 #7: order_note_flag = Order Note On/Off 토글(검토 필요 오더) // 10/20 No.14: fleet_co → co · 10/26 No.9: TSC Arrival Date (샘플은 전부 공란, 선적·입항 선박별 현황에서 입력)
   let orderD=null, pm='', tdd=null, prodDone=null, exf=null, ship=null, inv=null, pl=null, etaC=null, etaF=null, cust=null, saleD=null, chg=null;
   const seaChain=()=>{ ship=addD(etaF,-ri(40,60)); pl=addD(etaF,-ri(0,6)); etaC=addD(pl,ri(-2,3)); inv=addD(ship,2); exf=addD(ship,-ri(5,15)); prodDone=addD(exf,-ri(1,4)); tdd=addD(prodDone,-ri(1,8)); pm=ymOf(tdd); orderD=addD(tdd,-ri(100,240)); v.vessel=pick(VESSEL_PAST); v.bl_no=(rnd()<0.5?'EUKO':'MOLU')+pick(['HAM','BRV'])+ymOf(ship).slice(2,4)+ymOf(ship).slice(5,7)+String(ri(100,999)); };
   if(s==='Sold'){ saleD=randDate('2025-01-01','2026-09-30'); etaF=addD(saleD,-ri(5,200)); cust=addD(etaF,ri(3,40)); if(cust>saleD) cust=addD(saleD,-1); seaChain(); }
@@ -181,6 +181,8 @@ const VEHICLE_BY_COMM = Object.fromEntries(VEHICLES.map(v=>[v.commission_no, v])
   VEHICLES.forEach(v=>{ if(v.current_status==='Cancelled' || v.planned_arrival || v.vessel || !v.eta_from_tdd || v.eta_from_tdd>=BASE_YM+'-01') return; v.eta_from_tdd = BASE_YM+'-01'; });
   // #7 Shipping Calc = PM 1일 + 모델 리드타임(일, PM~Shipping). 10/30: Current Status가 In Production이 되는 시점에 1회 작성하고 이후 수정 없음(Store stampShippingCalc) → 샘플은 In Production 이후 단계만 현재 PM 기준으로 심고 Ordered·Cancelled·Rejected는 공란
   VEHICLES.forEach(v=>{ v.shipping_calc = ['In Production','Shipment scheduled','In Transit','Bonded Stock','OH Stock','Sold'].includes(v.current_status) ? shippingCalc(v.pm, v.lead_days) : ''; });
+  // 10/30 리뷰 #7 Order Note 토글 샘플: Order Note가 있고 Sold·Cancelled·Rejected가 아닌 차량만 On (난수 미사용)
+  VEHICLES.forEach(v=>{ v.order_note_flag = !!v.order_note && !['Sold','Cancelled','Rejected'].includes(v.current_status); });
 })();
 
 // ---- 사용자 ----

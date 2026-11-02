@@ -201,6 +201,18 @@ body.drawer-open .drawer-bg{display:block}
 .fields .f input,.fields .f select{border:1px solid var(--line-strong);border-radius:6px;padding:3px 6px;width:100%;background:#fff}
 .fields .f input[readonly]{background:var(--soft);color:var(--muted);border-style:dashed}
 .fields .f.wide{grid-column:span 2}
+/* 10/30 리뷰 #7: 상세 Drawer Order Note 6줄 칸 + On/Off 스위치 */
+.fields .f textarea{border:1px solid var(--line-strong);border-radius:6px;padding:4px 6px;width:100%;background:#fff;resize:vertical;line-height:1.45}
+.fields .f .v.note{white-space:pre-wrap;line-height:1.45;min-height:calc(1.45em*6 + 8px);padding:4px 0}
+.sw{display:inline-flex;align-items:center;gap:5px;margin-left:auto;cursor:pointer;user-select:none}
+.sw input{position:absolute;opacity:0;width:0;height:0;margin:0}
+.sw-track{position:relative;width:32px;height:18px;border-radius:999px;background:#c9d1dc;transition:background .15s;flex:none}
+.sw-track::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+.sw input:checked~.sw-track{background:var(--accent)}
+.sw input:checked~.sw-track::after{left:16px}
+.sw input:disabled~.sw-track{opacity:.55}
+.sw:has(input:disabled){cursor:default}
+.sw-txt{font-size:11px;color:var(--muted);min-width:22px}
 @media(max-width:600px){.fields{grid-template-columns:1fr}.fields .f.wide{grid-column:span 1}}
 
 /* ---- Modal ---- */

@@ -61,7 +61,7 @@ const COLUMNS = [
   {key:'ref_commission_no', label:'Ref Commission No', group:'기본', src:'입력', keyin:true},
   {key:'option_remarks', label:'Option Note', group:'메모', src:'입력', keyin:true, memo:true},
   {key:'order_note', label:'Order Note', group:'메모', src:'입력', keyin:true, memo:true}, // 10/15 No.10: Option Note 다음 순서
-  {key:'create_order_date', label:'Create Order Date', group:'일정', src:'오더 생성'}, // 10/20 No.10: 시스템 오더 등록일 (AFAB Order Date와 별개 · 더미 오더 → 실제 오더 전환 이력)
+  {key:'order_update_date', label:'Order Update Date', group:'일정', src:'오더 생성'}, // 10/20 No.10: 시스템 오더 등록일 (AFAB Order Date와 별개) · 11/3 #4: Create Order Date → Order Update Date — 생성일 + 오더 변경 시 변경일(KUFRI 확정 후 Dummy→Changeable 전환일 · Changeable 모델 변경일)로 갱신
   {key:'b1_factory_order', label:'B1 Factory Order', group:'선적', src:'입력', keyin:true},
   {key:'co', label:'C/O', group:'선적', src:'입력'}, // 10/20 No.14: Fleet C/O → C/O (fleet_co → co) · Sales Month 바로 앞
   {key:'sales_month', label:'Sales Month', group:'통관', src:'입력', keyin:true},
@@ -75,7 +75,7 @@ const COLUMNS = [
   {key:'baumuster', label:'Baumuster', group:'사양', src:'AFAB'},
 ];
 const GROUPS = ['기본','일정','선적','통관','사양','메모'];
-const DEFAULT_HIDDEN_COLS = ['original_pm']; // 사전 주석: 'Original PM'은 숨기기 기능으로 구현 (편집 모드 열 머리글 체크박스로 다시 표시 가능)
+const DEFAULT_HIDDEN_COLS = []; // 사전 주석: 'Original PM'은 숨기기 기능으로 구현 → 11/4: 오더 생성·변경이 Original PM을 쓰므로 기본 표시로 전환(편집 모드 열 머리글 체크박스로 숨길 수 있음)
 const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // 그리드 바로가기 버튼(이름 = 열 라벨) → 이동할 열 key. current_status는 맨 처음으로
 
 // 설계 노트 (목업 전용)
@@ -83,7 +83,7 @@ const NOTES = {
   G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. Sales = 대시보드·선적·입항·Logistics(Request 탭) 조회 + 통관 신청만. UI 한국어, 필드명은 기존 엑셀 영문',
   D1:'차량 주문·재고 흐름: 카드 6종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit, 하단에 당월 입항 예정 대수) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘(재고 카드 창고에 벤츠 스타 마크, 10/27 #3), Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 8개월만 표시, 나머지는 가로 스크롤(Y축 고정). 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외) · 단계 색 = Current Status 색', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)', D7:'당월 도착 예정: 선적·입항 월별 입항 예정 피벗의 당월 블록 (행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 열: 당월 입항 선박 + Total · 선박 입항월 = ATA → ETA 선사 → Pl. arrival) · 당월 입항 예정 카드와 동일 기준',
   L1:'탭 5개: Logistics(홈 그리드) · AFAB 업로드(10/29 상단 메뉴에서 이동) · 수입통관 신청(Sales 통관 신청 · 신청 접수 처리 · 통관 여부 조회 · 신청번호 Customs-YYYY-MM-DD-N · 신청/처리 시 메일 자동 발송) · 통관 완료 처리(템플릿 Excel 업로드로 통관일·수입필증번호 반영) · 보험 조회(Excel Export). 역할별 표시: Editor 전체 · Viewer Logistics만 · Sales 수입통관 신청만. 편집 중 저장 대기 값이 있으면 탭 전환 차단',
-  L2:'열 필터(Current Status 단계 순 10단계 + Cancelled · 모델 관련 Vehicle~Emission · 날짜 열 Changeability Date~Customs Clearance Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순) · Shipping Calc 열 필터의 경과 배지 행만 항목(10/30, 리드타임 재검토 후보)', L3:'Comm No. 기준 한 행에 전체 48열을 data-dictionary 순서로 표시(Shipping Calc = In Production 진입 시 PM 1일 + 리드타임(일)로 1회 작성, 10/27 #7·10/30 · 경과 배지 선적 전 빨강, 선적 후 회색으로 Shipping − Shipping Calc 고정 10/30 #8), Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가 · Current Status 업데이트(편집자 진입 시 하루 1회 자동 점검 팝업, 규칙 3·5·7, 제외 선택 후 즉시 반영, 배지로 재열기) · 엑셀 내보내기',
+  L2:'열 필터(Current Status 단계 순 10단계 + Cancelled · 모델 관련 Vehicle~Emission · 날짜 열 Changeability Date~Customs Clearance Date·Order Update Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순) · Shipping Calc 열 필터의 경과 배지 행만 항목(10/30, 리드타임 재검토 후보)', L3:'Comm No. 기준 한 행에 전체 48열을 data-dictionary 순서로 표시(Shipping Calc = In Production 진입 시 PM 1일 + 리드타임(일)로 1회 작성, 10/27 #7·10/30 · 경과 배지 선적 전 빨강, 선적 후 회색으로 Shipping − Shipping Calc 고정 10/30 #8), Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가 · Current Status 업데이트(편집자 진입 시 하루 1회 자동 점검 팝업, 규칙 3·5·7, 제외 선택 후 즉시 반영, 배지로 재열기) · 엑셀 내보내기',
   S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박 + 미배정 열 = Vessel 없이 ETA From TDD만 있는 오더, 10/27 #14)', S2:'선박별 현황(Vessel·단계·대수·B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC Arrival Date). 선박 단위 입력은 해당 선박 차량의 차량 마스터 열에 반영·Vehicle_History 기록. TSC 입고일은 예정(선박 단위) 저장 후 배지 클릭으로 확정 → 차량 마스터 반영 + In Transit → Bonded Stock. ETA 불일치 카드·탭·표시는 제외',
   K1:'상단 탭(TSC 재고 = Bonded + OH Stock 월말 마감 / 현재 및 미래 재고현황 = Ordered(Fixed) ~ OH Stock 현재 기준만, 10/27 #15 · 10/29 #7) → 기준월 선택(최근 5개월 월말 마감 + 현재) → TSC 재고: 요약 카드(Total Stock + 연식 MY24~28 대수·비율) · 현재 및 미래: 여정 지도(5구역 원 + 장소 띠·항구 세로선, 연식 구분 없음 · 10/29 #3) → 연식 범례 → 모델별 구역 현황(모델 × 5구역 연식 막대) → 상태 × 연식 히트맵 (10/29 #8~#10) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
@@ -151,7 +151,11 @@ const I18N = {
   '{col} 선택 {n}건에 적용 (저장 대기)':'{col}: applied to {n} selected (pending)', '{col} 붙여넣기 {n}칸 (저장 대기)':'{col}: pasted into {n} cells (pending)',
   "· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록":"· {n} pending → saved with history on 'End Edit'",
   '현재 BM':'Current BM', '현재 모델 분포':'Current Model Mix', '변경할 모델 (Model_Master) *':'New Model (Model_Master) *', '{k} {n}건':'{k} ({n})',
-  '오더 변경 — 모델·PM 일괄 변경':'Change Order — Bulk Model · PM Change', '현재 PM 분포':'Current PM Mix', '변경할 PM (생산월, 비우면 변경 없음)':'New PM (production month, blank = no change)', '변경':'Change', '예) B1-12345':'e.g. B1-12345',
+  '오더 변경 — 모델·PM 일괄 변경':'Change Order — Bulk Model · PM Change', '현재 PM 분포':'Current PM Mix', '변경할 PM (생산월, 비우면 변경 없음)':'New PM (production month, blank = no change)',
+  // 11/3 리뷰 #1~#4: 오더 생성 상태 2종 · 오더 변경 모델 매칭·Original PM·상태 전환 안내
+  '오더 변경 — 모델·Original PM 일괄 변경':'Change Order — Bulk Model · Original PM Change', '현재 Original PM 분포':'Current Original PM Mix', '변경할 Original PM (생산월, 비우면 변경 없음)':'New Original PM (production month, blank = no change)',
+  'Current Status가 Ordered(Changeable)로 변경(유지)됩니다':'Current Status will be set to (or kept as) Ordered(Changeable)', '선택 {n}건 중 {m}건은 Ordered(Dummy)·Ordered(Changeable)가 아니라 제외됩니다':'{m} of {n} selected are excluded (not Ordered(Dummy)·Ordered(Changeable))',
+  '주문제작 모델 오더도 Ordered(Changeable)로 입력합니다':'Custom-order model orders are also entered as Ordered(Changeable)', '변경':'Change', '예) B1-12345':'e.g. B1-12345',
   '값 검색 (예: 2853)':'Search values (e.g. 2853)', '연·월 검색 (예: 2026-11)':'Search year-month (e.g. 2026-11)', '값 검색':'Search values',
   '{y}년':'{y}', '{m}월':'{mon}', '일치하는 값이 없습니다.':'No matching values.', '{c} 열 필터':'{c} Column Filter',
   '표시된 값 전체 선택':'Select All Shown', '표시된 값 해제':'Clear Shown', '필터 해제':'Clear Filter',

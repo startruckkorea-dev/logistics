@@ -151,7 +151,7 @@ function makeVehicle(p, m){
   v.ref_commission_no = '';                                       // genVehicles에서 Commission No 부여 후 일부 채움
   // ---- 단계 분리: Ordered → Ordered(Dummy) 약 3% / Rejected 약 2% (가짜값) / 나머지는 Order 분류 규칙으로 Ordered(Fixed) · Ordered(Changeable) ----
   if(s==='Ordered'){ const x=rndX(); v.current_status = x<0.03 ? 'Ordered(Dummy)' : x<0.05 ? 'Rejected' : (v.order_class==='Fixed order' ? 'Ordered(Fixed)' : 'Ordered(Changeable)'); }
-  v.create_order_date = v.current_status==='Ordered(Dummy)' ? fmtD(orderD) : ''; // 10/20 No.10: 시스템 오더 등록일 — 샘플은 더미 오더(시스템에서 생성)만 채움, AFAB 오더는 공란 (가정)
+  v.order_update_date = v.current_status==='Ordered(Dummy)' ? fmtD(orderD) : ''; // 10/20 No.10: 시스템 오더 등록일(11/3 #4: Create Order Date → Order Update Date, 오더 변경 시 변경일로 갱신) — 샘플은 더미 오더(시스템에서 생성)만 채움, AFAB 오더는 공란 (가정)
   v._sort = orderD ? orderD.getTime() : 0;
   delete v._noafab; delete v._new;
   return v;
@@ -299,7 +299,7 @@ const AUDIT_LOG = [
 // ---- 상태 규칙 (10/20 No.13 별첨1 확정: 상태별 Source · 판정 규칙) — Factory Stock은 단계로 두지 않음(대시보드 카드 합계) · Rejected의 WB 필드는 차량 데이터 미생성 ----
 const STAGE_RULES = [
   {order:1, source:'Key-in', stage:'Ordered(Dummy)', cond:'오더 생성 시'},
-  {order:2, source:'Key-in', stage:'Ordered(Changeable)', cond:'KUFRI 확정 후'},
+  {order:2, source:'Key-in', stage:'Ordered(Changeable)', cond:'KUFRI 확정 후 오더 변경 시'}, // 11/4: Dummy→Changeable 전환은 Logistics 오더 변경 모달에서(Order Update Date 기록)
   {order:3, source:'AFAB', stage:'Ordered(Fixed)', cond:'Changeability Date 경과 시'},
   {order:4, source:'AFAB', stage:'Rejected', cond:'WB열 값이 R인 경우'},
   {order:5, source:'AFAB', stage:'In Production', cond:'생산월 도래 시'},

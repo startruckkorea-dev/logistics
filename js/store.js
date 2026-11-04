@@ -61,7 +61,7 @@ const Store = {
       const v = { commission_no:o.commission_no, current_status:o.status, status_override:'', status_reason:'', model_year:o.m.my||o.model_year, vin_no:'',
         changeability_date:'', pm:'', original_pm:o.pm, tdd_calc:'', production_done:'', dispatch:'', shipping:'', invoice:'', planned_arrival:'', eta_from_tdd:'', eta_from_eukor_pirt:'', ata:'', tsc_arrival_date:'', // 10/20 No.22: 입력받는 생산월은 Original PM에만 기록, PM은 공란(AFAB 확정 후 채움)
         bl_no:'', vessel:'', customs_clearance_date:'', color_code:'', color_name:'', tires:'', model_in_afab:o.m.type_desc, engine_no:'', import_license:'', ref_commission_no:'',
-        option_remarks:'', order_note:'', order_note_flag:false, b1_factory_order:'', sales_month:'', sub_cat: o.m.vehicle==='Tipper'?'KIP':(o.m.vehicle==='Tractor'?'SZM':'LKW'), co:'', afab_editable:'', create_order_date:TODAY_S, // 10/20 No.14 co · No.10 시스템 오더 등록일
+        option_remarks:'', order_note:'', order_note_flag:false, b1_factory_order:'', sales_month:'', sub_cat: o.m.vehicle==='Tipper'?'KIP':(o.m.vehicle==='Tractor'?'SZM':'LKW'), co:'', afab_editable:'', order_update_date:TODAY_S, // 10/20 No.14 co · No.10 시스템 오더 등록일 · 11/3 #4: Order Update Date(생성일, 오더 변경 시 변경일로 갱신)
         eta_month:'', tdd_month:'', shipping_month:'', in_afab_today:false, order_class:'—', changeability_dday:null,
         modified:TODAY_S, modified_by:o.by };
       Object.assign(v, Store.vehicles.modelMasterPatch(o.m));

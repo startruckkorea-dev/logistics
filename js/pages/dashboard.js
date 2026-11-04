@@ -85,7 +85,7 @@ PAGES.dashboard = {
       <div class="hbars">${byVeh.map(b=>hbar(b.t, b.segs, b.total, maxVeh)).join('')}</div>
       <div class="legend">${pipeStages.map(s=>`<span><span class="sw" style="background:${STAGE_COLOR[s]}"></span>${s}</span>`).join('')}</div></div>`;
 
-    // D7 당월 도착 예정 (10/20 No.16): 선적·입항 '월별 입항 예정' 피벗의 당월 블록 — 행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 당월 입항 선박(선적일 순) + Total · 값: 모델별 선박 선적 대수 · 표 높이는 옆 '입항 예정 선박' 카드에 맞추고 넘치면 세로 스크롤
+    // D7 당월 도착 예정 (10/20 No.16): 선적·입항 '월별 입항 예정' 피벗의 당월 블록 — 행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 열: 당월 입항 선박(선적일 순) + Total · 값: 모델별 선박 선적 대수 · 표 높이는 옆 '입항 예정 선박' 카드에 맞추고 넘치면 세로 스크롤
     // 10/27: 선적·입항 월별 입항 표 디자인 그대로 적용 — Model 열 고정 · 그룹 행(구분·차종)에도 열별 합계 · 0은 공란 (.pivot.fixcol) · 10/27 #1: 월 머리글 행 삭제 → 머리글 2줄(선박 / Grand Total 행, 고정)
     const cellN = (n, tot)=>{ const td = n? mk('td', {class:'num'}, num(n)) : mk('td', {class:'num'}); if(tot) td.classList.add('tot'); return td; };
     const arrCells = by=> [...curVoys.map(y=>cellN(by[y.vessel]||0)), cellN(curVoys.reduce((a,y)=>a+(by[y.vessel]||0),0), true)];

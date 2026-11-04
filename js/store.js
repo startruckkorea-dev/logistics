@@ -41,9 +41,9 @@ const Store = {
     },
     // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
     modelMasterPatch(m){
-      const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead, lead_days:m.lead_days, // series = 차량 마스터 'Model' 열 (10/19 No.16)
-        baumuster:m.prefix+' '+m.suffix, bm:m.prefix+'-'+m.code2 };
-      p.model_classification = [p.gen,p.model,p.axle,p.cab,p.option].filter(Boolean).join(' ');
+      const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, cab_gen:m.cab_gen, wheelbase:m.wheelbase, pto:m.pto, emission:m.emission, lead_time:m.lead, lead_days:m.lead_days, // series = 차량 마스터 'Model' 열 (10/19 No.16) · 11/4: option → cab_gen·wheelbase·pto·emission
+        baumuster:m.prefix+' '+m.suffix, bm:m.prefix+'-'+m.code2, model_year:m.my }; // 11/4: MY는 BM(Code2)에 묶임 → 모델 마스터 반영 시 차량 MY도 모델 값으로
+      p.model_classification = [p.gen,p.model,p.axle,p.cab,modelOptTag(p)].filter(Boolean).join(' ');
       p.dms_model_name = [p.vehicle,p.model,p.axle,p.cab].join(' ');
       p.model_key = [p.vehicle,p.model,p.axle,p.cab].join('|');
       return p;
@@ -57,8 +57,8 @@ const Store = {
     // 마지막 Commission No (숫자 기준 최댓값). 없으면 null.
     lastCommissionNo(){ return VEHICLES.reduce((a,v)=> (a==null || Number(v.commission_no)>Number(a))? v.commission_no : a, null); },
     // 수동 오더 생성용 차량 1행 (10/19 오더 생성 화면): Model_Master 속성 + 입력값(Original PM · 단계 · MY) · 나머지 필드는 공란
-    create(o){ // o: {commission_no, m(Model_Master 행), pm(Original PM), status, model_year, by}
-      const v = { commission_no:o.commission_no, current_status:o.status, status_override:'', status_reason:'', model_year:o.model_year, vin_no:'',
+    create(o){ // o: {commission_no, m(Model_Master 행), pm(Original PM), status, model_year, by} · 11/4: MY는 선택한 Model_Master 행의 my(모델 행이 연식별이므로 o.model_year는 보조값)
+      const v = { commission_no:o.commission_no, current_status:o.status, status_override:'', status_reason:'', model_year:o.m.my||o.model_year, vin_no:'',
         changeability_date:'', pm:'', original_pm:o.pm, tdd_calc:'', production_done:'', dispatch:'', shipping:'', invoice:'', planned_arrival:'', eta_from_tdd:'', eta_from_eukor_pirt:'', ata:'', tsc_arrival_date:'', // 10/20 No.22: 입력받는 생산월은 Original PM에만 기록, PM은 공란(AFAB 확정 후 채움)
         bl_no:'', vessel:'', customs_clearance_date:'', color_code:'', color_name:'', tires:'', model_in_afab:o.m.type_desc, engine_no:'', import_license:'', ref_commission_no:'',
         option_remarks:'', order_note:'', order_note_flag:false, b1_factory_order:'', sales_month:'', sub_cat: o.m.vehicle==='Tipper'?'KIP':(o.m.vehicle==='Tractor'?'SZM':'LKW'), co:'', afab_editable:'', create_order_date:TODAY_S, // 10/20 No.14 co · No.10 시스템 오더 등록일
@@ -175,6 +175,28 @@ const Store = {
       if(accepted.length || rejected.length) AUDIT_LOG.unshift({at, user:by, action:'통관 신청 처리', target:'Customs_Requests '+reqId,
         detail:[accepted.length? `접수 ${accepted.length}건 (${accepted.join(', ')})` : '', rejected.length? `거절 ${rejected.length}건 (${rejected.map(x=>x.comm+': '+x.reason).join(' / ')})` : '', `메일 수신 ${req.requested_by}`].filter(Boolean).join(' · ')});
       return {req, accepted, rejected, to:req.requested_by};
+    },
+  },
+  modelMaster: {
+    // BM = Baumuster Code1 - Code2 (모델 마스터 행과 차량의 연결 키, 11/4 사용자 확정)
+    bmOf(m){ return m.prefix+'-'+m.code2; },
+    // 주문제작 모델 추가 (11/3 #10): row = 입력 필드(prefix·code2·my·suffix·type_desc·gen·vehicle·series·model·axle·cab·cab_gen·wheelbase·pto·emission·lead·lead_days·active). BM 중복이면 null.
+    // custom:true 고정 · w:0(샘플 생성 가중치 없음) → MODEL_MASTER 끝에 추가 + Audit_Log 1건. 반환 추가한 행
+    add(row, by){
+      const bm = Store.modelMaster.bmOf(row); if(MODEL_MASTER.some(m=>Store.modelMaster.bmOf(m)===bm)) return null;
+      const m = Object.assign({}, row, {custom:true, w:0}); MODEL_MASTER.push(m);
+      AUDIT_LOG.unshift({at:nowStamp(), user:by, action:'모델 추가', target:'Model_Master '+bm, detail:`주문제작 · ${m.type_desc} (${[m.vehicle,m.series,m.model,m.axle,m.cab,modelOptTag(m)].filter(Boolean).join(' ')}) · 리드타임 ${m.lead_days}일 / ${m.lead}개월`});
+      return m;
+    },
+    // 모델 마스터 수정 저장 (11/3 #10·#11): changes = [{m: MODEL_MASTER 행, patch}] · 기본 모델은 code2·lead·lead_days만, 주문제작은 전 필드.
+    // 행마다 수정 전 BM과 같은 차량(v.bm)에 모델 속성 재적용(Store.vehicles.applyModelMaster → bm·baumuster·모델 속성·MY·리드타임·파생 모델명). Vehicle_History 없음 · Audit_Log 1건. 반환 {models, vehicles}
+    update(changes, by){
+      let vehicles = 0; const bms = [];
+      changes.forEach(({m, patch})=>{ const oldBm = Store.modelMaster.bmOf(m); Object.assign(m, patch);
+        VEHICLES.filter(v=>v.bm===oldBm).forEach(v=>{ Store.vehicles.applyModelMaster(v.commission_no, m); vehicles++; });
+        bms.push(oldBm===Store.modelMaster.bmOf(m)? oldBm : `${oldBm} → ${Store.modelMaster.bmOf(m)}`); });
+      if(changes.length) AUDIT_LOG.unshift({at:nowStamp(), user:by, action:'모델 마스터 수정', target:'Model_Master', detail:`모델 ${changes.length}건 · 차량 ${vehicles}대 반영 (BM 기준) · ${bms.join(', ')}`});
+      return {models:changes.length, vehicles};
     },
   },
 };

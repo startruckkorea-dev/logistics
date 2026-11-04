@@ -4,7 +4,7 @@
 const CU = { text:{req:'', ins:''}, upload:null, applied:null, procId:null, dec:{} }; // text: 탭별 Commission No 입력값(탭 전환 후 복귀 시 유지) · upload: Excel 업로드 미리보기 행(null = 미선택) · applied: 반영 결과(applyCustoms 반환, 10/28 반영 결과 화면) · procId/dec: 처리 중인 신청 ID와 행별 접수/거절 선택 {comm:{status, reason}} (10/27 #12)
 window.addEventListener('hashchange', ()=>{ CU.upload=null; CU.applied=null; CU.procId=null; CU.dec={}; });
 // 머리글 라벨은 COLUMNS(keyinLabel): series=Model · model=Type · model_year=MY · option_remarks=Option Note · 10/27: 열 순서 확정(BM·PM·Vehicle 추가, Gen 삭제)
-const CU_REQ_COLS = ['commission_no','current_status','customs_clearance_date','model_year','bm','vin_no','bl_no','vehicle','series','model','axle','cab','option','pm','ata','vessel','option_remarks'];
+const CU_REQ_COLS = ['commission_no','current_status','customs_clearance_date','model_year','bm','vin_no','bl_no','vehicle','series','model','axle','cab','cab_gen','wheelbase','pto','emission','pm','ata','vessel','option_remarks']; // 11/4: option → 4열
 const CU_INS_COLS = ['commission_no','current_status','model','axle','cab','pm','vin_no','bl_no','vessel','dispatch','shipping','ata','tsc_arrival_date']; // 10/27: Cab 다음 PM
 const CU_MONO = new Set(['commission_no','vin_no','bl_no','bm','pm','customs_clearance_date','ata','dispatch','shipping','tsc_arrival_date','import_license']);
 

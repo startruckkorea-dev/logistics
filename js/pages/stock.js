@@ -53,7 +53,7 @@ PAGES.stock = {
       const body = rows.map(r=>mk('div', {class:'r '+r.cls}, mk('div', {class:'lbl', title:r.label}, r.label), ZONES.map(z=>{ const vs=zoneVs(r.vs,z), n=vs.length, cell=mk('div', {class:'cell'});
         if(n){ const m = miniStackEl(`${r.label} · ${z.name}`, vs); m.style.width = (n/(r.cls==='m'?maxM:maxG)*80).toFixed(1)+'%'; cell.append(m, mk('span', {class:'n num'}, num(n))); } return cell; })));
       const wrap = mk('div', {class:'cfs3'}, portsRowEl(ports), mk('div', {class:'cfs3body'}, band, head, body, vlinesEl(ports)));
-      return mk('div', {class:'card'}, mk('div', {class:'card-h'}, mk('h2', null, tx('모델별 구역 현황')), mk('span', {class:'desc'}, tx('행 = 구분 > 차종 > 모델(Vehicle Series Model Axle Cab Option) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)'))), wrap);
+      return mk('div', {class:'card'}, mk('div', {class:'card-h'}, mk('h2', null, tx('모델별 구역 현황')), mk('span', {class:'desc'}, tx('행 = 구분 > 차종 > 모델(Vehicle Series Model Axle Cab 비표준 옵션) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)'))), wrap);
     };
 
     // ---- B2 상태 × 연식 히트맵 (10/29 #8, 6상태 그대로): 선적·입항 표와 같은 뼈대(.pivot.fixcol) · 머리글 3줄(장소 / 상태 / 연식 + Total) + Grand Total 행 · 모델 행 셀 = 상태 색 농도 ----
@@ -99,8 +99,8 @@ PAGES.stock = {
       const maxV = Math.max(1,...byVeh.map(x=>x.vs.length)); hbar._grand=total;
       const byVehicle = `<div class="card"><div class="section-h" style="margin-top:0">By Vehicle ${note('K2')}<span class="sub">${tx('차종별 · 막대 길이 = 대수 · 우측 대수·비율')}</span></div><div class="hbars">${byVeh.map(x=>hbar(x.t, segsOf(x.vs), x.vs.length, maxV)).join('')}</div></div>`;
       // By Model (차종 섹션 안 모델별)
-      const modelName = v=>[v.gen,v.model,v.axle,v.cab,v.option].filter(Boolean).join(' · ');
-      const byModel = `<div class="card"><div class="section-h" style="margin-top:0">By Model<span class="sub">${tx('차종 섹션 안 모델별 · 모델명 = Gen · Model · Type · Cab · Option')}</span></div>
+      const modelName = v=>[v.gen,v.model,v.axle,v.cab,modelOptTag(v)].filter(Boolean).join(' · '); // 11/4: Option 대신 비표준 옵션만
+      const byModel = `<div class="card"><div class="section-h" style="margin-top:0">By Model<span class="sub">${tx('차종 섹션 안 모델별 · 모델명 = Gen · Model · Type · Cab · 비표준 옵션')}</span></div>
         ${byVeh.map(x=>{ const groups = Object.values(x.vs.reduce((a,v)=>{ const k=modelName(v); (a[k]=a[k]||{k,vs:[]}).vs.push(v); return a; },{})).sort((a,b)=>b.vs.length-a.vs.length);
           return `<div class="section-h">${x.t}<span class="sub">${tx('{n}대', {n:num(x.vs.length)})} · ${pct(x.vs.length,total)}</span></div><div class="hbars">${groups.map(g=>hbar(g.k, segsOf(g.vs), g.vs.length, maxV, 'model')).join('')}</div>`; }).join('')}</div>`;
       // 10/29 #8: 현재 및 미래 탭 = 기준 문구 → 여정 지도 → 연식 범례 → 모델별 구역 현황 → 히트맵(cfsSlot·cfsSlot2에 DOM으로 삽입) → By Vehicle → By Model (10/29 #3: 여정 지도에 연식 구분이 없어져 범례를 모델별 구역 현황 바로 위로)

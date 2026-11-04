@@ -18,7 +18,7 @@ PAGES.shipping = {
     // 월별 입항 예정: 엑셀 'Arrival Schedule' 피벗 구조 (행: 구분 > 차종 > 모델 / 열: 월 > 선박, 월 Total, Grand Total / 값: 선박별 선적 대수)
     // 기간 (10/22): 'rest' = 이번달~연말, 'year' = 올해 1~12월 · 당월 이전 달은 입항 실적(ATA) · 선박 없는 달도 Total 열 유지(값 없으면 공란)
     const year = BASE_YM.slice(0,4); const range = { from: SH.range==='year'? year+'-01' : BASE_YM, to: year+'-12' };
-    const sched = arrivalSchedule(null, range, {unassigned:true}); const {yms, voyByYm} = sched; // 10/27 #14: 미배정 열(Vessel 없이 ETA From TDD만 있는 오더)은 선적·입항 표에서만 // 10/20: 집계·정렬은 data.js arrivalSchedule() 공용 (대시보드 당월 도착 예정과 동일 규칙) · 모델 행 = Vehicle · Model · Type · Axle · Cab · Option
+    const sched = arrivalSchedule(null, range, {unassigned:true}); const {yms, voyByYm} = sched; // 10/27 #14: 미배정 열(Vessel 없이 ETA From TDD만 있는 오더)은 선적·입항 표에서만 // 10/20: 집계·정렬은 data.js arrivalSchedule() 공용 (대시보드 당월 도착 예정과 동일 규칙) · 모델 행 = Vehicle · Model · Type · Axle · Cab · 비표준 옵션(11/4)
     const kOf = y=> y.key||y.vessel; // 열 key: 항차 = 선박명, 입항 실적 = 'YYYY-MM|선박명'
     const cur = k=> (SH.range==='year' && k===BASE_YM)? ' cur' : ''; // 당월 열 강조는 올해 전체 보기에서만 (10/22)
     const shown = k=> (SH.range!=='year' || k===BASE_YM || SH.open.has(k))? voyByYm[k] : []; // 올해 전체: 당월 외 월은 기본 Total만, 머리글 클릭으로 선박 열 펼침 (10/22)
@@ -53,7 +53,7 @@ PAGES.shipping = {
       g.vehicles.forEach(t=>{ bodyRows.push(mk('tr', {class:'g2'}, mk('td', null, t.vehicle), valueCells({by:sumBy(t.rows)}, false)));
         t.rows.forEach(r=>bodyRows.push(mk('tr', null, mk('td', {class:'model'}, r.label), valueCells(r, false)))); }); });
     const monthly = mk('div', {class:'card'},
-      mk('div', {class:'card-h'}, mk('h2', null, tx('월별 입항 예정·실적 (Arrival Schedule)')), mk('span', {class:'desc'}, tx('행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · Option) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)') + ' · ' + tx('당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)') + ' · ' + tx('미배정 = Vessel 없이 ETA From TDD만 있는 오더 (ETA From TDD 월)')),
+      mk('div', {class:'card-h'}, mk('h2', null, tx('월별 입항 예정·실적 (Arrival Schedule)')), mk('span', {class:'desc'}, tx('행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)') + ' · ' + tx('당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)') + ' · ' + tx('미배정 = Vessel 없이 ETA From TDD만 있는 오더 (ETA From TDD 월)')),
         mk('span', {class:'spacer'}), mk('div', {class:'btn-group'}, rangeBtn('rest', tx('이번달~연말 ({a}~{b})', {a:ymLabel(BASE_YM), b:ymLabel(range.to)})), rangeBtn('year', tx('올해 전체 ({y})', {y:year})))),
       mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact pivot fixcol'},
         mk('thead', null,

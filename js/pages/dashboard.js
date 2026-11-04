@@ -26,12 +26,12 @@ PAGES.dashboard = {
       {label:tx('재고 (보세 + 통관)'), icon:'stock', n:stockVs.length, vs:stockVs, color:STAGE_COLOR['Bonded Stock'], sub:`Bonded ${num(byStage['Bonded Stock']||0)} · OH ${num(byStage['OH Stock']||0)}`, href:'#/stock', to:'재고현황'},
       {label:tx('판매 ({y} YTD)', {y:year}), icon:'sold', n:soldYtd.length, vs:soldYtd, color:STAGE_COLOR['Sold'], sub:tx('전월 {n}', {n:num(byMonth('sales_month')[ymAdd(BASE_YM,-1)]||0)}), href:'#/logistics?stage=Sold', to:'Logistics 목록 (Sold)'},
     ];
-    // 10/29 #11 (재고현황 차트 가상안 A1): 카드 위 장소 띠(공장 = 확정 주문·확정 재고 / 바다 = 운송 중 / 아산 센터 = 재고 · 수정 가능 주문·판매 위는 빈칸) + 항구 알약 라벨·세로 점선(확정 재고|운송 중 = Antwerp항 · 운송 중|재고 = 평택항) · .flow 6열 grid 간격 8px
+    // 10/29 #11 (재고현황 차트 가상안 A1): 카드 위 장소 띠(공장 = 확정 주문·확정 재고 / 아산 센터 = 재고 · 수정 가능 주문·운송 중·판매 위는 빈칸 · 11/02 #2·#3: 국가명 없는 짧은 이름, 바다 띠 제거) + 항구 알약 라벨·세로 점선(확정 재고|운송 중 = Antwerp항 · 운송 중|재고 = 평택항) · .flow 6열 grid 간격 8px
     const ports = [{name:PORT_DEFS.antwerp, left:gridBoundaryLeft(3, 6, 8)}, {name:PORT_DEFS.pyeongtaek, left:gridBoundaryLeft(4, 6, 8)}];
-    const bandCell = (loc, vs, stages) => locBandEl(LOC_DEFS[loc], vs.length, locTip(LOC_DEFS[loc], stages, vs.length));
+    const bandCell = (loc, vs, stages) => locBandEl(LOC_DEFS[loc], vs.length, locTip(LOC_DEFS[loc], stages, vs.length), true);
     const gapCell = () => mk('div', {class:'locb gap'});
     const factoryBand = bandCell('factory', [...fixed, ...factory], tx('확정 주문 · 확정 재고')); factoryBand.style.gridColumn = 'span 2';
-    const band = [gapCell(), factoryBand, bandCell('sea', transit, tx('운송 중')), bandCell('center', stockVs, tx('재고 (보세 + 통관)')), gapCell()];
+    const band = [gapCell(), factoryBand, gapCell(), bandCell('center', stockVs, tx('재고 (보세 + 통관)')), gapCell()];
     const flow = mk('div', {class:'card'},
       mk('div', {class:'card-h'}, mk('h2', null, tx('차량 주문·재고 흐름')), noteEl('D1'),
         mk('span', {class:'desc'}, tx('6개 지표 · 수정 가능 주문 → 확정 주문 → 확정 재고 → 운송 중 → 재고 → 판매 · 전체 {n} (Cancelled 제외)', {n:num(base)}))),

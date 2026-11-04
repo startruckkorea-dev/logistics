@@ -9,11 +9,11 @@ const SERIES = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var
 // 연식(MY) 표시 키·색 (10/29: stock.js → 공용, MY28 추가 — 대시보드 카드도 사용) · MY28 색 --s5 분홍(10/30 사용자 변경, 이전 --s8 빨강)은 dataviz 팔레트 검증(인접 색각 분리) 통과 · '기타' = MY23 이하·판독 불가
 const MY_KEYS = ['MY24','MY25','MY26','MY27','MY28'];
 const MY_COLORS = {'MY24':'var(--s7)','MY25':'var(--s1)','MY26':'var(--s3)','MY27':'var(--s4)','MY28':'var(--s5)','기타':'#9aa5b1'};
-// 장소 띠·항구 표시 정의 (10/29 재고현황 차트 가상안 확정): 화면은 한글 이름(EN 모드는 I18N), 영문(en)은 툴팁 · 아이콘 = 독일 국기 깃발 · 바다 그림 · 태극기 깃발 · 항구는 띠가 아니라 구간 경계 세로선
+// 장소 띠·항구 표시 정의 (10/29 재고현황 차트 가상안 확정): 화면은 한글 이름(EN 모드는 I18N), 영문(en)은 툴팁 · 아이콘 = 독일 국기 깃발 · 바다 그림 · 태극기 깃발 · 항구는 띠가 아니라 구간 경계 세로선 · short = 국가명 없는 짧은 이름(11/02 #2 대시보드 띠, 국기 아이콘이 국가를 대신)
 const LOC_DEFS = {
-  factory:{name:'독일 Wörth 공장', en:'Wörth Factory in Germany', icon:'de', color:'var(--st-prod)'},
+  factory:{name:'독일 Wörth 공장', short:'Wörth 공장', en:'Wörth Factory in Germany', icon:'de', color:'var(--st-prod)'},
   sea:{name:'바다', en:'At Sea', icon:'sea', color:'var(--st-transit)'},
-  center:{name:'대한민국 아산 트럭 스타 센터', en:'Asan Truck Star Center in Korea', icon:'kr', color:'var(--st-oh)'},
+  center:{name:'대한민국 아산 트럭 스타 센터', short:'아산 트럭 스타 센터', en:'Asan Truck Star Center in Korea', icon:'kr', color:'var(--st-oh)'},
 };
 const PORT_DEFS = {antwerp:'Antwerp항', pyeongtaek:'평택항'};
 
@@ -230,7 +230,7 @@ const I18N = {
   'Ordered(Fixed) ~ OH Stock':'Ordered(Fixed) ~ OH Stock', 'Bonded + OH Stock':'Bonded + OH Stock', '현재 ({d}, 상태 Ordered(Fixed) ~ OH Stock 기준)':'Current ({d}, status Ordered(Fixed) ~ OH Stock)', '확장 뷰는 현재 기준만 지원 (월말 마감 없음)':'Extended view is current-basis only (no month-end closing)', 'Total (Ordered(Fixed) ~ OH Stock)':'Total (Ordered(Fixed) ~ OH Stock)', '단계별 {s}':'By stage: {s}',
   // 10/29 #7~#11 재고현황 탭명 · 장소 띠 · 항구 · 현재 및 미래 재고현황 차트 3종 · 대시보드 카드 연식 줄
   'TSC 재고':'Overall OH Stock(TSC)', '현재 및 미래 재고현황':'Current & Future Stock Status',
-  '독일 Wörth 공장':'Wörth Factory in Germany', '바다':'At Sea', '대한민국 아산 트럭 스타 센터':'Asan Truck Star Center in Korea', 'Antwerp항':'Port of Antwerp', '평택항':'Pyeongtaek Port',
+  '독일 Wörth 공장':'Wörth Factory in Germany', '바다':'At Sea', '대한민국 아산 트럭 스타 센터':'Asan Truck Star Center in Korea', 'Wörth 공장':'Wörth Factory', '아산 트럭 스타 센터':'Asan Truck Star Center', 'Antwerp항':'Port of Antwerp', '평택항':'Pyeongtaek Port',
   '여정 지도':'Journey Map', 'Ordered(Fixed) ~ OH Stock {n}대 · 원 면적 = 대수 · Factory Stock = In Production + Shipment scheduled':'Ordered(Fixed) ~ OH Stock {n} units · circle area = units · Factory Stock = In Production + Shipment scheduled',
   '모델별 구역 현황':'Models by Zone', '행 = 구분 > 차종 > 모델(Vehicle Series Model Axle Cab Option) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)':'Rows = Gen > Vehicle > Model (Vehicle Series Model Axle Cab Option) · 5 equal zones · bar = stacked by MY, length = units (same scale within model rows and within group rows)',
   '상태 × 연식 히트맵':'Status × Model Year Heatmap', '행 = 구분 > 차종 > 모델 · 열 = 장소 > Current Status > 연식 + Total · 셀 색 농도 = 대수(상태 색) · 0은 공란 · 대수 0인 연식 열은 숨김':'Rows = Gen > Vehicle > Model · columns = location > Current Status > MY + Total · cell shade = units (status color) · 0 left blank · model-year columns with 0 units are hidden',
@@ -509,7 +509,7 @@ function picIconEl(kind){ const s = mkSvg('svg', {class:'loc-ic', viewBox:'0 0 2
 function picIconSvg(kind, x, y, k){ const g = mkSvg('g', {transform:`translate(${x},${y}) scale(${k})`}); picNodes(kind).forEach(n=>g.append(n)); return g; }
 // 장소 띠 (DOM / SVG) · 항구 라벨 행·세로 점선 (DOM / SVG)
 function locTip(loc, stages, n){ return [tx(loc.name), state.lang==='en' ? null : loc.en, stages, tx('{v}대', {v:num(n)})].filter(Boolean).join(' · '); }
-function locBandEl(loc, n, tip){ return mk('div', {class:'locb', style:`--c:${loc.color}`, 'data-tip':tip||locTip(loc, '', n)}, picIconEl(loc.icon), mk('div', {class:'nm'}, tx(loc.name)), mk('div', {class:'ct num'}, tx('{v}대', {v:num(n)}))); }
+function locBandEl(loc, n, tip, short){ return mk('div', {class:'locb', style:`--c:${loc.color}`, 'data-tip':tip||locTip(loc, '', n)}, picIconEl(loc.icon), mk('div', {class:'nm'}, tx(short && loc.short ? loc.short : loc.name)), mk('div', {class:'ct num'}, tx('{v}대', {v:num(n)}))); }
 function portsRowEl(ports){ return mk('div', {class:'ports'}, ports.map(p=>mk('span', {style:`left:${p.left}`}, tx(p.name)))); } // ports: [{name, left(CSS 값)}]
 function vlinesEl(ports){ return ports.map(p=>mk('div', {class:'vline', style:`left:${p.left}`})); }
 function gridBoundaryLeft(i, cols, gap){ return `calc(${(i/cols*100).toFixed(3)}% + ${(gap*(i/cols-0.5)).toFixed(2)}px)`; } // 등폭 grid(열 cols, 간격 gap px)에서 i-1열과 i열 사이의 left

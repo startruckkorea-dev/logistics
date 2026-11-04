@@ -479,3 +479,8 @@ body.viewer .viewer-only{display:inline}
 .pivot th.loc .lh .loc-ic{width:18px;height:18px}
 .pivot th.st{text-align:center;border-left:1px solid var(--line-strong)}
 .pivot th.my{text-align:right;font-weight:500}
+/* 11/3 리뷰 #6: Order Note·Option Note 여러 줄 팝업 편집창 (편집 모드 셀 클릭 · .colfilter 상자 재사용) */
+.colfilter.note-pop{width:428px}
+.note-pop textarea{border:1px solid var(--line-strong);border-radius:6px;padding:4px 6px;width:100%;box-sizing:border-box;font:inherit;resize:vertical;line-height:1.45}
+.grid td.keyin.memo{cursor:cell} /* 11/4: Note 셀은 끌어서 범위 선택 */
+.grid td.rsel{outline:2px solid var(--accent);outline-offset:-2px;background:var(--accent-soft)}

@@ -7,6 +7,7 @@ const LOGI_TABS = [['grid','Logistics'], ['afab','AFAB 업로드'], ['req','수�
 function logiTabsForRole(){ return isSales()? LOGI_TABS.filter(t=>t[0]==='req') : isEditor()? LOGI_TABS : LOGI_TABS.filter(t=>t[0]==='grid'); }
 
 const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
+const NOTE_COLS = ['option_remarks','order_note']; // 11/3 리뷰 #6: 편집 모드에서 셀 클릭 → 여러 줄 팝업 편집창(openNoteEditor) · 그리드 셀 안 직접 입력(startCellEdit)은 KEYIN_COLS만
 // 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Option + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&model=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
 const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping_calc','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','tsc_arrival_date','customs_clearance_date']; // 10/26 No.9: TSC Arrival Date 추가
 const FILTER_COLS = ['current_status','gen','vehicle','series','model','axle','cab','option', ...DATE_FILTER_COLS, 'vessel']; // gen: 선적·입항 구분 그룹 행 링크용 (10/22)
@@ -22,18 +23,18 @@ PAGES.logistics = {
     FILTER_COLS.forEach(k=>{ const v = params.get(k); if(v!=null) LF.col[k] = new Set(v.split(',').map(x=> x===''? '(빈 값)' : x)); }); // 열 필터 파라미터 (10/22 선적·입항 수량 셀 클릭): 쉼표 구분 복수 · 빈 문자열 = '(빈 값)'
     const tabs = logiTabsForRole(); // 10/27: Sales는 수입통관 신청 탭만 · 10/29 #5: Viewer는 Logistics 탭만
     LF.tab = isSales()? 'req' : (tabs.some(t=>t[0]===params.get('tab')) ? params.get('tab') : 'grid'); // 대시보드·선적·입항 링크(?stage=·?vessel=)는 tab 없음 → 그리드 · 역할에 없는 탭 주소는 그리드
-    EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter();
+    EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter(); closeNoteEditor(); clearNoteRange();
     root.innerHTML = `<div class="card"><div class="tabs" id="lgTabs"></div><div id="lgBody"></div></div>`;
     el('lgTabs').append(...tabs.map(([k,label])=>mk('span', {class:'tab', 'data-tab':k, onclick:()=>switchLogiTab(k)}, tx(label))), noteEl('L1')); // tx: 한글 탭명만 번역 (10/27 #5)
     renderLogiBody();
   }
 };
-window.addEventListener('hashchange', ()=>closeColFilter());
+window.addEventListener('hashchange', ()=>{ closeColFilter(); closeNoteEditor(); clearNoteRange(); });
 // 탭 전환 (10/26 No.1): 편집 중 저장 대기 값이 있으면 전환하지 않음(언어 토글과 동일) · 전환 시 편집 모드·선택 해제, 검색어·열 필터(LF)는 유지
 function switchLogiTab(k){
   if(k===LF.tab) return;
   if(EDIT.on && pendingCount()>0){ toast(tx('탭 전환 불가'), tx("저장 대기 중인 편집 내용이 있습니다. '편집 종료'로 저장한 뒤 전환하세요.")); return; }
-  EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter(); LF.tab=k; renderLogiBody();
+  EDIT.on=false; EDIT.sel.clear(); EDIT.pending={}; closeColFilter(); closeNoteEditor(); clearNoteRange(); LF.tab=k; renderLogiBody();
 }
 function renderLogiBody(){
   qa('#lgTabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===LF.tab));
@@ -172,7 +173,7 @@ function syncEditBtn(){
   be.title = EDIT.on? '변경 내용을 저장하고 편집을 종료합니다' : '오더 복수 선택 → 오더 변경 · Key-in 입력 · 열 표시/숨김';
 }
 function toggleEdit(){
-  if(EDIT.on){ commitEdits(); EDIT.on=false; EDIT.sel.clear(); renderGrid(); return; }
+  if(EDIT.on){ commitEdits(); EDIT.on=false; EDIT.sel.clear(); clearNoteRange(); renderGrid(); return; }
   EDIT.on=true; EDIT.sel.clear(); renderGrid();
   toast('편집 모드', '행 클릭 또는 체크박스로 오더를 복수 선택한 뒤 위 버튼으로 일괄 변경합니다. Key-in 열은 셀 클릭, 열 표시/숨김은 머리글 체크박스. 변경 내용은 \'편집 종료\' 클릭 시 저장됩니다.');
 }
@@ -235,9 +236,10 @@ function renderGrid(){
   h += `<tr class="sub"><th class="sticky" data-sort="commission_no">${EDIT.on?'<input type="checkbox" id="selAll" title="현재 페이지 전체 선택">':''}${srcBadge('AFAB')}${sortIcon('commission_no')}</th>`;
   h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}">${colBox(c)}${srcBadge(c.src, c.keyin)}${sortIcon(c.key)}${filtBtn(c)}</th>`).join('') + '</tr></thead><tbody>';
   const selBox = v=> EDIT.on? `<input type="checkbox" class="rowsel" ${EDIT.sel.has(v.commission_no)?'checked':''}>` : '';
-  const keyin = c=> canEdit && EDIT.on && KEYIN_COLS.includes(c.key); // Key-in 열도 편집 모드에서만 입력 (10/15 No.4)
+  const keyin = c=> canEdit && EDIT.on && (KEYIN_COLS.includes(c.key) || NOTE_COLS.includes(c.key)); // Key-in 열도 편집 모드에서만 입력 (10/15 No.4) · 11/3 리뷰 #6: Note 열은 팝업 편집창
   const pend = (v,c)=> EDIT.pending[v.commission_no] && c.key in EDIT.pending[v.commission_no];
-  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${(c.key==='model'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
+  const rsel = (v,c)=> EDIT.on && NOTE_RANGE.key===c.key && NOTE_RANGE.set.has(v.commission_no); // 11/4: Note 셀 범위 선택 표시
+  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${rsel(v,c)?'rsel':''} ${(c.key==='model'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
   h += '</tbody></table>';
   if(!rows.length) h = `<div class="muted" style="padding:30px;text-align:center">${tx('조건에 맞는 차량이 없습니다.')}</div>`;
   const wrap = el('gridwrap'); wrap.innerHTML = h;
@@ -251,7 +253,9 @@ function renderGrid(){
     if(on) EDIT.sel.add(tr.dataset.comm); else EDIT.sel.delete(tr.dataset.comm);
     box.checked = on; tr.classList.toggle('sel', on); renderEditbar();
   });
-  qa('td.keyin', wrap).forEach(td=>td.onclick=e=>{ e.stopPropagation(); startCellEdit(td, td.closest('tr').dataset.comm, td.dataset.key); });
+  qa('td.keyin', wrap).forEach(td=>{ const comm = td.closest('tr').dataset.comm, key = td.dataset.key; // 11/3 리뷰 #6: Note 열은 여러 줄 팝업 + 끌어서 범위 선택(엑셀식 복사·붙여넣기)
+    if(NOTE_COLS.includes(key)){ td.onmousedown = e=>noteCellDown(e, comm, key); td.onmouseenter = ()=>noteCellEnter(comm, key); td.onclick = e=>{ e.stopPropagation(); noteCellClick(e, td, comm, key); }; }
+    else td.onclick = e=>{ e.stopPropagation(); startCellEdit(td, comm, key); }; });
   syncEditBtn();
   const sa = el('selAll'); if(sa){ sa.onclick = e=>e.stopPropagation(); sa.onchange = ()=>{ pageRows.forEach(v=>{ if(sa.checked) EDIT.sel.add(v.commission_no); else EDIT.sel.delete(v.commission_no); }); renderGrid(); }; }
   renderEditbar();
@@ -274,7 +278,7 @@ function renderEditbar(){
     mk('button', {class:'btn sm primary', disabled: n===0, onclick: openModelChange}, tx('오더 변경 (모델 일괄)')),
     mk('button', {class:'btn sm', disabled: n===0, onclick: openBulkKeyin}, tx('Key-in 일괄 입력')),
     mk('button', {class:'btn sm', disabled: n===0, onclick: ()=>{ EDIT.sel.clear(); renderGrid(); }}, tx('선택 해제')),
-    mk('span', {class:'muted small'}, tx('Key-in 대상 열: B1 Factory Order · Sales Month (셀 클릭 → 개별 입력)')),
+    mk('span', {class:'muted small'}, tx('Key-in 대상 열: B1 Factory Order · Sales Month · Order Note · Option Note (셀 클릭 → 개별 입력 · Note는 여러 줄 팝업, 셀을 끌어 선택 → Ctrl+C / Ctrl+V)')),
     mk('span', {class:'muted small'}, tx("· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록", {n:num(pendingCount())})));
 }
 function keyinLabel(key){ const c = COLUMNS.find(x=>x.key===key); return c? c.label : key; }
@@ -315,6 +319,100 @@ function startCellEdit(td, comm, key){
   inp.onblur = ()=>finish(true);
   inp.onclick = e=>e.stopPropagation();
   td.replaceChildren(inp); inp.focus(); inp.select();
+}
+// ---- 11/3 리뷰 #6: Order Note·Option Note 여러 줄 입력 — 편집 모드에서 셀 클릭 → 셀 아래 6줄 팝업 편집창 ----
+// Enter = 줄바꿈 · Ctrl+Enter·바깥 클릭·'이 행에 적용' = 이 행만 저장 대기(출처 수동) · Esc·취소 = 버림 · '선택한 n건에 적용' = 체크한 오더 전부(이 행 포함)에 같은 내용(출처 수동/일괄)
+// 11/4 엑셀식 복사·붙여넣기: Note 셀을 누른 채 끌거나 Shift+클릭하면 같은 열 안에서 범위 선택(NOTE_RANGE, 파란 테두리 · 팝업 없음) · Ctrl+C = 선택한 셀 내용 복사(여러 줄·탭·따옴표는 엑셀 규칙 "…")
+// · Ctrl+V = 범위 전체에 붙여넣기 — 클립보드 1칸이면 범위 모두 같은 값, 여러 행이면 범위 맨 위부터 아래로 순서대로(출처 수동/일괄) · Esc·다른 곳 클릭 = 범위 해제
+// · 팝업 안: 글자를 따로 선택하지 않은 Ctrl+C = 칸 전체 복사, Ctrl+V = 보통 붙여넣기. 셀 클릭(끌지 않음) = 그 셀 1칸 선택 + 팝업
+const NOTE_RANGE = { key:'', set:new Set(), anchor:'' }; // 범위 선택 (현재 페이지 50행 안)
+const NOTE_DRAG = { on:false, moved:false, key:'', anchor:'' };
+function pageRowsNow(){ return filtered().slice((LF.page-1)*LF.size, LF.page*LF.size); }
+function excelCell(s){ s = String(s==null? '' : s); return /[\t\n"]/.test(s)? '"'+s.replace(/"/g, '""')+'"' : s; } // 엑셀 클립보드 규칙으로 감싸기
+function rangeComms(){ const set = NOTE_RANGE.set; return pageRowsNow().map(v=>v.commission_no).filter(c=>set.has(c)); } // 페이지 표시 순서
+function paintNoteRange(){ const wrap = el('gridwrap'); if(!wrap) return; qa('td.rsel', wrap).forEach(td=>td.classList.remove('rsel'));
+  NOTE_RANGE.set.forEach(c=>{ const td = q(`tr[data-comm="${c}"] td[data-key="${NOTE_RANGE.key}"]`, wrap); if(td) td.classList.add('rsel'); }); }
+function setNoteRange(key, from, to){ const order = pageRowsNow().map(v=>v.commission_no); let i = order.indexOf(from), j = order.indexOf(to); if(i<0||j<0) return;
+  if(i>j){ const t = i; i = j; j = t; } NOTE_RANGE.key = key; NOTE_RANGE.set = new Set(order.slice(i, j+1)); paintNoteRange(); }
+function clearNoteRange(){ NOTE_RANGE.key = ''; NOTE_RANGE.set = new Set(); NOTE_RANGE.anchor = ''; paintNoteRange(); }
+function isTyping(){ const a = document.activeElement; return !!a && (a.tagName==='INPUT' || a.tagName==='TEXTAREA' || a.tagName==='SELECT'); }
+// Note 셀 이벤트 (renderGrid에서 연결): 누른 채 다른 셀로 움직이면 드래그 범위, 그대로 떼면 클릭(팝업)
+function noteCellDown(e, comm, key){ if(e.button!==0) return; e.preventDefault(); /* 글자 드래그 선택 방지 */ NOTE_DRAG.on = true; NOTE_DRAG.moved = false; NOTE_DRAG.key = key; NOTE_DRAG.anchor = comm; }
+function noteCellEnter(comm, key){ if(!NOTE_DRAG.on || key!==NOTE_DRAG.key) return; NOTE_DRAG.moved = true; closeNoteEditor(); NOTE_RANGE.anchor = NOTE_DRAG.anchor; setNoteRange(key, NOTE_DRAG.anchor, comm); }
+function noteCellClick(e, td, comm, key){
+  if(NOTE_DRAG.moved){ NOTE_DRAG.moved = false; return; } // 드래그를 끝내는 클릭은 무시
+  if(e.shiftKey && NOTE_RANGE.anchor && NOTE_RANGE.key===key){ closeNoteEditor(); setNoteRange(key, NOTE_RANGE.anchor, comm); return; }
+  NOTE_RANGE.anchor = comm; setNoteRange(key, comm, comm); openNoteEditor(td, comm, key);
+}
+document.addEventListener('mouseup', ()=>{ NOTE_DRAG.on = false; });
+document.addEventListener('mousedown', e=>{ if(NOTE_RANGE.set.size && !e.target.closest('td.keyin, #notepop')) clearNoteRange(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && NOTE_RANGE.set.size && !el('notepop')) clearNoteRange(); });
+document.addEventListener('copy', e=>{
+  const pop = el('notepop'); const ta = pop && q('textarea', pop);
+  if(ta && document.activeElement===ta){ if(ta.selectionStart!==ta.selectionEnd) return; e.clipboardData.setData('text/plain', excelCell(ta.value)); e.preventDefault(); return; } // 글자 선택 없으면 칸 전체
+  if(!EDIT.on || !NOTE_RANGE.set.size || pop || isTyping()) return;
+  const vals = rangeComms().map(c=>excelCell(pendingVal(VEHICLE_BY_COMM[c], NOTE_RANGE.key)));
+  e.clipboardData.setData('text/plain', vals.join('\r\n')); e.preventDefault();
+  toast(tx('{col} {n}칸 복사', {col:keyinLabel(NOTE_RANGE.key), n:num(vals.length)}), tx('다른 행의 Note 셀을 끌어 선택한 뒤 Ctrl+V'));
+});
+document.addEventListener('paste', e=>{
+  if(!EDIT.on || !NOTE_RANGE.set.size || el('notepop') || isTyping()) return;
+  const cells = clipboardCells((e.clipboardData||window.clipboardData).getData('text/plain')); if(!cells.length) return;
+  e.preventDefault();
+  const order = pageRowsNow().map(v=>v.commission_no); const sel = rangeComms(); if(!sel.length) return;
+  const key = NOTE_RANGE.key; let targets;
+  if(cells.length===1) targets = sel.map(c=>[c, cells[0]]); // 1칸 복사 → 범위 전체 같은 값
+  else { const start = order.indexOf(sel[0]); targets = order.slice(start, start+cells.length).map((c,i)=>[c, cells[i]]); } // 여러 행 → 범위 맨 위부터 아래로
+  targets.forEach(([c,val])=>stageChange(c, key, val, '수동/일괄'));
+  NOTE_RANGE.set = new Set(targets.map(t=>t[0])); renderGrid();
+  toast(tx('{col} 붙여넣기 {n}칸 (저장 대기)', {col:keyinLabel(key), n:num(targets.length)}), tx("'편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록"));
+});
+function openNoteEditor(td, comm, key){
+  closeNoteEditor();
+  const v = VEHICLE_BY_COMM[comm]; if(!v) return;
+  const before = pendingVal(v, key); const beforeS = before==null? '' : String(before);
+  const ta = mk('textarea', {rows:'6', placeholder: tx('여러 줄 입력 가능 (Enter = 줄바꿈)')}); ta.value = beforeS;
+  const selN = EDIT.sel.size;
+  let done = false;
+  const finish = mode=>{ if(done) return; done = true; closeNoteEditor();
+    if(mode==='cancel') return;
+    const val = ta.value.trim();
+    if(mode==='sel'){ const comms = [...new Set([...EDIT.sel, comm])]; comms.forEach(c=>stageChange(c, key, val, '수동/일괄')); renderGrid();
+      toast(tx('{col} 선택 {n}건에 적용 (저장 대기)', {col:keyinLabel(key), n:num(comms.length)}), tx("같은 내용으로 덮어씀 · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록")); return; }
+    if(val!==beforeS){ stageChange(comm, key, val, '수동'); renderEditbar(); }
+    setKeyinCell(td, val); td.classList.toggle('pend', !!(EDIT.pending[comm] && key in EDIT.pending[comm])); };
+  ta.onkeydown = e=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) finish('row'); else if(e.key==='Escape') finish('cancel'); e.stopPropagation(); };
+  const pop = mk('div', {class:'colfilter note-pop', id:'notepop'},
+    mk('div', {class:'cf-h'}, mk('b', null, keyinLabel(key)), mk('span', {class:'muted small mono'}, comm), mk('button', {class:'x', title:tx('취소'), onclick:()=>finish('cancel')}, '×')),
+    ta,
+    mk('div', {class:'muted small'}, tx('Enter = 줄바꿈 · Ctrl+Enter = 이 행에 적용 · Esc = 취소 · Ctrl+C = 칸 전체 복사')),
+    mk('div', {class:'muted small'}, tx('다른 행에 같은 내용: Note 셀을 끌어 범위 선택 → Ctrl+V (엑셀 열 복사도 가능)')),
+    mk('div', {class:'cf-foot'},
+      mk('button', {class:'btn sm', onclick:()=>finish('cancel')}, tx('취소')),
+      mk('button', {class:'btn sm', disabled: selN===0, title:tx('체크한 오더 전부(이 행 포함)에 같은 내용으로 덮어씁니다 · 출처 수동/일괄'), onclick:()=>finish('sel')}, tx('선택한 {n}건에 적용', {n:num(selN)})),
+      mk('button', {class:'btn sm primary', onclick:()=>finish('row')}, tx('이 행에 적용'))));
+  pop._finish = finish;
+  const r = td.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth-436))+'px';
+  document.body.append(pop);
+  const h = pop.offsetHeight; pop.style.top = (r.bottom+4+h <= window.innerHeight-8 ? r.bottom+4 : Math.max(8, r.top-4-h))+'px'; // 아래 공간이 없으면 셀 위에
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  setTimeout(()=>document.addEventListener('mousedown', noteEditorOutside), 0);
+}
+function noteEditorOutside(e){ const p = el('notepop'); if(p && !e.target.closest('#notepop')) p._finish('row'); }
+function closeNoteEditor(){ const p = el('notepop'); if(p) p.remove(); document.removeEventListener('mousedown', noteEditorOutside); }
+// 엑셀 클립보드 → 행별 첫 열 값 배열. 탭 = 열 구분, 줄바꿈 = 행 구분, 여러 줄·탭·따옴표가 든 셀은 "…"로 감싸고 안의 "는 ""(엑셀 규칙). 끝의 빈 행은 버림
+function clipboardCells(text){
+  const s = String(text||'').replace(/\r\n?/g, '\n'); const out = []; let cur = '', col = 0, inQ = false;
+  for(let i=0; i<s.length; i++){ const ch = s[i];
+    if(inQ){ if(ch!=='"'){ cur += ch; continue; } if(s[i+1]==='"'){ cur += '"'; i++; continue; } inQ = false; continue; }
+    if(ch==='"' && cur===''){ inQ = true; continue; }
+    if(ch==='\t'){ if(col===0) out.push(cur); cur = ''; col++; continue; }
+    if(ch==='\n'){ if(col===0) out.push(cur); cur = ''; col = 0; continue; }
+    cur += ch; }
+  if(col===0 && cur!=='') out.push(cur);
+  while(out.length && out[out.length-1]==='') out.pop();
+  return out;
 }
 function selectedVehicles(){ return [...EDIT.sel].map(c=>VEHICLE_BY_COMM[c]).filter(Boolean); }
 function openModelChange(){

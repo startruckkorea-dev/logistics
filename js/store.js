@@ -30,6 +30,15 @@ const Store = {
       const row = {commission_no:comm, field:'order_note_flag', old_value: nw?'Off':'On', new_value: nw?'On':'Off', changed_by:by, changed_at:nowStamp(), source:'입력'};
       Store.history.add([row]); return row;
     },
+    // Order Note·Option Note 텍스트 저장 (11/4, 상세 Drawer '저장'): notes = {order_note, option_remarks} (undefined인 필드는 건너뜀). 값이 바뀐 필드만 대입 + Vehicle_History(출처 '입력'). 기록한 이력 행 배열을 반환(변경 없으면 빈 배열)
+    saveNotes(comm, notes, by){
+      const v = VEHICLE_BY_COMM[comm]; if(!v) return [];
+      const at = nowStamp(); const patch = {}; const rows = [];
+      ['order_note','option_remarks'].forEach(k=>{ if(notes[k]===undefined) return; const nw = String(notes[k]), old = v[k]==null? '' : String(v[k]); if(nw===old) return;
+        patch[k] = nw; rows.push({commission_no:comm, field:k, old_value:old, new_value:nw, changed_by:by, changed_at:at, source:'입력'}); });
+      if(!rows.length) return [];
+      Store.vehicles.update(comm, patch); Store.history.add(rows); return rows;
+    },
     // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
     modelMasterPatch(m){
       const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, option:m.option, lead_time:m.lead, lead_days:m.lead_days, // series = 차량 마스터 'Model' 열 (10/19 No.16)

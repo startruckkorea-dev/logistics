@@ -116,6 +116,7 @@ const I18N = {
   // 차량 상세 Drawer
   '파생·상태':'Derived · Status', '저장하지 않고 계산':'Calculated, not stored', '(VIN 10번째 자리)':'(VIN 10th digit)', 'AFAB 금일 존재':'In AFAB Today',
   '있음':'Yes', '없음 — 확인 필요':'No — check', '해당 없음':'N/A', '(자동 판정)':'(Auto)', 'override 시 사유 필수':'Reason required for override',
+  'Note 저장':'Notes saved', '변경된 Note가 없습니다.':'No note changes.', '{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)':'{comm} · {fields} · {n} Vehicle_History rows (source: Input)', 'Order Note · Option Note 저장 + 변경 이력 기록 (그 외 입력 필드는 목업에서 저장하지 않음)':'Save Order Note · Option Note + change history (other input fields are not saved in the mockup)', // 11/4 드로어 저장
   'Order Note 토글 저장':'Order Note toggle saved', '{comm} · {val} · Vehicle_History 기록 (출처: 입력)':'{comm} · {val} · Vehicle_History recorded (source: Input)', 'On = 검토가 필요한 오더 · 토글 즉시 저장 + 변경 이력 기록':'On = order needs review · saved immediately + change history', // 10/30 리뷰 #7
   '변경 이력':'Change History', 'Vehicle_History · 필드 단위 before/after':'Vehicle_History · field-level before/after', '미부여':'not assigned', '수정':'Modified',
   '상태 override':'Status override', '취소 처리':'Cancel Vehicle', '이력 전체':'Full History', '마일스톤 타임라인':'Milestone Timeline',
@@ -139,7 +140,12 @@ const I18N = {
   '바로가기':'Jump to', '· 열 {a}/{b} · 가로 스크롤 · Comm No. 고정':'· Columns {a}/{b} · horizontal scroll · Comm No. pinned',
   '{n}건 중 {a}–{b}':'{a}–{b} of {n}', '‹ 이전':'‹ Prev', '다음 ›':'Next ›', '50행 페이지 (실제 구현은 가상 스크롤 또는 50행 페이지)':'50 rows per page (real build: virtual scroll or 50-row pages)',
   '편집 모드':'Edit Mode', '· 선택 ':'· Selected ', '건':' items', '오더 변경 (모델 일괄)':'Change Order (Bulk Model)', 'Key-in 일괄 입력':'Bulk Key-in', '선택 해제':'Clear Selection',
-  'Key-in 대상 열: B1 Factory Order · Sales Month (셀 클릭 → 개별 입력)':'Key-in columns: B1 Factory Order · Sales Month (click a cell to edit)',
+  'Key-in 대상 열: B1 Factory Order · Sales Month · Order Note · Option Note (셀 클릭 → 개별 입력 · Note는 여러 줄 팝업, 셀을 끌어 선택 → Ctrl+C / Ctrl+V)':'Key-in columns: B1 Factory Order · Sales Month · Order Note · Option Note (click a cell to edit · notes open a multi-line popup, drag cells to select → Ctrl+C / Ctrl+V)', // 11/3 리뷰 #6
+  // 11/3 리뷰 #6: Order Note·Option Note 여러 줄 팝업 편집창
+  '여러 줄 입력 가능 (Enter = 줄바꿈)':'Multi-line (Enter = new line)', 'Enter = 줄바꿈 · Ctrl+Enter = 이 행에 적용 · Esc = 취소 · Ctrl+C = 칸 전체 복사':'Enter = new line · Ctrl+Enter = apply to this row · Esc = cancel · Ctrl+C = copy whole cell', '다른 행에 같은 내용: Note 셀을 끌어 범위 선택 → Ctrl+V (엑셀 열 복사도 가능)':'Same text in other rows: drag note cells to select a range → Ctrl+V (an Excel column works too)',
+  '이 행에 적용':'Apply to this row', '선택한 {n}건에 적용':'Apply to {n} selected', '체크한 오더 전부(이 행 포함)에 같은 내용으로 덮어씁니다 · 출처 수동/일괄':'Overwrite all checked orders (including this row) with the same text · source Manual/Bulk',
+  '{col} {n}칸 복사':'{col}: {n} cells copied', '다른 행의 Note 셀을 끌어 선택한 뒤 Ctrl+V':'Drag to select note cells in other rows, then Ctrl+V',
+  '{col} 선택 {n}건에 적용 (저장 대기)':'{col}: applied to {n} selected (pending)', '{col} 붙여넣기 {n}칸 (저장 대기)':'{col}: pasted into {n} cells (pending)',
   "· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록":"· {n} pending → saved with history on 'End Edit'",
   '현재 BM':'Current BM', '현재 모델 분포':'Current Model Mix', '변경할 모델 (Model_Master) *':'New Model (Model_Master) *', '{k} {n}건':'{k} ({n})',
   '오더 변경 — 모델·PM 일괄 변경':'Change Order — Bulk Model · PM Change', '현재 PM 분포':'Current PM Mix', '변경할 PM (생산월, 비우면 변경 없음)':'New PM (production month, blank = no change)', '변경':'Change', '예) B1-12345':'e.g. B1-12345',
@@ -334,7 +340,7 @@ function openVehicle(comm){
   const head = `<div><h2>${esc(v.commission_no)} ${stagePill(v.current_status)}</h2>
     <div class="meta">${esc(v.model_classification)} · ${esc(v.vehicle)} · VIN ${esc(v.vin_no)||tx('미부여')} · ${tx('수정')} ${esc(v.modified)} (${esc(v.modified_by)})</div>
     <div class="btn-group" style="margin-top:8px">
-      <button class="btn primary sm editor-only" onclick="describe('저장', 'Graph PATCH(If-Match ETag)로 입력 필드만 저장하고 Vehicle_History에 before/after를 기록합니다. 충돌 시 재조회 후 알림.')">${tx('저장')}</button>
+      <button class="btn primary sm editor-only" id="drvSave" title="${esc(tx('Order Note · Option Note 저장 + 변경 이력 기록 (그 외 입력 필드는 목업에서 저장하지 않음)'))}">${tx('저장')}</button>
       <button class="btn sm editor-only" onclick="describe('상태 override', '자동 판정 대신 지정 단계를 적용합니다. 사유(Status reason) 입력이 필수입니다.')">${tx('상태 override')}</button>
       <button class="btn sm danger editor-only" onclick="describe('취소 처리', 'Cancelled는 수동 지정만 가능합니다(자동 취소 금지). 사유 기록 후 KUFRI·대시보드 집계에서 제외됩니다.')">${tx('취소 처리')}</button>
       <button class="btn sm" onclick="describe('이력 보기', 'Vehicle_History 전체를 마스터·설정 > 변경 이력에서 Comm 필터로 조회합니다.')">${tx('이력 전체')}</button>
@@ -345,7 +351,19 @@ function openVehicle(comm){
   const ta = q('textarea[data-f="order_note"]', body); if(ta) ta.value = v.order_note||'';
   const nt = q('.v.note', body); if(nt){ if(v.order_note) nt.textContent = v.order_note; else nt.replaceChildren(mk('span', {class:'muted'}, '—')); }
   const slot = q('.sw-slot', body); if(slot) slot.replaceWith(orderNoteSwitch(v, body));
+  // 11/4: '저장' = Order Note·Option Note 텍스트 즉시 저장(Store.vehicles.saveNotes, 출처 '입력') + 드로어 '변경 이력' 표 맨 위에 행 추가 + 그리드가 떠 있으면 다시 그림. 그 외 입력 필드는 목업에서 저장하지 않음
+  const sb = el('drvSave'); if(sb) sb.onclick = ()=>{
+    const oi = q('input[data-f="option_remarks"]', body);
+    const rows = Store.vehicles.saveNotes(comm, {order_note: ta? ta.value.trim() : undefined, option_remarks: oi? oi.value.trim() : undefined}, state.user);
+    if(!rows.length){ toast(tx('저장'), tx('변경된 Note가 없습니다.')); return; }
+    const tb = q('.tbl tbody', body); if(tb) rows.forEach(r=>tb.prepend(histRowEl(r)));
+    if(ta) ta.value = v.order_note||''; if(oi) oi.value = v.option_remarks||'';
+    if(typeof renderGrid==='function' && el('gridwrap')) renderGrid();
+    toast(tx('Note 저장'), tx('{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)', {comm, fields: rows.map(r=>keyinLabel(r.field)).join(' · '), n:num(rows.length)}));
+  };
 }
+// 드로어 '변경 이력' 표 행 (11/4): Vehicle_History 행 → tr (orderNoteSwitch의 행 구성과 동일)
+function histRowEl(r){ return mk('tr', null, mk('td', {class:'mono'}, r.changed_at), mk('td', {class:'mono'}, r.field), mk('td', {class:'muted'}, r.old_value||'—'), mk('td', null, mk('b', null, r.new_value||'—')), mk('td', null, r.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, r.source))); }
 // Order Note On/Off 스위치 (10/30 리뷰 #7): On = 검토가 필요한 오더. Editor만 조작(그 외 비활성·상태만 표시), 바꾸면 즉시 저장(Store.vehicles.setOrderNoteFlag) + Vehicle_History 기록 + 드로어 '변경 이력' 표 맨 위에 행 추가
 function orderNoteSwitch(v, body){
   const txt = mk('span', {class:'sw-txt'}, v.order_note_flag?'On':'Off');

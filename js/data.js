@@ -136,7 +136,6 @@ function makeVehicle(p, m){
   // 파생 (10/19: days_in_stock · stock_level · stock_age_optimus 제거)
   v.model_year = v.vin_no ? 'MY'+MY_FROM_LETTER[v.vin_no[9]] : 'MY'+MY_FROM_LETTER[myL];
   v.model_classification = [v.gen,v.model,v.axle,v.cab,modelOptTag(v)].filter(Boolean).join(' '); // 11/4: Option 대신 비표준 값만 접미
-  v.dms_model_name = [v.vehicle,v.model,v.axle,v.cab].join(' ');
   v.model_key = [v.vehicle,v.model,v.axle,v.cab].join('|');
   v.eta_month = etaF? ymOf(etaF):''; v.tdd_month = tdd? ymOf(tdd):''; v.shipping_month = ship? ymOf(ship):'';
   const noShip = !v.vessel && !v.shipping;

@@ -58,7 +58,7 @@ function drawKufri(){
   };
   let h = `<table class="kufri"><thead><tr><th>${tx('모델 (vehicle | model | axle | cab)')} ${note('P2')}</th>${months.map(m=>`<th class="${m===BASE_YM?'base':''}">${m}</th>`).join('')}<th>${tx('합계')}</th></tr></thead><tbody>`;
   h += `<tr class="grp"><td colspan="${months.length+2}">${tx('전체 합계')} ${note('P3')} <span class="muted small" style="font-weight:500">${KF.vehicle||tx('전 차종')} · ${tx('{n}대', {n:num(all.length)})}</span></td></tr>` + block('전체', all, true);
-  keys.forEach(k=>{ const vs = all.filter(v=>v.model_key===k); vs._key=k; h += block(k.replace(/\|/g,' | ') + '  ·  ' + vs[0].dms_model_name, vs, false); });
+  keys.forEach(k=>{ const vs = all.filter(v=>v.model_key===k); vs._key=k; h += block(k.replace(/\|/g,' | '), vs, false); });
   h += '</tbody></table>';
   const w = el('kfWrap'); w.innerHTML = h;
   qa('tr.grp[data-key]', w).forEach(tr=>tr.onclick=()=>{ const k=tr.dataset.key; if(KF.collapsed.has(k)) KF.collapsed.delete(k); else KF.collapsed.add(k); drawKufri(); });

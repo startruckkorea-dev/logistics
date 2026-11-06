@@ -231,14 +231,14 @@ function renderGrid(){
   const colBox = c=> EDIT.on? `<input type="checkbox" class="colvis" data-col="${c.key}" ${hid(c)?'':'checked'} title="열 표시/숨김 (체크 해제 → 숨김)">` : '';
   const filtBtn = c=> FILTER_COLS.includes(c.key)? `<button class="cf ${(LF.col[c.key] || (c.key==='shipping_calc' && LF.delayed))?'on':''}" data-filter="${c.key}" title="${esc(c.label)} 열 필터">▼</button>` : '';
   const rest = cols.filter(c=>c.key!=='commission_no');
-  let h = `<table class="grid"><thead><tr class="fld"><th class="sticky" data-sort="commission_no" title="commission_no">Commission No</th>`;
+  let h = `<table class="grid"><thead><tr class="fld"><th class="sticky" data-sort="commission_no" title="${esc(tx('Commission No · 셀을 끌어 열 방향으로 선택 → Ctrl+C 복사 (검색창에 붙여넣으면 여러 건 조회)'))}">Commission No</th>`;
   h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}" title="${c.key}">${esc(tx(c.label))}</th>`).join('') + '</tr>';
   h += `<tr class="sub"><th class="sticky" data-sort="commission_no">${EDIT.on?'<input type="checkbox" id="selAll" title="현재 페이지 전체 선택">':''}${srcBadge('AFAB')}${sortIcon('commission_no')}</th>`;
   h += rest.map(c=>`<th data-sort="${c.key}" class="${hid(c)?'hid':''}">${colBox(c)}${srcBadge(c.src, c.keyin)}${sortIcon(c.key)}${filtBtn(c)}</th>`).join('') + '</tr></thead><tbody>';
   const selBox = v=> EDIT.on? `<input type="checkbox" class="rowsel" ${EDIT.sel.has(v.commission_no)?'checked':''}>` : '';
   const keyin = c=> canEdit && EDIT.on && (KEYIN_COLS.includes(c.key) || NOTE_COLS.includes(c.key)); // Key-in 열도 편집 모드에서만 입력 (10/15 No.4) · 11/3 리뷰 #6: Note 열은 팝업 편집창
   const pend = (v,c)=> EDIT.pending[v.commission_no] && c.key in EDIT.pending[v.commission_no];
-  const rsel = (v,c)=> EDIT.on && NOTE_RANGE.key===c.key && NOTE_RANGE.set.has(v.commission_no); // 11/4: Note 셀 범위 선택 표시
+  const rsel = (v,c)=> (EDIT.on || c.key==='commission_no') && NOTE_RANGE.key===c.key && NOTE_RANGE.set.has(v.commission_no); // 11/4: Note 셀 범위 선택 표시 · 11/3 #5: Commission No 열은 편집 모드 밖에서도 선택
   h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${rsel(v,c)?'rsel':''} ${(c.key==='model'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
   h += '</tbody></table>';
   if(!rows.length) h = `<div class="muted" style="padding:30px;text-align:center">${tx('조건에 맞는 차량이 없습니다.')}</div>`;
@@ -247,6 +247,7 @@ function renderGrid(){
   qa('th .colvis', wrap).forEach(cb=>{ cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>{ if(cb.checked) state.hiddenCols.delete(cb.dataset.col); else state.hiddenCols.add(cb.dataset.col); renderGrid(); }; }); // 변경 이력 없음
   qa('th .cf', wrap).forEach(b=>b.onclick=e=>{ e.stopPropagation(); openColFilter(b, b.dataset.filter); });
   qa('tbody tr', wrap).forEach(tr=>tr.onclick=e=>{
+    if(commCellClick(e, tr.dataset.comm)) return;                   // 11/3 #5: Commission No 셀 끌기·Shift+클릭 = 열 방향 선택 (행 열기·행 선택 안 함)
     if(canEdit && e.target.closest('td.keyin')) return;             // Key-in 셀은 개별 입력
     if(!EDIT.on){ openVehicle(tr.dataset.comm); return; }
     const box = q('.rowsel', tr); const on = e.target===box? box.checked : !EDIT.sel.has(tr.dataset.comm);
@@ -256,6 +257,7 @@ function renderGrid(){
   qa('td.keyin', wrap).forEach(td=>{ const comm = td.closest('tr').dataset.comm, key = td.dataset.key; // 11/3 리뷰 #6: Note 열은 여러 줄 팝업 + 끌어서 범위 선택(엑셀식 복사·붙여넣기)
     if(NOTE_COLS.includes(key)){ td.onmousedown = e=>noteCellDown(e, comm, key); td.onmouseenter = ()=>noteCellEnter(comm, key); td.onclick = e=>{ e.stopPropagation(); noteCellClick(e, td, comm, key); }; }
     else td.onclick = e=>{ e.stopPropagation(); startCellEdit(td, comm, key); }; });
+  qa('td[data-key="commission_no"]', wrap).forEach(td=>{ const comm = td.closest('tr').dataset.comm; td.onmousedown = e=>commCellDown(e, comm); td.onmouseenter = ()=>noteCellEnter(comm, 'commission_no'); }); // 11/3 #5: Commission No 열 방향 선택(끌기) → Ctrl+C 복사
   syncEditBtn();
   const sa = el('selAll'); if(sa){ sa.onclick = e=>e.stopPropagation(); sa.onchange = ()=>{ pageRows.forEach(v=>{ if(sa.checked) EDIT.sel.add(v.commission_no); else EDIT.sel.delete(v.commission_no); }); renderGrid(); }; }
   renderEditbar();
@@ -344,19 +346,30 @@ function noteCellClick(e, td, comm, key){
   if(e.shiftKey && NOTE_RANGE.anchor && NOTE_RANGE.key===key){ closeNoteEditor(); setNoteRange(key, NOTE_RANGE.anchor, comm); return; }
   NOTE_RANGE.anchor = comm; setNoteRange(key, comm, comm); openNoteEditor(td, comm, key);
 }
-document.addEventListener('mouseup', ()=>{ NOTE_DRAG.on = false; });
-document.addEventListener('mousedown', e=>{ if(NOTE_RANGE.set.size && !e.target.closest('td.keyin, #notepop')) clearNoteRange(); });
+// 11/3 #5: Commission No 열도 같은 범위 선택(NOTE_RANGE.key='commission_no')을 쓴다 — 편집 모드와 무관 · 끌기 = 범위 · Shift+클릭 = 범위 확장(첫 Shift+클릭은 1칸) · Ctrl+C = 한 줄에 하나씩 복사(엑셀 열 · 검색창 다건 조회) · 붙여넣기 없음 · 그냥 클릭은 기존대로 행 열기(편집 모드: 행 선택)
+function commCellDown(e, comm){ if(e.button!==0 || e.target.tagName==='INPUT') return; noteCellDown(e, comm, 'commission_no'); }
+function commCellClick(e, comm){ // renderGrid 행 클릭 맨 앞에서 호출 · true = 행 클릭 동작 생략
+  if(NOTE_DRAG.key==='commission_no' && NOTE_DRAG.moved){ NOTE_DRAG.moved = false; return true; } // 끌기를 끝내는 클릭
+  if(!e.target.closest('td[data-key="commission_no"]')) return false;
+  if(!e.shiftKey){ if(NOTE_RANGE.key==='commission_no') clearNoteRange(); return false; } // 그냥 클릭 = 선택 해제 후 기존 행 동작
+  if(NOTE_RANGE.key==='commission_no' && NOTE_RANGE.anchor) setNoteRange('commission_no', NOTE_RANGE.anchor, comm);
+  else { NOTE_RANGE.anchor = comm; setNoteRange('commission_no', comm, comm); }
+  return true;
+}
+document.addEventListener('mouseup', ()=>{ NOTE_DRAG.on = false; setTimeout(()=>{ NOTE_DRAG.moved = false; }, 0); }); // 11/3 #5: 표 밖에서 끌기를 끝내도 다음 클릭을 삼키지 않도록 click 뒤에 moved 해제
+document.addEventListener('mousedown', e=>{ if(NOTE_RANGE.set.size && !e.target.closest('td.keyin, td[data-key="commission_no"], #notepop')) clearNoteRange(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && NOTE_RANGE.set.size && !el('notepop')) clearNoteRange(); });
 document.addEventListener('copy', e=>{
   const pop = el('notepop'); const ta = pop && q('textarea', pop);
   if(ta && document.activeElement===ta){ if(ta.selectionStart!==ta.selectionEnd) return; e.clipboardData.setData('text/plain', excelCell(ta.value)); e.preventDefault(); return; } // 글자 선택 없으면 칸 전체
-  if(!EDIT.on || !NOTE_RANGE.set.size || pop || isTyping()) return;
+  const isComm = NOTE_RANGE.key==='commission_no'; // 11/3 #5: Commission No 열 복사는 편집 모드와 무관
+  if((!EDIT.on && !isComm) || !NOTE_RANGE.set.size || pop || isTyping()) return;
   const vals = rangeComms().map(c=>excelCell(pendingVal(VEHICLE_BY_COMM[c], NOTE_RANGE.key)));
   e.clipboardData.setData('text/plain', vals.join('\r\n')); e.preventDefault();
-  toast(tx('{col} {n}칸 복사', {col:keyinLabel(NOTE_RANGE.key), n:num(vals.length)}), tx('다른 행의 Note 셀을 끌어 선택한 뒤 Ctrl+V'));
+  toast(tx('{col} {n}칸 복사', {col:keyinLabel(NOTE_RANGE.key), n:num(vals.length)}), isComm? tx('한 줄에 하나씩 복사됨 · 검색창에 붙여넣으면 여러 건을 한 번에 조회') : tx('다른 행의 Note 셀을 끌어 선택한 뒤 Ctrl+V'));
 });
 document.addEventListener('paste', e=>{
-  if(!EDIT.on || !NOTE_RANGE.set.size || el('notepop') || isTyping()) return;
+  if(!EDIT.on || !NOTE_RANGE.set.size || NOTE_RANGE.key==='commission_no' || el('notepop') || isTyping()) return; // 11/3 #5: Commission No 범위에는 붙여넣기 없음
   const cells = clipboardCells((e.clipboardData||window.clipboardData).getData('text/plain')); if(!cells.length) return;
   e.preventDefault();
   const order = pageRowsNow().map(v=>v.commission_no); const sel = rangeComms(); if(!sel.length) return;

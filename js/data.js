@@ -67,15 +67,15 @@ const COLOR_NAMES = {'9147':'Arctic White','7350':'Silver Grey','3589':'Jupiter 
 const SAP_CODES = ['ZCBC','ZSHP','ZVIB','ZPDY','ZIVB','ZGOR'];
 
 // ---- 선박(항차): 운송중 6척 + 선적 예정 2척 · tsc = TSC Arrival Date 선박 단위 입력값 (10/26 No.9, 샘플 공란) · tsc_status: '' | 'scheduled'(예정, 선박에만 보관) | 'confirmed'(확정, 차량 마스터 반영됨) (10/27) ----
-const VOYAGES = [
-  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'2026-10-15', tsc:'', tsc_status:'', kind:'transit',   n:12},
-  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'2026-10-22', tsc:'', tsc_status:'', kind:'transit',   n:14},
-  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'2026-11-03', tsc:'', tsc_status:'', kind:'transit',   n:11},
-  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'2026-11-07', tsc:'', tsc_status:'', kind:'transit',   n:10},
-  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'2026-11-26', tsc:'', tsc_status:'', kind:'transit',   n:5},
-  {id:'V6', vessel:'Eukor Pioneer',   carrier:'EUKOR', bl:'EUKOBRV2610003', shipping:'2026-10-04', pl:'2026-11-20', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:14},
-  {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:8},
-  {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:6},
+const VOYAGES = [ // 11/3 #9: gw = 총중량(kg) · 선적·입항 선박별 현황 Key-in(선박 단위) · 선적 예정 항차는 미입력('')
+  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'2026-10-15', tsc:'', tsc_status:'', kind:'transit',   n:12, gw:109440},
+  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'2026-10-22', tsc:'', tsc_status:'', kind:'transit',   n:14, gw:128900},
+  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'2026-11-03', tsc:'', tsc_status:'', kind:'transit',   n:11, gw:101750},
+  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'2026-11-07', tsc:'', tsc_status:'', kind:'transit',   n:10, gw:93200},
+  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'2026-11-26', tsc:'', tsc_status:'', kind:'transit',   n:5,  gw:46300},
+  {id:'V6', vessel:'Eukor Pioneer',   carrier:'EUKOR', bl:'EUKOBRV2610003', shipping:'2026-10-04', pl:'2026-11-20', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:14, gw:131600},
+  {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:8,  gw:''},
+  {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:6,  gw:''},
 ];
 const VESSEL_PAST = ['Morning Christina','Glovis Symphony','Hoegh Target','MOL Endurance','Eukor Grace','Grand Pioneer','Hyundai Glory','Morning Laura','Glovis Passion','Hoegh Berlin'];
 

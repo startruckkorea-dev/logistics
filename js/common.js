@@ -213,14 +213,14 @@ const I18N = {
   '현재 ({d}, 상태 Bonded Stock·OH Stock 기준)':'Current ({d}, by status Bonded Stock·OH Stock)', '{m} 월말 마감 ({d})':'{m} month-end closing ({d})',
   '보세(Bonded) {b} · 통관(OH) {c} · 보세/통관 = Customs Clearance DATE ≤ 월말':'Bonded {b} · OH {c} · Bonded/OH = Customs Clearance DATE ≤ month-end',
   '연식(MY) 범례':'Model Year (MY) legend', '기타':'Other', ' (MY23 이하·판독 불가)':' (MY23 or older · unreadable)', '· MY = VIN 10번째 자리 (M=21 … T=26 V=27 W=28)':'· MY = VIN 10th digit (M=21 … T=26 V=27 W=28)',
-  '차종별 · 막대 길이 = 대수 · 우측 대수·비율':'By vehicle type · bar length = units · units & share at right', '차종 섹션 안 모델별 · 모델명 = Gen · Model · Type · Cab · 비표준 옵션':'Models within each vehicle section · name = Gen · Model · Type · Cab · non-standard options',
+  '차종별 · 막대 길이 = 대수 · 우측 대수·비율':'By vehicle type · bar length = units · units & share at right', '차종 섹션 안 모델별 · 모델명 = Model · Type · Axle · Cab · 비표준 옵션':'Models within each vehicle section · name = Model · Type · Axle · Cab · non-standard options',
   '월말 마감 판정 = Cancelled 제외 · 입고일(ETA Final Arrival) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)':'Month-end rule = excl. Cancelled · arrival (ETA Final) ≤ last day of month · Sales Month blank or later (unsold)',
   '{m} 월말 마감':'{m} month-end', '현재 ({d})':'Current ({d})', '리포트 HTML':'Report HTML',
   // KUFRI
   '연도':'Year', '차종':'Vehicle', '판매계획 입력 모드':'Sales Plan Input Mode', '실적(≤기준월)':'Actual (≤ base month)', '확정(AFAB 오더·잠금)':'Fixed (AFAB orders · locked)', '계획(입력)':'Plan (input)',
   '계획 확정':'Confirm Plan', '시나리오 복제 (2차)':'Clone Scenario (Phase 2)', ' 정상':' OK', ' 주의':' Warn', ' 위험':' Risk',
   '{n}대 · 리드타임 {lt}개월':'{n} units · lead time {lt} mo', 'OH Stock (월말)':'OH Stock (month-end)', 'In Transit (월말)':'In Transit (month-end)', '재고월수':'Months of Stock',
-  'Fixed Order (당월+익월 Production)':'Fixed Order (current + next month Production)', '모델 (vehicle | model | axle | cab)':'Model (vehicle | model | axle | cab)', '합계':'Total', '전체 합계':'Grand Total', '전 차종':'All vehicles',
+  'Fixed Order (당월+익월 Production)':'Fixed Order (current + next month Production)', '모델 (Vehicle | Model | Type | Axle | Cab)':'Model (Vehicle | Model | Type | Axle | Cab)', '합계':'Total', '전체 합계':'Grand Total', '전 차종':'All vehicles',
   // AFAB 업로드
   '반영 이력':'Upload History', 'AFAB_Uploads · 하루 2회 이상 가능':'AFAB_Uploads · multiple uploads per day allowed', '파일':'File', '행':'Rows', '신규':'New', '제외':'Removed', '상태':'Status',
   '매핑 요약':'Mapping Summary', 'SDISP 32열 → 시스템 필드 (✓ 사용 · △ 보관 · ✗ 미사용)':'SDISP 32 cols → system fields (✓ used · △ kept · ✗ unused)',
@@ -249,7 +249,7 @@ const I18N = {
   'TSC 재고':'Overall OH Stock(TSC)', '현재 및 미래 재고현황':'Current & Future Stock Status',
   '독일 Wörth 공장':'Wörth Factory in Germany', '바다':'At Sea', '대한민국 아산 트럭 스타 센터':'Asan Truck Star Center in Korea', 'Wörth 공장':'Wörth Factory', '아산 트럭 스타 센터':'Asan Truck Star Center', 'Antwerp항':'Port of Antwerp', '평택항':'Pyeongtaek Port',
   '여정 지도':'Journey Map', 'Ordered(Fixed) ~ OH Stock {n}대 · 원 면적 = 대수 · Factory Stock = In Production + Shipment scheduled':'Ordered(Fixed) ~ OH Stock {n} units · circle area = units · Factory Stock = In Production + Shipment scheduled',
-  '모델별 구역 현황':'Models by Zone', '행 = 구분 > 차종 > 모델(Vehicle Series Model Axle Cab 비표준 옵션) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)':'Rows = Gen > Vehicle > Model (Vehicle Series Model Axle Cab non-standard options) · 5 equal zones · bar = stacked by MY, length = units (same scale within model rows and within group rows)',
+  '모델별 구역 현황':'Models by Zone', '행 = 구분 > 차종 > 모델(Vehicle Model Type Axle Cab 비표준 옵션) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)':'Rows = Gen > Vehicle > Model (Vehicle Model Type Axle Cab non-standard options) · 5 equal zones · bar = stacked by MY, length = units (same scale within model rows and within group rows)',
   '상태 × 연식 히트맵':'Status × Model Year Heatmap', '행 = 구분 > 차종 > 모델 · 열 = 장소 > Current Status > 연식 + Total · 셀 색 농도 = 대수(상태 색) · 0은 공란 · 대수 0인 연식 열은 숨김':'Rows = Gen > Vehicle > Model · columns = location > Current Status > MY + Total · cell shade = units (status color) · 0 left blank · model-year columns with 0 units are hidden',
   '확정 주문 · 확정 재고':'Fixed Orders · Factory Stock', '운송 중':'In Transit', '재고 (보세 + 통관)':'Stock (Bonded + OH)',
   '＋ 모델 추가':'＋ Add Model', '실적 중앙값':'Actual Median', '차량 수':'Vehicles',
@@ -349,7 +349,6 @@ function openVehicle(comm){
   const hist = VEHICLE_HISTORY.filter(h=>h.commission_no===comm);
   const histHtml = `<div class="card"><div class="card-h"><h2>${tx('변경 이력')}</h2><span class="desc">${tx('Vehicle_History · 필드 단위 before/after')}</span></div>
     <table class="tbl"><thead><tr>${['일시','필드','이전','이후','사용자','출처'].map(x=>`<th>${tx(x)}</th>`).join('')}</tr></thead><tbody>
-    ${hist.map(h=>`<tr><td class="mono">${h.changed_at}</td><td class="mono">${h.field}</td><td class="muted">${esc(h.old_value)||'—'}</td><td><b>${esc(h.new_value)||'—'}</b></td><td>${esc(h.changed_by)}</td><td>${statusPill('neutral',h.source)}</td></tr>`).join('')}
     <tr><td class="mono">2026-09-15 10:00</td><td class="mono">(전체)</td><td class="muted">—</td><td>초기 적재</td><td>이관 스크립트</td><td>${statusPill('neutral','이관')}</td></tr>
     </tbody></table></div>`;
   const head = `<div><h2>${esc(v.commission_no)} ${stagePill(v.current_status)}</h2>
@@ -368,6 +367,7 @@ function openVehicle(comm){
   const oa = q('textarea[data-f="option_remarks"]', body); if(oa) oa.value = v.option_remarks||''; // 11/4: Option Note 4줄 칸 값 대입
   const nt = q('.v.note', body); if(nt){ if(v.order_note) nt.textContent = v.order_note; else nt.replaceChildren(mk('span', {class:'muted'}, '—')); }
   const slot = q('.sw-slot', body); if(slot) slot.replaceWith(orderNoteSwitch(v, body));
+  const htb = q('.tbl tbody', body); if(htb) htb.prepend(...hist.map(histRowEl)); // 11/6: 변경 이력 행은 DOM으로 삽입(규칙 2) · 필드 칸 = 화면 라벨(histRowEl)
   // 11/4: '저장' = Order Note·Option Note 텍스트 즉시 저장(Store.vehicles.saveNotes, 출처 '입력') + 드로어 '변경 이력' 표 맨 위에 행 추가 + 그리드가 떠 있으면 다시 그림. 그 외 입력 필드는 목업에서 저장하지 않음
   const sb = el('drvSave'); if(sb) sb.onclick = ()=>{
     const oi = q('[data-f="option_remarks"]', body); // 11/4: textarea
@@ -379,8 +379,8 @@ function openVehicle(comm){
     toast(tx('Note 저장'), tx('{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)', {comm, fields: rows.map(r=>keyinLabel(r.field)).join(' · '), n:num(rows.length)}));
   };
 }
-// 드로어 '변경 이력' 표 행 (11/4): Vehicle_History 행 → tr (orderNoteSwitch의 행 구성과 동일)
-function histRowEl(r){ return mk('tr', null, mk('td', {class:'mono'}, r.changed_at), mk('td', {class:'mono'}, r.field), mk('td', {class:'muted'}, r.old_value||'—'), mk('td', null, mk('b', null, r.new_value||'—')), mk('td', null, r.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, r.source))); }
+// 드로어 '변경 이력' 표 행 (11/4): Vehicle_History 행 → tr (orderNoteSwitch의 행 구성과 동일) · 11/6: 필드 칸은 내부 키 대신 화면 라벨(COLUMNS label, 예: series → Model · model → Type · COLUMNS에 없는 키는 그대로)
+function histRowEl(r){ return mk('tr', null, mk('td', {class:'mono'}, r.changed_at), mk('td', {class:'mono'}, tx(keyinLabel(r.field))),mk('td', {class:'muted'}, r.old_value||'—'), mk('td', null, mk('b', null, r.new_value||'—')), mk('td', null, r.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, r.source))); }
 // Order Note On/Off 스위치 (10/30 리뷰 #7): On = 검토가 필요한 오더. Editor만 조작(그 외 비활성·상태만 표시), 바꾸면 즉시 저장(Store.vehicles.setOrderNoteFlag) + Vehicle_History 기록 + 드로어 '변경 이력' 표 맨 위에 행 추가
 function orderNoteSwitch(v, body){
   const txt = mk('span', {class:'sw-txt'}, v.order_note_flag?'On':'Off');
@@ -389,7 +389,7 @@ function orderNoteSwitch(v, body){
     txt.textContent = v.order_note_flag?'On':'Off';
     if(!row) return;
     const tb = q('.tbl tbody', body);
-    if(tb) tb.prepend(mk('tr', null, mk('td', {class:'mono'}, row.changed_at), mk('td', {class:'mono'}, row.field), mk('td', {class:'muted'}, row.old_value), mk('td', null, mk('b', null, row.new_value)), mk('td', null, row.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, row.source))));
+    if(tb) tb.prepend(mk('tr', null, mk('td', {class:'mono'}, row.changed_at), mk('td', {class:'mono'}, tx(keyinLabel(row.field))),mk('td', {class:'muted'}, row.old_value), mk('td', null, mk('b', null, row.new_value)), mk('td', null, row.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, row.source))));
     toast(tx('Order Note 토글 저장'), tx('{comm} · {val} · Vehicle_History 기록 (출처: 입력)', {comm:v.commission_no, val:row.new_value}));
   }});
   return mk('label', {class:'sw', title: tx('On = 검토가 필요한 오더 · 토글 즉시 저장 + 변경 이력 기록')}, input, mk('span', {class:'sw-track'}), txt);

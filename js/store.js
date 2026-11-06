@@ -44,7 +44,7 @@ const Store = {
       const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, cab_gen:m.cab_gen, wheelbase:m.wheelbase, pto:m.pto, emission:m.emission, lead_time:m.lead, lead_days:m.lead_days, // series = 차량 마스터 'Model' 열 (10/19 No.16) · 11/4: option → cab_gen·wheelbase·pto·emission
         baumuster:[m.prefix, m.suffix].filter(Boolean).join(' '), bm:m.prefix+'-'+m.code2, model_year:m.my }; // 11/4: MY는 BM(Code2)에 묶임 → 모델 마스터 반영 시 차량 MY도 모델 값으로
       p.model_classification = [p.gen,p.model,p.axle,p.cab,modelOptTag(p)].filter(Boolean).join(' ');
-      p.model_key = [p.vehicle,p.model,p.axle,p.cab].join('|');
+      p.model_key = [p.vehicle,p.series,p.model,p.axle,p.cab].join('|'); // 11/6: Model(series) 추가 (data.js와 같은 구성)
       return p;
     },
     // Model_Master 행의 모델 속성을 차량에 일괄 적용 + 파생 모델명 재계산

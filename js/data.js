@@ -136,7 +136,7 @@ function makeVehicle(p, m){
   // 파생 (10/19: days_in_stock · stock_level · stock_age_optimus 제거)
   v.model_year = v.vin_no ? 'MY'+MY_FROM_LETTER[v.vin_no[9]] : 'MY'+MY_FROM_LETTER[myL];
   v.model_classification = [v.gen,v.model,v.axle,v.cab,modelOptTag(v)].filter(Boolean).join(' '); // 11/4: Option 대신 비표준 값만 접미
-  v.model_key = [v.vehicle,v.model,v.axle,v.cab].join('|');
+  v.model_key = [v.vehicle,m.series,v.model,v.axle,v.cab].join('|'); // 11/6: KUFRI 묶음 기준에 Model(series) 추가 → Vehicle|Model|Type|Axle|Cab (v.series는 아래에서 대입되므로 m.series 사용)
   v.eta_month = etaF? ymOf(etaF):''; v.tdd_month = tdd? ymOf(tdd):''; v.shipping_month = ship? ymOf(ship):'';
   const noShip = !v.vessel && !v.shipping;
   v.order_class = (s==='Ordered'||s==='In Production') && noShip ? (ymDiff(pm,BASE_YM)===0||ymDiff(pm,BASE_YM)===1 ? 'Fixed order' : ymDiff(pm,BASE_YM)>=2 ? 'Order (Changeable)' : '—') : '—';
@@ -144,7 +144,7 @@ function makeVehicle(p, m){
   // ---- 신규 열 (data-dictionary v2_1_2) ----
   v.bm = m.prefix+'-'+code2ForMy(m, v.model_year);              // BM = Baumuster Code1 - Baumuster Code2 (예 96302210-3BT) · 11/4: Code2는 연식(MY)별 → BM이 MY를 결정
   v.series = m.series;                                            // 값 형식 Actros/Arocs/eActros — Model_Master 'Model' 열과 연동 (10/19 No.16)
-  v.spec = [v.vehicle, v.series, v.model, v.axle, v.cab].join(' '); // Vehicle + Series + Model + Axle + Cab
+  v.spec = [v.vehicle, v.series, v.model, v.axle, v.cab].join(' '); // Vehicle + Model(series) + Type(model) + Axle + Cab
   v.eta_from_tdd = tdd ? fmtD(addD(tdd,75)) : '';                 // TDD Calc + 75일
   v.color_name = COLOR_NAMES[v.color_code]||'';                   // 색상 코드 → 이름
   v.ref_commission_no = '';                                       // genVehicles에서 Commission No 부여 후 일부 채움

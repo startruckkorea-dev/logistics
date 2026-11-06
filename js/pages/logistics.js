@@ -448,7 +448,7 @@ function openModelChange(){
   const dist = o=> Object.keys(o).sort().map(k=>tx('{k} {n}건', {k:k||tx('(공란)'), n:num(o[k])})).join(' · ') || tx('(공란)');
   const field = (label, ctl, wide)=> mk('div', {class:'f'+(wide?' wide':'')}, mk('div', {class:'k'}, label), mk('div', {class:'v'}, ctl));
   const body = mk('div', null,
-    mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건의 모델 속성(Vehicle · Gen · Model · Axle · Cab · Cab Gen · Wheelbase · PTO · Emission · Baumuster · BM · MY)을 Model_Master에서 매칭한 모델로, Original PM(생산월)을 입력한 월로 일괄 변경합니다. Original PM을 비워 두면 모델만 바뀝니다. Model In AFAB는 AFAB 업로드 값이라 바뀌지 않으며, 'Type' 열의 점(초록/빨강)으로 일치 여부를 확인합니다. 변경 내용은 '편집 종료' 시 저장되고 Order Update Date에 변경일이 기록됩니다.`),
+    mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건의 모델 속성(Vehicle · Gen · Model · Type · Axle · Cab · Cab Gen · Wheelbase · PTO · Emission · Baumuster · BM · MY)을 Model_Master에서 매칭한 모델로, Original PM(생산월)을 입력한 월로 일괄 변경합니다. Original PM을 비워 두면 모델만 바뀝니다. Model In AFAB는 AFAB 업로드 값이라 바뀌지 않으며, 'Type' 열의 점(초록/빨강)으로 일치 여부를 확인합니다. 변경 내용은 '편집 종료' 시 저장되고 Order Update Date에 변경일이 기록됩니다.`),
     mk('div', {class:'callout', style:'font-weight:600'}, tx('Current Status가 Ordered(Changeable)로 변경(유지)됩니다')),
     excluded.length? mk('div', {class:'callout warn'}, tx('선택 {n}건 중 {m}건은 Ordered(Dummy)·Ordered(Changeable)가 아니라 제외됩니다', {n:num(all.length), m:num(excluded.length)}), ' (', dist(byEx), ')') : null,
     mk('div', {class:'fields'},
@@ -468,7 +468,7 @@ function openModelChange(){
       const patch = Store.vehicles.modelMasterPatch(m); if(pm) patch.original_pm = pm;
       patch.current_status = 'Ordered(Changeable)'; patch.order_update_date = TODAY_S; // #2 상태 전환(유지) · #4 변경일 기록 — 같은 값은 stageChange에서 저장 대기에 오르지 않음
       vs.forEach(v=>Object.entries(patch).forEach(([k,val])=>stageChange(v.commission_no, k, val, '수동/일괄'))); closeModal(); renderGrid();
-      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${[m.model, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · ${m.my}${pm? ` · Original PM ${pm}` : ''} · Current Status → Ordered(Changeable) · Order Update Date ${TODAY_S} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
+      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${[m.series, m.model, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · ${m.my}${pm? ` · Original PM ${pm}` : ''} · Current Status → Ordered(Changeable) · Order Update Date ${TODAY_S} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
 }
 function openBulkKeyin(){
   const vs = selectedVehicles(); if(!vs.length) return;

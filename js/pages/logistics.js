@@ -551,12 +551,12 @@ function modelPicker(){
   mySel.value = 'MY'+MY_FROM_LETTER[myLetterFromPm(ymAdd(BASE_YM,3))];
   // 5. 모델 한 줄 드롭다운 (Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 11/4: Model_Master 행이 연식별이라 ③ MY로 거른 행만 보인다
   const modelSel = mk('select', {style:'width:100%', disabled:true}, mk('option', {value:''}, tx('Type을 먼저 선택하세요')));
-  // 4. 매칭된 Model_Master 속성 표시 (BM = Baumuster Code1-Code2)
+  // 4. 매칭된 Model_Master 속성 표시 (BM = Baumuster Code1-Code2) · 11/6: Baumuster·Model In AFAB 항목 삭제(모델 마스터에서 입력하지 않는 값)
   const attrs = mk('div', {class:'kv small', style:'grid-template-columns:140px 1fr'});
   const current = ()=> modelSel.value? (active[Number(modelSel.value)] || null) : null; // 미선택('')이면 null (Number('')=0으로 첫 행이 보이던 것 수정)
   const drawAttrs = ()=>{ attrs.replaceChildren();
     const m = current(); if(!m){ attrs.append(mk('dt', {class:'muted'}, tx('모델을 선택하면 속성이 표시됩니다.'))); return; }
-    [['BM', m.prefix+'-'+m.code2], ['Baumuster', m.prefix+' '+m.suffix], ['Model In AFAB', m.type_desc], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Cab Gen', m.cab_gen||'—'], ['Wheelbase', m.wheelbase||'—'], ['PTO', m.pto||'—'], ['Emission', m.emission||'—'], ['Gen', m.gen], [tx('리드타임(일)'), String(m.lead_days)], [tx('리드타임(월)'), String(m.lead)], ['MY', m.my]]
+    [['BM', m.prefix+'-'+m.code2], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Cab Gen', m.cab_gen||'—'], ['Wheelbase', m.wheelbase||'—'], ['PTO', m.pto||'—'], ['Emission', m.emission||'—'], ['Gen', m.gen], [tx('리드타임(일)'), String(m.lead_days)], [tx('리드타임(월)'), String(m.lead)], ['MY', m.my]]
       .forEach(([k,v])=>attrs.append(mk('dt', null, k), mk('dd', {class:'mono'}, v))); };
   // 흐름 연결
   search.oninput = ()=>{ const t = search.value.replace(/\D/g,''); search.value = t;
@@ -581,7 +581,7 @@ function modelPicker(){
 
 // ---- 오더 생성 (10/19): Type 숫자 검색 → Type 선택 → MY → 모델(Model_Master 행) 선택 → 속성 표시(modelPicker 공용) → Original PM·수량·단계 → Commission No 생성 방식 → 생성 ----
 // 10/20 No.22: 입력받는 생산월은 Original PM(배지: 오더 생성)에 기록하고 PM은 공란 · No.10: Order Update Date = 생성일(11/3 #4: 오더 변경 시 변경일로 갱신)
-// 11/3 #1: Current Status는 Ordered(Dummy) / Ordered(Changeable) 두 가지만 입력(기본 Dummy) · 주문제작 모델 오더도 Changeable
+// 11/3 #1: Current Status는 Ordered(Dummy) / Ordered(Changeable) 두 가지만 입력(기본 Dummy) · 11/4 리뷰 #2: 모델 구분 삭제에 따라 Current Status 아래 안내 문구 삭제
 function openAddOrder(){
   const field = (label, ctl, wide)=> mk('div', {class:'f'+(wide?' wide':'')}, mk('div', {class:'k'}, label), mk('div', {class:'v'}, ctl));
   const pk = modelPicker(); const modelLine = pk.modelLine;
@@ -590,7 +590,6 @@ function openAddOrder(){
   const qtyIn = mk('input', {type:'number', min:'1', max:'500', value:'1', style:'width:100%'});
   const stSel = mk('select', {style:'width:100%'}, ORDER_CHANGE_STATUSES.map(s=>mk('option', {value:s}, s))); // 11/3 #1: Dummy / Changeable만
   stSel.value = 'Ordered(Dummy)';
-  const stNote = mk('div', {class:'muted small', style:'margin-top:4px'}, tx('주문제작 모델 오더도 Ordered(Changeable)로 입력합니다'));
   // 7. Commission No 생성 방식: 끝번호에 이어서 / 새 번호로 시작
   const last = Store.vehicles.lastCommissionNo() || '000000000';
   const nextOf = (s, k)=> String(Number(s)+k).padStart(s.length, '0');
@@ -612,7 +611,7 @@ function openAddOrder(){
       field(tx('① Type 검색 *'), pk.search), field('② Type *', pk.typeSel),
       field('③ MY *', pk.mySel), field(tx('④ 모델 (Model_Master) *'), pk.modelSel),
       field(tx('매칭된 모델 속성'), pk.attrs, true),
-      field(tx('⑤ Original PM (생산월) *'), pmIn), field(tx('수량 *'), qtyIn), field('Current Status *', mk('div', null, stSel, stNote)),
+      field(tx('⑤ Original PM (생산월) *'), pmIn), field(tx('수량 *'), qtyIn), field('Current Status *', stSel),
       field(tx('⑥ Commission No 생성 방식 *'), mk('div', {style:'display:flex;gap:14px;align-items:center;flex-wrap:wrap'},
         mk('label', null, rCont, tx(' 마지막 번호에 이어서 생성')), mk('label', null, rNew, tx(' 새 번호로 시작 '), startIn)), true),
       field('', preview, true)),

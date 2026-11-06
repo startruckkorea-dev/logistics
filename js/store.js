@@ -42,7 +42,7 @@ const Store = {
     // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
     modelMasterPatch(m){
       const p = { vehicle:m.vehicle, gen:m.gen, series:m.series, model:m.model, axle:m.axle, cab:m.cab, cab_gen:m.cab_gen, wheelbase:m.wheelbase, pto:m.pto, emission:m.emission, lead_time:m.lead, lead_days:m.lead_days, // series = 차량 마스터 'Model' 열 (10/19 No.16) · 11/4: option → cab_gen·wheelbase·pto·emission
-        baumuster:m.prefix+' '+m.suffix, bm:m.prefix+'-'+m.code2, model_year:m.my }; // 11/4: MY는 BM(Code2)에 묶임 → 모델 마스터 반영 시 차량 MY도 모델 값으로
+        baumuster:[m.prefix, m.suffix].filter(Boolean).join(' '), bm:m.prefix+'-'+m.code2, model_year:m.my }; // 11/4: MY는 BM(Code2)에 묶임 → 모델 마스터 반영 시 차량 MY도 모델 값으로
       p.model_classification = [p.gen,p.model,p.axle,p.cab,modelOptTag(p)].filter(Boolean).join(' ');
       p.dms_model_name = [p.vehicle,p.model,p.axle,p.cab].join(' ');
       p.model_key = [p.vehicle,p.model,p.axle,p.cab].join('|');
@@ -180,15 +180,15 @@ const Store = {
   modelMaster: {
     // BM = Baumuster Code1 - Code2 (모델 마스터 행과 차량의 연결 키, 11/4 사용자 확정)
     bmOf(m){ return m.prefix+'-'+m.code2; },
-    // 주문제작 모델 추가 (11/3 #10): row = 입력 필드(prefix·code2·my·suffix·type_desc·gen·vehicle·series·model·axle·cab·cab_gen·wheelbase·pto·emission·lead·lead_days·active). BM 중복이면 null.
-    // custom:true 고정 · w:0(샘플 생성 가중치 없음) → MODEL_MASTER 끝에 추가 + Audit_Log 1건. 반환 추가한 행
+    // 모델 추가 (11/3 #10 · 11/4 리뷰 #2: 기본 모델·주문제작 구분 없음): row = 입력 필드(prefix·code2·my·suffix·type_desc·gen·vehicle·series·model·axle·cab·cab_gen·wheelbase·pto·emission·lead·lead_days·active). BM 중복이면 null.
+    // w:0(샘플 생성 가중치 없음) → MODEL_MASTER 끝에 추가 + Audit_Log 1건. 반환 추가한 행
     add(row, by){
       const bm = Store.modelMaster.bmOf(row); if(MODEL_MASTER.some(m=>Store.modelMaster.bmOf(m)===bm)) return null;
-      const m = Object.assign({}, row, {custom:true, w:0}); MODEL_MASTER.push(m);
-      AUDIT_LOG.unshift({at:nowStamp(), user:by, action:'모델 추가', target:'Model_Master '+bm, detail:`주문제작 · ${m.type_desc} (${[m.vehicle,m.series,m.model,m.axle,m.cab,modelOptTag(m)].filter(Boolean).join(' ')}) · 리드타임 ${m.lead_days}일 / ${m.lead}개월`});
+      const m = Object.assign({}, row, {w:0}); MODEL_MASTER.push(m);
+      AUDIT_LOG.unshift({at:nowStamp(), user:by, action:'모델 추가', target:'Model_Master '+bm, detail:`${[m.vehicle,m.series,m.model,m.axle,m.cab,modelOptTag(m)].filter(Boolean).join(' ')} · 리드타임 ${m.lead_days}일 / ${m.lead}개월`});
       return m;
     },
-    // 모델 마스터 수정 저장 (11/3 #10·#11): changes = [{m: MODEL_MASTER 행, patch}] · 기본 모델은 code2·lead·lead_days만, 주문제작은 전 필드.
+    // 모델 마스터 수정 저장 (11/3 #10·#11): changes = [{m: MODEL_MASTER 행, patch}] · 모든 행 전 필드(11/4 리뷰 #2).
     // 행마다 수정 전 BM과 같은 차량(v.bm)에 모델 속성 재적용(Store.vehicles.applyModelMaster → bm·baumuster·모델 속성·MY·리드타임·파생 모델명). Vehicle_History 없음 · Audit_Log 1건. 반환 {models, vehicles}
     update(changes, by){
       let vehicles = 0; const bms = [];

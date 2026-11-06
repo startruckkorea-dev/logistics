@@ -51,17 +51,18 @@ function drawSettings(){
   }
 }
 
-// ---- 11/3 리뷰 #10·#11: 모델 마스터 — 편집 모드 + 저장 · 주문제작 모델 추가 (11/4: Option 열 → Cab Gen · Wheelbase · PTO · Emission) ----
-// 편집 모드(ST.mmEdit): 기본 모델(custom:false)은 Baumuster Code2·리드타임(일)·(월)만 입력칸, 주문제작(custom:true)은 전 열 + Active. '저장' → Store.modelMaster.update(바뀐 행만) → BM(Code1-Code2) 일치 차량 반영 + Audit_Log
-// [key, 머리글, 편집 범위('any' = 기본 모델도 · 'all' = 주문제작만), 입력칸 너비(px), td class]
+// ---- 11/3 리뷰 #10·#11: 모델 마스터 — 편집 모드 + 저장 · 모델 추가 (11/4: Option 열 → Cab Gen · Wheelbase · PTO · Emission) ----
+// 11/4 리뷰 #2: 기본 모델·주문제작 구분 삭제 — 모든 모델 행을 같은 방식으로 추가·수정('모델 구분' 열·custom 값 없음)
+// 편집 모드(ST.mmEdit): 모든 행의 전 열 + Active가 입력칸. '저장' → Store.modelMaster.update(바뀐 행만) → BM(Code1-Code2) 일치 차량 반영 + Audit_Log
+// [key, 머리글, 입력칸 너비(px), td class]
 const MM_COLS = [
-  ['prefix','Baumuster Code1','all',84,'mono'], ['code2','Baumuster Code2','any',48,'mono'], ['my','MY','all',0,''], ['type_desc','Model In AFAB','all',150,''], ['gen','Gen','all',64,''], ['vehicle','Vehicle','all',0,''],
-  ['series','Model','all',72,''], ['model','Type','all',84,''], ['axle','Axle','all',40,''], ['cab','Cab','all',44,''],
-  ['cab_gen','Cab Gen','all',0,''], ['wheelbase','Wheelbase','all',52,''], ['pto','PTO','all',44,''], ['emission','Emission','all',56,''],
-  ['lead_days','리드타임(일)','any',48,'num'], ['lead','리드타임(월)','any',40,'num'],
-]; // #11: 기본 모델은 Baumuster Code2만 Key-in(리드타임은 기준값이라 기본·주문제작 모두 수정 가능, 11/4 사용자 확정)
+  ['prefix','Baumuster Code1',84,'mono'], ['code2','Baumuster Code2',48,'mono'], ['my','MY',0,''], ['gen','Gen',64,''], ['vehicle','Vehicle',0,''],
+  ['series','Model',72,''], ['model','Type',84,''], ['axle','Axle',40,''], ['cab','Cab',44,''],
+  ['cab_gen','Cab Gen',0,''], ['wheelbase','Wheelbase',52,''], ['pto','PTO',44,''], ['emission','Emission',56,''],
+  ['lead_days','리드타임(일)',48,'num'], ['lead','리드타임(월)',40,'num'],
+]; // 11/6: Model In AFAB(type_desc) 열 삭제 — 표·모델 추가 창 모두에서 입력·표시하지 않음(샘플 데이터 값은 유지)
 const MY_LIST = Object.values(MY_FROM_LETTER).map(n=>'MY'+n); // MY21~MY28
-const MM_SELECT = {vehicle: VEHICLE_TYPES, cab_gen: ['SFTP','ProCabin'], my: MY_LIST}; // 드롭다운 열 (Cab Gen 값은 10/27 #18: SFTP / ProCabin · MY는 11/4: Code2에 묶여 BM이 연식을 결정, 주문제작만 수정)
+const MM_SELECT = {vehicle: VEHICLE_TYPES, cab_gen: ['SFTP','ProCabin'], my: MY_LIST}; // 드롭다운 열 (Cab Gen 값은 10/27 #18: SFTP / ProCabin · MY는 11/4: Code2에 묶여 BM이 연식을 결정)
 const MM_TITLES = {series:"차량 마스터 'Model' 열과 연동 (series)", model:"차량 마스터 'Type' 열과 연동 (model)", lead_days:'기준 구간: PM(생산월 1일) ~ Shipping(선적일) · 일 단위 · Logistics Shipping Calc = PM 1일 + 이 값', lead:'기준 구간: PM ~ ETA(입항) · 월 단위 · 입항 예정월(대시보드·KUFRI) 계산에 사용'};
 const MM_SUB = {lead_days:'PM ~ Shipping', lead:'PM ~ ETA'};
 function pillEl(kind, text){ return mk('span', {class:'pill '+kind}, text); }
@@ -70,23 +71,23 @@ function drawModelMaster(b, admin){
   b.replaceChildren();
   if(!admin) b.append(mk('div', {class:'callout warn'}, 'Viewer 역할은 조회만 가능합니다. 마스터·기준값 수정은 Editor 중 관리자만.'));
   // 헤더: 보기 모드 [편집] [＋ 모델 추가] · 편집 모드 [저장] [취소] (모델 추가는 비활성)
-  const head = mk('div', {class:'card-h'}, mk('h2', null, tx('모델 마스터 (Model_Master)')), mk('span', {class:'desc'}, tx('baumuster_prefix(8자리) + type_desc → vehicle · gen · series(Model) · model(Type) · axle · cab · cab_gen · wheelbase · pto · emission · dms_model_name · lead_time(월) · lead_days(일)')), mk('span', {class:'spacer'}));
+  const head = mk('div', {class:'card-h'}, mk('h2', null, tx('모델 마스터 (Model_Master)')), mk('span', {class:'spacer'}));
   if(admin){
     if(edit) head.append(mk('button', {class:'btn primary sm', onclick: save}, tx('저장')), mk('button', {class:'btn sm', onclick: ()=>{ ST.mmEdit = false; drawSettings(); }}, tx('취소')));
     else head.append(mk('button', {class:'btn sm', onclick: ()=>{ ST.mmEdit = true; drawSettings(); }}, tx('편집')));
     head.append(mk('button', {class:'btn primary sm', disabled: edit, onclick: openAddModel}, tx('＋ 모델 추가')));
   }
   // 머리글
-  const thead = mk('thead', null, mk('tr', null, mk('th', null, tx('모델 구분')),
-    ...MM_COLS.map(([key, label, , , cls])=>{ const th = mk('th', {class: cls==='num'? 'num' : null, title: MM_TITLES[key]||null}, MM_SUB[key]? tx(label) : label);
+  const thead = mk('thead', null, mk('tr', null,
+    ...MM_COLS.map(([key, label, , cls])=>{ const th = mk('th', {class: cls==='num'? 'num' : null, title: MM_TITLES[key]||null}, MM_SUB[key]? tx(label) : label);
       if(MM_SUB[key]) th.append(mk('div', {class:'muted small', style:'font-weight:500'}, MM_SUB[key])); return th; }),
     mk('th', {class:'num', title:'PM ~ Shipping 실적 중앙값 (최근 6개월, 일)'}, tx('실적 중앙값')), mk('th', {class:'num'}, tx('차량 수')), mk('th', null, 'Active')));
   // 행
   const tbody = mk('tbody', null, ...MODEL_MASTER.map(m=>{
     const bm = Store.modelMaster.bmOf(m); const n = VEHICLES.filter(v=>v.bm===bm).length; const ins = {}; // 11/4: 차량 수는 BM 기준(연식별 행)
-    const tr = mk('tr', null, mk('td', null, m.custom? pillEl('ok', tx('주문제작')) : pillEl('neutral', tx('기본 모델'))));
-    MM_COLS.forEach(([key, , mode, w, cls])=>{ const td = mk('td', {class: cls||null}); const can = edit && (mode==='any' || m.custom);
-      if(can){ let inp;
+    const tr = mk('tr');
+    MM_COLS.forEach(([key, , w, cls])=>{ const td = mk('td', {class: cls||null});
+      if(edit){ let inp;
         if(MM_SELECT[key]){ inp = mk('select', null, ...MM_SELECT[key].map(o=>mk('option', {value:o}, o))); inp.value = m[key]; }
         else inp = mk('input', {value: m[key]==null? '' : String(m[key]), style:`width:${w}px${cls==='num'? ';text-align:right' : ''}`});
         ins[key] = inp; td.append(inp); }
@@ -94,12 +95,12 @@ function drawModelMaster(b, admin){
       tr.append(td); });
     tr.append(mk('td', {class:'num muted'}, m.lead_days+'일'), mk('td', {class:'num'}, num(n)));
     const act = mk('td');
-    if(edit && m.custom){ const cb = mk('input', {type:'checkbox'}); cb.checked = !!m.active; ins.active = cb; act.append(cb); }
+    if(edit){ const cb = mk('input', {type:'checkbox'}); cb.checked = !!m.active; ins.active = cb; act.append(cb); }
     else act.append(pillEl(m.active? 'ok' : 'neutral', m.active? 'Y' : 'N'));
     tr.append(act); inputs.set(m, ins); return tr; }));
   b.append(head, mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl'}, thead, tbody)),
-    mk('div', {class:'muted small', style:'margin-top:6px'}, tx('기본 모델은 Baumuster Code2와 리드타임만, 주문제작 모델은 모든 열을 수정할 수 있습니다. 저장 시 BM(Code1-Code2)이 같은 차량에 반영됩니다.')),
-    mk('div', {class:'muted small', style:'margin-top:4px'}, "리드타임(일) = PM(생산월 1일) ~ Shipping(선적일) 실적 중앙값으로 자동 제안 → Logistics 'Shipping Calc' = PM 1일 + 리드타임(일) (10/27 #7·#17) · 리드타임(월) = PM ~ ETA 기준, 입항 예정월(대시보드 월별 추이·KUFRI Arrival) 계산에 사용. 매핑 없는 Baumuster 1건(96340610) 대기 중."));
+    mk('div', {class:'muted small', style:'margin-top:6px'}, tx('모든 열을 수정할 수 있습니다. 저장 시 BM(Code1-Code2)이 같은 차량에 반영됩니다.')),
+    mk('div', {class:'muted small', style:'margin-top:4px'}, "리드타임(일) = PM(생산월 1일) ~ Shipping(선적일) 실적 중앙값으로 자동 제안 → Logistics 'Shipping Calc' = PM 1일 + 리드타임(일) · 리드타임(월) = PM ~ ETA 기준, 입항 예정월(대시보드 월별 추이·KUFRI Arrival) 계산에 사용."));
   // 저장: 바뀐 행만 patch → 검증(Code1 8자리 숫자 · Code2 필수 · 리드타임 숫자 · BM 중복) → Store.modelMaster.update → 편집 종료
   function save(){
     const changes = [], errs = [], bmSeen = {};
@@ -118,32 +119,30 @@ function drawModelMaster(b, admin){
     toast(`모델 마스터 저장 ${num(r.models)}건`, `차량 ${num(r.vehicles)}대에 반영 (BM 기준: bm · baumuster · 모델 속성 · Cab Gen~Emission · MY · 리드타임 · 파생 모델명) · Audit_Log 기록`);
   }
 }
-// 주문제작 모델 추가 모달 (11/3 #10): 입력 → 검증 → Store.modelMaster.add(custom:true) → 표 다시 그림. 기본 모델은 AFAB 매핑으로 등록되므로 여기서 추가하지 않는다
+// 모델 추가 모달 (11/3 #10 · 11/4 리뷰 #2: 구분 없이 모든 모델): 입력 → 검증 → Store.modelMaster.add → 표 다시 그림
+// 11/6: 항목 이름의 * 표시 삭제 · 'Baumuster 접미'·'Model In AFAB' 입력칸 삭제(추가 행의 suffix·type_desc는 공란) · 필수 검증은 그대로
 function openAddModel(){
   const field = (label, ctl, wide)=> mk('div', {class:'f'+(wide? ' wide' : '')}, mk('div', {class:'k'}, label), mk('div', {class:'v'}, ctl));
   const inp = (ph, val)=> mk('input', {placeholder: ph||'', value: val||'', style:'width:100%'});
   const sel = (opts, val)=>{ const s = mk('select', {style:'width:100%'}, ...opts.map(o=>mk('option', {value:o}, o))); s.value = val; return s; };
-  const f = { prefix: inp('8자리 숫자 (예: 96340610)'), code2: inp('예: 7AV'), my: sel(MY_LIST, 'MY'+MY_FROM_LETTER[myLetterFromPm(ymAdd(BASE_YM,3))]), suffix: inp('예: LSDNRA6x2'), type_desc: inp('예: 2863 LSDNRA6x2 F 16'),
+  const f = { prefix: inp('8자리 숫자 (예: 96340610)'), code2: inp('예: 7AV'), my: sel(MY_LIST, 'MY'+MY_FROM_LETTER[myLetterFromPm(ymAdd(BASE_YM,3))]),
     gen: inp('예: MP5', 'MP5'), vehicle: sel(VEHICLE_TYPES, 'Tractor'), series: inp('예: Actros', 'Actros'), model: inp('예: 2863LS'), axle: inp('예: 6x2'), cab: inp('예: S5F'),
     cab_gen: sel(['SFTP','ProCabin'], 'SFTP'), wheelbase: inp('예: 3900'), pto: inp('예: PTO'), emission: inp('예: Euro6', 'Euro6'),
     lead_days: mk('input', {type:'number', min:'0', value:'40', style:'width:100%'}), lead: mk('input', {type:'number', min:'0', value:'3', style:'width:100%'}), active: mk('input', {type:'checkbox', checked:true, style:'width:auto'}) };
   const err = mk('div', {class:'small', style:'color:var(--danger);font-weight:600', hidden:true});
   const body = mk('div', null,
-    mk('div', {class:'callout'}, tx('주문제작 모델만 추가할 수 있습니다. 기본 모델은 AFAB 매핑으로 등록되며 Baumuster Code2만 Key-in합니다.')),
     mk('div', {class:'fields'},
-      field(tx('모델 구분'), pillEl('ok', tx('주문제작'))), field('Active', mk('label', null, f.active, ' Y')),
-      field('Baumuster Code1 *', f.prefix), field('Baumuster Code2 *', f.code2),
-      field('MY *', f.my), field(tx('Baumuster 접미'), f.suffix),
-      field('Model In AFAB *', f.type_desc, true),
-      field('Gen *', f.gen), field('Vehicle *', f.vehicle),
-      field('Model *', f.series), field('Type *', f.model),
-      field('Axle *', f.axle), field('Cab *', f.cab),
-      field('Cab Gen *', f.cab_gen), field('Wheelbase', f.wheelbase),
-      field('PTO', f.pto), field('Emission', f.emission),
-      field(tx('리드타임(일)')+' *', f.lead_days), field(tx('리드타임(월)')+' *', f.lead)),
-    mk('div', {class:'muted small', style:'margin-top:8px'}, '* 필수. BM = Baumuster Code1-Code2는 모델 마스터 안에서 중복될 수 없고, MY는 Code2에 묶여 BM이 연식을 결정합니다(예: 7AT = MY26, 7AV = MY27). 차량 Baumuster 표시값 = Code1 + 접미. 추가한 모델은 오더 생성·오더 변경의 모델 목록에 바로 나타납니다(Active인 경우).'),
+      field('Baumuster Code1', f.prefix), field('Baumuster Code2', f.code2),
+      field('MY', f.my), field('Gen', f.gen),
+      field('Vehicle', f.vehicle), field('Model', f.series),
+      field('Type', f.model), field('Axle', f.axle),
+      field('Cab', f.cab), field('Cab Gen', f.cab_gen),
+      field('Wheelbase', f.wheelbase), field('PTO', f.pto),
+      field('Emission', f.emission), field('Active', mk('label', null, f.active, ' Y')),
+      field(tx('리드타임(일)'), f.lead_days), field(tx('리드타임(월)'), f.lead)),
+    mk('div', {class:'muted small', style:'margin-top:8px'}, '추가한 모델은 오더 생성·오더 변경의 모델 목록에 바로 나타납니다(Active인 경우).'),
     err);
-  openModal(tx('모델 추가 — 주문제작'), '', ' ');
+  openModal(tx('모델 추가'), '', ' ');
   el('modal-body').replaceChildren(body);
   const fail = msg=>{ err.textContent = msg; err.hidden = false; };
   el('modal-foot').replaceChildren(
@@ -152,12 +151,12 @@ function openAddModel(){
       const val = k=> f[k].value.trim();
       if(!/^\d{8}$/.test(val('prefix'))) return fail('Baumuster Code1은 숫자 8자리로 입력하세요.');
       if(!val('code2')) return fail('Baumuster Code2를 입력하세요.');
-      const names = {type_desc:'Model In AFAB', gen:'Gen', series:'Model', model:'Type', axle:'Axle', cab:'Cab'};
+      const names = {gen:'Gen', series:'Model', model:'Type', axle:'Axle', cab:'Cab'};
       const miss = Object.keys(names).filter(k=>!val(k)); if(miss.length) return fail('필수 항목을 입력하세요: '+miss.map(k=>names[k]).join(', '));
       if(!/^\d+$/.test(val('lead_days')) || !/^\d+$/.test(val('lead'))) return fail('리드타임(일)·(월)은 숫자로 입력하세요.');
-      const row = {prefix:val('prefix'), code2:val('code2'), my:f.my.value, suffix:val('suffix'), type_desc:val('type_desc'), vehicle:f.vehicle.value, series:val('series'), gen:val('gen'), model:val('model'), axle:val('axle'), cab:val('cab'),
+      const row = {prefix:val('prefix'), code2:val('code2'), my:f.my.value, suffix:'', type_desc:'', vehicle:f.vehicle.value, series:val('series'), gen:val('gen'), model:val('model'), axle:val('axle'), cab:val('cab'),
         cab_gen:f.cab_gen.value, wheelbase:val('wheelbase'), pto:val('pto'), emission:val('emission'), lead:Number(val('lead')), lead_days:Number(val('lead_days')), active:f.active.checked};
       const m = Store.modelMaster.add(row, state.user); if(!m) return fail(`BM ${row.prefix}-${row.code2}는 이미 등록된 모델입니다.`);
       closeModal(); drawSettings();
-      toast(tx('모델 추가'), `${Store.modelMaster.bmOf(m)} · ${m.my} · ${[m.vehicle, m.series, m.model, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · 주문제작 → Model_Master 추가 · Audit_Log 기록`); }}, tx('추가')));
+      toast(tx('모델 추가'), `${Store.modelMaster.bmOf(m)} · ${m.my} · ${[m.vehicle, m.series, m.model, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · Model_Master 추가 · Audit_Log 기록`); }}, tx('추가')));
 }

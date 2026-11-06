@@ -155,7 +155,7 @@ const I18N = {
   // 11/3 리뷰 #1~#4: 오더 생성 상태 2종 · 오더 변경 모델 매칭·Original PM·상태 전환 안내
   '오더 변경 — 모델·Original PM 일괄 변경':'Change Order — Bulk Model · Original PM Change', '현재 Original PM 분포':'Current Original PM Mix', '변경할 Original PM (생산월, 비우면 변경 없음)':'New Original PM (production month, blank = no change)',
   'Current Status가 Ordered(Changeable)로 변경(유지)됩니다':'Current Status will be set to (or kept as) Ordered(Changeable)', '선택 {n}건 중 {m}건은 Ordered(Dummy)·Ordered(Changeable)가 아니라 제외됩니다':'{m} of {n} selected are excluded (not Ordered(Dummy)·Ordered(Changeable))',
-  '주문제작 모델 오더도 Ordered(Changeable)로 입력합니다':'Custom-order model orders are also entered as Ordered(Changeable)', '변경':'Change', '예) B1-12345':'e.g. B1-12345',
+  '변경':'Change', '예) B1-12345':'e.g. B1-12345',
   '값 검색 (예: 2853)':'Search values (e.g. 2853)', '연·월 검색 (예: 2026-11)':'Search year-month (e.g. 2026-11)', '값 검색':'Search values',
   '{y}년':'{y}', '{m}월':'{mon}', '일치하는 값이 없습니다.':'No matching values.', '{c} 열 필터':'{c} Column Filter',
   '표시된 값 전체 선택':'Select All Shown', '표시된 값 해제':'Clear Shown', '필터 해제':'Clear Filter',
@@ -237,12 +237,11 @@ const I18N = {
   '아키텍처 · 연결 정보':'Architecture & Connections', '브라우저 (SPA)':'Browser (SPA)', 'M365 로그인':'M365 Login', 'SharePoint 사이트 STK-Logistics':'SharePoint site STK-Logistics',
   '인덱스 열':'Indexed Columns', '실시간 정의':'Real-time Definition', '엑셀 파싱·내보내기':'Excel Parsing & Export', '연결 상태 (목업)':'Connection Status (mockup)', '열린 질문':'Open Questions',
   '로그인 미연동':'Login not connected', 'Graph 미연동':'Graph not connected', 'SharePoint 미연동':'SharePoint not connected',
-  '모델 마스터 (Model_Master)':'Model Master (Model_Master)', 'baumuster_prefix(8자리) + type_desc → vehicle · gen · series(Model) · model(Type) · axle · cab · cab_gen · wheelbase · pto · emission · dms_model_name · lead_time(월) · lead_days(일)':'baumuster_prefix (8 digits) + type_desc → vehicle · gen · series(Model) · model(Type) · axle · cab · cab_gen · wheelbase · pto · emission · dms_model_name · lead_time (mo) · lead_days (days)',
-  // 11/3 #10·#11: 모델 마스터 편집 모드·주문제작 모델 추가
-  '모델 구분':'Category', '기본 모델':'Standard', '주문제작':'Custom Order', '모델 추가':'Add Model', 'Baumuster 접미':'Baumuster Suffix', '변경 없음':'No changes',
-  '기본 모델은 Baumuster Code2와 리드타임만, 주문제작 모델은 모든 열을 수정할 수 있습니다. 저장 시 BM(Code1-Code2)이 같은 차량에 반영됩니다.':'Standard models: only Baumuster Code2 and lead times. Custom-order models: all columns. Saving applies to vehicles with the same BM (Code1-Code2).',
-  '주문제작 모델만 추가할 수 있습니다. 기본 모델은 AFAB 매핑으로 등록되며 Baumuster Code2만 Key-in합니다.':'Only custom-order models can be added. Standard models come from AFAB mapping; only Baumuster Code2 is keyed in.',
-  '모델 추가 — 주문제작':'Add Model — Custom Order', '선택한 MY에 해당 모델 없음':'No model for the selected MY',
+  '모델 마스터 (Model_Master)':'Model Master (Model_Master)',
+  // 11/3 #10·#11: 모델 마스터 편집 모드·모델 추가 (11/4 리뷰 #2: 기본 모델·주문제작 구분 삭제)
+  '모델 추가':'Add Model', '변경 없음':'No changes',
+  '모든 열을 수정할 수 있습니다. 저장 시 BM(Code1-Code2)이 같은 차량에 반영됩니다.':'All columns can be edited. Saving applies to vehicles with the same BM (Code1-Code2).',
+  '선택한 MY에 해당 모델 없음':'No model for the selected MY',
   // 10/27 #14 미배정 열 · #15 재고 현황 확장 뷰
   '미배정':'Unassigned', 'Vessel 미배정 · ETA From TDD 월 기준 (Ordered(Changeable) · Ordered(Fixed) · In Production) · Pl. Arrival·Shipping·Vessel 반영 시 선박 열로 이동':'No vessel assigned · by ETA From TDD month (Ordered(Changeable) · Ordered(Fixed) · In Production) · moves to the vessel column once Pl. Arrival·Shipping·Vessel are set', '클릭 → Logistics 목록 (미배정 제외)':'Click → Logistics list (excl. unassigned)', '미배정 셀 클릭 → 해당 월 ETA From TDD · Vessel 빈 값 목록, 미배정이 있는 달의 월 Total 링크는 선박분만.':'Unassigned cell → list filtered by that month ETA From TDD and empty Vessel; a month Total link covers vessels only.', '미배정 = Vessel 없이 ETA From TDD만 있는 오더 (ETA From TDD 월)':'Unassigned = orders with ETA From TDD but no Vessel (by ETA From TDD month)',
   'Ordered(Fixed) ~ OH Stock':'Ordered(Fixed) ~ OH Stock', 'Bonded + OH Stock':'Bonded + OH Stock', '현재 ({d}, 상태 Ordered(Fixed) ~ OH Stock 기준)':'Current ({d}, status Ordered(Fixed) ~ OH Stock)', '확장 뷰는 현재 기준만 지원 (월말 마감 없음)':'Extended view is current-basis only (no month-end closing)', 'Total (Ordered(Fixed) ~ OH Stock)':'Total (Ordered(Fixed) ~ OH Stock)', '단계별 {s}':'By stage: {s}',

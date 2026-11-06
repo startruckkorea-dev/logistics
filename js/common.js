@@ -28,8 +28,8 @@ const COLUMNS = [
   {key:'bm', label:'BM', group:'기본', src:'MODEL_MASTER'},
   {key:'vin_no', label:'Vin No', group:'기본', src:'AFAB'},
   {key:'vehicle', label:'Vehicle', group:'기본', src:'MODEL_MASTER'},
-  {key:'series', label:'Model', group:'기본', src:'MODEL_MASTER'},   // 10/15 No.3: SAM 기준 라벨 (기존 Series → Model)
-  {key:'model', label:'Type', group:'기본', src:'MODEL_MASTER'},     // 10/15 No.3: SAM 기준 라벨 (기존 Model → Type)
+  {key:'model', label:'Model', group:'기본', src:'MODEL_MASTER'},   // 10/15 No.3: SAM 기준 라벨 (기존 Series → Model) · 11/6: 내부 키도 series → model
+  {key:'type', label:'Type', group:'기본', src:'MODEL_MASTER'},     // 10/15 No.3: SAM 기준 라벨 (기존 Model → Type) · 11/6: 내부 키도 model → type
   {key:'axle', label:'Axle', group:'기본', src:'MODEL_MASTER'},
   {key:'cab', label:'Cab', group:'기본', src:'MODEL_MASTER'},
   {key:'cab_gen', label:'Cab Gen', group:'기본', src:'MODEL_MASTER'},     // 11/4: Option 열을 Cab Gen · Wheelbase · PTO · Emission 4열로 분리 (10/15 No.5: Model_Master에서 자동 반영, 수동 입력 제외)
@@ -334,7 +334,7 @@ function openVehicle(comm){
     return `<div class="f ${(c.memo||c.wide)?'wide':''}"><div class="k">${esc(tx(c.label))} ${srcBadge(c.src, c.keyin)}${srcEditable(c.src)?'':'<span class="lock">🔒</span>'}${isNote?'<span class="sw-slot"></span>':''}</div><div class="v${isNote&&!editable?' note':''}">${inner}</div></div>`; // 10/30 리뷰 #7: sw-slot = On/Off 스위치 자리
   };
   // 11/3 #7: 기본 그룹은 5줄만 'Vehicle : Tractor' 형식 — Model(MY Model Type Axle Cab Cab Gen Wheelbase PTO Emission 공백 구분 · 11/6: Cab 다음에 Cab Gen 추가) / Vehicle / BM / VIN No / Engine · 점선 칸·자물쇠·점선 구분·출처 배지 없음 · Commission No·Current Status는 머리글. 값은 openDrawer 뒤 DOM으로 대입(규칙 2, basicCard)
-  const basicLines = [['Model', [v.model_year, v.series, v.model, v.axle, v.cab, v.cab_gen, v.wheelbase, v.pto, v.emission].filter(Boolean).join(' ')], ['Vehicle', v.vehicle], ['BM', v.bm], ['VIN No', v.vin_no], ['Engine', v.engine_no]];
+  const basicLines = [['Model', [v.model_year, v.model, v.type, v.axle, v.cab, v.cab_gen, v.wheelbase, v.pto, v.emission].filter(Boolean).join(' ')], ['Vehicle', v.vehicle], ['BM', v.bm], ['VIN No', v.vin_no], ['Engine', v.engine_no]];
   const basicCard = mk('div', {class:'card'}, mk('div', {class:'card-h'}, mk('h2', null, tx('기본'))),
     mk('div', {class:'lines'}, basicLines.map(([l,val])=> mk('div', {class:'line'}, mk('span', {class:'k'}, l), mk('span', {class:'c'}, ':'), val? mk('span', {class:'v'}, String(val)) : mk('span', {class:'v muted'}, '—')))));
   const groups = '<div id="drvBasic"></div>' + GROUPS.filter(g=>g!=='기본').map(g=>`<div class="card"><div class="card-h"><h2>${tx(g)}</h2></div><div class="fields">${COLUMNS.filter(c=>c.group===g).map(field).join('')}</div></div>`).join('');
@@ -379,7 +379,7 @@ function openVehicle(comm){
     toast(tx('Note 저장'), tx('{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)', {comm, fields: rows.map(r=>keyinLabel(r.field)).join(' · '), n:num(rows.length)}));
   };
 }
-// 드로어 '변경 이력' 표 행 (11/4): Vehicle_History 행 → tr (orderNoteSwitch의 행 구성과 동일) · 11/6: 필드 칸은 내부 키 대신 화면 라벨(COLUMNS label, 예: series → Model · model → Type · COLUMNS에 없는 키는 그대로)
+// 드로어 '변경 이력' 표 행 (11/4): Vehicle_History 행 → tr (orderNoteSwitch의 행 구성과 동일) · 11/6: 필드 칸은 내부 키 대신 화면 라벨(COLUMNS label, 예: model → Model · type → Type · COLUMNS에 없는 키는 그대로)
 function histRowEl(r){ return mk('tr', null, mk('td', {class:'mono'}, r.changed_at), mk('td', {class:'mono'}, tx(keyinLabel(r.field))),mk('td', {class:'muted'}, r.old_value||'—'), mk('td', null, mk('b', null, r.new_value||'—')), mk('td', null, r.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, r.source))); }
 // Order Note On/Off 스위치 (10/30 리뷰 #7): On = 검토가 필요한 오더. Editor만 조작(그 외 비활성·상태만 표시), 바꾸면 즉시 저장(Store.vehicles.setOrderNoteFlag) + Vehicle_History 기록 + 드로어 '변경 이력' 표 맨 위에 행 추가
 function orderNoteSwitch(v, body){

@@ -8,11 +8,11 @@ function logiTabsForRole(){ return isSales()? LOGI_TABS.filter(t=>t[0]==='req') 
 
 const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
 const NOTE_COLS = ['option_remarks','order_note']; // 11/3 리뷰 #6: 편집 모드에서 셀 클릭 → 여러 줄 팝업 편집창(openNoteEditor) · 그리드 셀 안 직접 입력(startCellEdit)은 KEYIN_COLS만
-// 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Emission(11/4: Option → Cab Gen·Wheelbase·PTO·Emission) + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&model=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
+// 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Emission(11/4: Option → Cab Gen·Wheelbase·PTO·Emission) + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&type=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
 const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping_calc','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','tsc_arrival_date','customs_clearance_date','order_update_date']; // 10/26 No.9: TSC Arrival Date 추가 · 11/4: Order Update Date 추가
-const FILTER_COLS = ['current_status','gen','vehicle','series','model','axle','cab','cab_gen','wheelbase','pto','emission', ...DATE_FILTER_COLS, 'vessel']; // gen: 선적·입항 구분 그룹 행 링크용 (10/22)
+const FILTER_COLS = ['current_status','gen','vehicle','model','type','axle','cab','cab_gen','wheelbase','pto','emission', ...DATE_FILTER_COLS, 'vessel']; // gen: 선적·입항 구분 그룹 행 링크용 (10/22)
 const STAGE_ORDER = [...STAGES.filter(s=>s!=='Rejected'), 'Cancelled']; STAGE_ORDER.splice(STAGE_ORDER.indexOf('In Production'), 0, 'Rejected'); // Current Status 열 필터 값 순서 (10/22 No.2): Rejected는 In Production 앞 (STAGE_RULES 순서와 동일)
-const SEARCH_COLS = ['commission_no','vin_no','bl_no','vessel','model','engine_no','order_note','option_remarks']; // 검색 대상 열 (10/19 No.4: VIN·Comm·Order Note·Option Note 필수 포함)
+const SEARCH_COLS = ['commission_no','vin_no','bl_no','vessel','type','engine_no','order_note','option_remarks']; // 검색 대상 열 (10/19 No.4: VIN·Comm·Order Note·Option Note 필수 포함)
 const EDIT = { on:false, sel:new Set(), pending:{} }; // 편집 모드(오더 복수 선택) · pending: {comm:{field:{old,nw,src}}} → '편집 종료' 시 저장 (10/15 No.9)
 
 PAGES.logistics = {
@@ -86,7 +86,7 @@ function openStatusUpdate(){
   // override 보류 (10/28): 규칙에는 맞지만 status_override 때문에 전환하지 않는 차량 — 0건이어도 건수를 항상 보여 override 때문인지 확인할 수 있게 한다
   const held = Store.vehicles.statusUpdateHeld();
   const heldLine = mk('div', {class:'muted small', style:'margin-bottom:8px'}, mk('b', null, tx('Status override로 보류: {n}건', {n:num(held.length)})), ' (override가 지정된 차량은 규칙에 맞아도 자동 전환하지 않음 · 상세 Drawer의 Status override · Status reason 참고)');
-  const cols = ['commission_no','series','model']; // Commission No · Model · Type (customs.js cuCell 재사용)
+  const cols = ['commission_no','model','type']; // Commission No · Model · Type (customs.js cuCell 재사용)
   const heldGroup = held.length? mk('div', null,
     mk('div', {class:'section-h'}, tx('Status override로 보류'), mk('span', {class:'sub'}, tx('{n}건', {n:num(held.length)}))),
     mk('div', {class:'tbl-wrap', style:'max-height:220px'}, mk('table', {class:'tbl compact'},
@@ -196,7 +196,7 @@ function cellHtml(c, v){
   const val = pendingVal(v, c.key);
   if(c.key==='current_status') return stagePill(val);
   // 상태점은 셀 오른쪽 끝에 표시 (10/15 No.7)
-  if(c.key==='model'){ const ok = String(val||'').slice(0,4)===String(v.model_in_afab||'').slice(0,4); return `${hl(val)}<span class="dot r ${ok?'ok':'bad'}" title="${ok?'Model In AFAB 앞 4글자 일치':'Model In AFAB 앞 4글자 불일치: '+esc(v.model_in_afab)}"></span>`; }
+  if(c.key==='type'){ const ok = String(val||'').slice(0,4)===String(v.model_in_afab||'').slice(0,4); return `${hl(val)}<span class="dot r ${ok?'ok':'bad'}" title="${ok?'Model In AFAB 앞 4글자 일치':'Model In AFAB 앞 4글자 불일치: '+esc(v.model_in_afab)}"></span>`; }
   if(c.key==='changeability_date'){
     const dc = {J:'ok', N:'bad', B:'warn'}[v.afab_editable];
     const dot = dc? `<span class="dot r ${dc}" title="AFAB 수정 가능(Ä): ${esc(v.afab_editable)}"></span>` : '';
@@ -239,7 +239,7 @@ function renderGrid(){
   const keyin = c=> canEdit && EDIT.on && (KEYIN_COLS.includes(c.key) || NOTE_COLS.includes(c.key)); // Key-in 열도 편집 모드에서만 입력 (10/15 No.4) · 11/3 리뷰 #6: Note 열은 팝업 편집창
   const pend = (v,c)=> EDIT.pending[v.commission_no] && c.key in EDIT.pending[v.commission_no];
   const rsel = (v,c)=> (EDIT.on || c.key==='commission_no') && NOTE_RANGE.key===c.key && NOTE_RANGE.set.has(v.commission_no); // 11/4: Note 셀 범위 선택 표시 · 11/3 #5: Commission No 열은 편집 모드 밖에서도 선택
-  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${rsel(v,c)?'rsel':''} ${(c.key==='model'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
+  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${rsel(v,c)?'rsel':''} ${(c.key==='type'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
   h += '</tbody></table>';
   if(!rows.length) h = `<div class="muted" style="padding:30px;text-align:center">${tx('조건에 맞는 차량이 없습니다.')}</div>`;
   const wrap = el('gridwrap'); wrap.innerHTML = h;
@@ -435,13 +435,13 @@ function openModelChange(){
   const all = selectedVehicles(); if(!all.length) return;
   const vs = all.filter(v=>ORDER_CHANGE_STATUSES.includes(pendingVal(v,'current_status')));
   const excluded = all.filter(v=>!vs.includes(v));
-  const by = countBy(vs, v=>pendingVal(v,'model'));
+  const by = countBy(vs, v=>pendingVal(v,'type'));
   const byBm = countBy(vs, v=>pendingVal(v,'bm'));
   const byPm = countBy(vs, v=>pendingVal(v,'original_pm'));
   const byEx = countBy(excluded, v=>pendingVal(v,'current_status'));
   const pk = modelPicker();
   // 시작값 = 첫 대상 오더의 Type · MY · BM (복수 선택 시 첫 오더 기준) (10/15 No.6)
-  if(vs.length) pk.preset(pendingVal(vs[0],'model'), pendingVal(vs[0],'model_year'), pendingVal(vs[0],'bm'));
+  if(vs.length) pk.preset(pendingVal(vs[0],'type'), pendingVal(vs[0],'model_year'), pendingVal(vs[0],'bm'));
   // Original PM(생산월)도 같은 모달에서 일괄 변경 — 비워 두면 바꾸지 않음 (10/27, 11/3 #3: PM → Original PM). 입력하면 생성 모달과 같이 MY 자동 갱신
   const pmIn = mk('input', {type:'month', style:'width:160px'}); // 월 달력(브라우저 month picker) · 값은 YYYY-MM
   pmIn.oninput = ()=>{ const t = pmIn.value.trim(); if(/^\d{4}-\d{2}$/.test(t)) pk.setMy('MY'+MY_FROM_LETTER[myLetterFromPm(t)]); };
@@ -468,7 +468,7 @@ function openModelChange(){
       const patch = Store.vehicles.modelMasterPatch(m); if(pm) patch.original_pm = pm;
       patch.current_status = 'Ordered(Changeable)'; patch.order_update_date = TODAY_S; // #2 상태 전환(유지) · #4 변경일 기록 — 같은 값은 stageChange에서 저장 대기에 오르지 않음
       vs.forEach(v=>Object.entries(patch).forEach(([k,val])=>stageChange(v.commission_no, k, val, '수동/일괄'))); closeModal(); renderGrid();
-      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${[m.series, m.model, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · ${m.my}${pm? ` · Original PM ${pm}` : ''} · Current Status → Ordered(Changeable) · Order Update Date ${TODAY_S} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
+      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${[m.model, m.type, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · ${m.my}${pm? ` · Original PM ${pm}` : ''} · Current Status → Ordered(Changeable) · Order Update Date ${TODAY_S} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
 }
 function openBulkKeyin(){
   const vs = selectedVehicles(); if(!vs.length) return;
@@ -496,7 +496,7 @@ function openColFilter(btn, key){
   const counts = countBy(VEHICLES, v=>filterVal(v,key));
   const checked = new Set(LF.col[key] || vals);
   const isDate = DATE_FILTER_COLS.includes(key); // 날짜 열: 연도 → 월 체크 트리 (10/19 No.3)
-  const search = mk('input', {type:'text', placeholder: key==='model'? tx('값 검색 (예: 2853)') : isDate? tx('연·월 검색 (예: 2026-11)') : tx('값 검색')});
+  const search = mk('input', {type:'text', placeholder: key==='type'? tx('값 검색 (예: 2853)') : isDate? tx('연·월 검색 (예: 2026-11)') : tx('값 검색')});
   const list = mk('div', {class:'cf-list'});
   const shown = ()=>{ const t = search.value.trim().toLowerCase(); return vals.filter(x=>!t || x.toLowerCase().includes(t)); };
   const leaf = (x, cls, text, onchange)=>{ const cb = mk('input', {type:'checkbox', onchange:()=>{ if(cb.checked) checked.add(x); else checked.delete(x); if(onchange) onchange(); }}); cb.checked = checked.has(x);
@@ -542,7 +542,7 @@ function closeColFilter(){ const p = el('colfilter'); if(p) p.remove(); document
 // 반환 {search, typeSel, mySel, modelSel, attrs, modelLine, current(): 선택한 Model_Master 행 또는 null, setMy(my): MY 지정 + 모델 목록 재필터, preset(type, my, bm): 시작값(Type·MY·현재 BM 행)}
 function modelPicker(){
   const active = MODEL_MASTER.filter(m=>m.active);
-  const modelLine = m=> [m.vehicle, m.series, m.model, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' · '); // 11/4: Option 대신 비표준 옵션(ProCabin·PTO 등)만
+  const modelLine = m=> [m.vehicle, m.model, m.type, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' · '); // 11/4: Option 대신 비표준 옵션(ProCabin·PTO 등)만
   // 1~2. Type 숫자 검색 → 해당 숫자가 포함된 Type 드롭다운
   const search = mk('input', {placeholder:tx('Type 숫자 3~4자리 (예: 2863)'), maxlength:'4', style:'width:100%'});
   const typeSel = mk('select', {style:'width:100%', disabled:true}, mk('option', {value:''}, tx('검색어를 입력하세요')));
@@ -556,15 +556,15 @@ function modelPicker(){
   const current = ()=> modelSel.value? (active[Number(modelSel.value)] || null) : null; // 미선택('')이면 null (Number('')=0으로 첫 행이 보이던 것 수정)
   const drawAttrs = ()=>{ attrs.replaceChildren();
     const m = current(); if(!m){ attrs.append(mk('dt', {class:'muted'}, tx('모델을 선택하면 속성이 표시됩니다.'))); return; }
-    [['BM', m.prefix+'-'+m.code2], ['Vehicle', m.vehicle], ['Model', m.series], ['Type', m.model], ['Axle', m.axle], ['Cab', m.cab], ['Cab Gen', m.cab_gen||'—'], ['Wheelbase', m.wheelbase||'—'], ['PTO', m.pto||'—'], ['Emission', m.emission||'—'], ['Gen', m.gen], [tx('리드타임(일)'), String(m.lead_days)], [tx('리드타임(월)'), String(m.lead)], ['MY', m.my]]
+    [['BM', m.prefix+'-'+m.code2], ['Vehicle', m.vehicle], ['Model', m.model], ['Type', m.type], ['Axle', m.axle], ['Cab', m.cab], ['Cab Gen', m.cab_gen||'—'], ['Wheelbase', m.wheelbase||'—'], ['PTO', m.pto||'—'], ['Emission', m.emission||'—'], ['Gen', m.gen], [tx('리드타임(일)'), String(m.lead_days)], [tx('리드타임(월)'), String(m.lead)], ['MY', m.my]]
       .forEach(([k,v])=>attrs.append(mk('dt', null, k), mk('dd', {class:'mono'}, v))); };
   // 흐름 연결
   search.oninput = ()=>{ const t = search.value.replace(/\D/g,''); search.value = t;
-    const types = [...new Set(active.filter(m=>m.model.includes(t)).map(m=>m.model))].sort();
+    const types = [...new Set(active.filter(m=>m.type.includes(t)).map(m=>m.type))].sort();
     typeSel.replaceChildren(mk('option', {value:''}, t.length>=3 && types.length? tx('Type 선택 ({n})', {n:num(types.length)}) : t.length<3? tx('숫자 3~4자리를 입력하세요') : tx('일치하는 Type 없음')), ...(t.length>=3? types.map(x=>mk('option', {value:x}, x)) : []));
     typeSel.disabled = !(t.length>=3 && types.length); typeSel.onchange(); };
   typeSel.onchange = ()=>{ const t = typeSel.value;
-    const rows = active.map((m,i)=>({m,i})).filter(x=>x.m.model===t && x.m.my===mySel.value); // 11/4: 선택한 MY의 행만
+    const rows = active.map((m,i)=>({m,i})).filter(x=>x.m.type===t && x.m.my===mySel.value); // 11/4: 선택한 MY의 행만
     modelSel.replaceChildren(mk('option', {value:''}, t? (rows.length? tx('모델 선택 ({n})', {n:num(rows.length)}) : tx('선택한 MY에 해당 모델 없음')) : tx('Type을 먼저 선택하세요')), ...rows.map(x=>mk('option', {value:String(x.i)}, modelLine(x.m))));
     modelSel.disabled = !rows.length; if(rows.length===1) modelSel.value = String(rows[0].i); drawAttrs(); };
   modelSel.onchange = drawAttrs; mySel.onchange = ()=>typeSel.onchange(); // 11/4: MY가 바뀌면 모델 목록을 다시 거른다
@@ -573,7 +573,7 @@ function modelPicker(){
     if(my && [...mySel.options].some(o=>o.value===my)) mySel.value = my;
     search.value = String(type||'').replace(/\D/g,'').slice(0,4); search.oninput();
     if(type && [...typeSel.options].some(o=>o.value===type)){ typeSel.value = type; typeSel.onchange(); }
-    const i = active.findIndex(m=>m.model===type && m.my===mySel.value && Store.modelMaster.bmOf(m)===bm);
+    const i = active.findIndex(m=>m.type===type && m.my===mySel.value && Store.modelMaster.bmOf(m)===bm);
     if(i>=0 && [...modelSel.options].some(o=>o.value===String(i))){ modelSel.value = String(i); drawAttrs(); } };
   drawAttrs();
   return {search, typeSel, mySel, modelSel, attrs, modelLine, current, setMy, preset};

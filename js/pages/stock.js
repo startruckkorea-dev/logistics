@@ -99,7 +99,7 @@ PAGES.stock = {
       const maxV = Math.max(1,...byVeh.map(x=>x.vs.length)); hbar._grand=total;
       const byVehicle = `<div class="card"><div class="section-h" style="margin-top:0">By Vehicle ${note('K2')}<span class="sub">${tx('차종별 · 막대 길이 = 대수 · 우측 대수·비율')}</span></div><div class="hbars">${byVeh.map(x=>hbar(x.t, segsOf(x.vs), x.vs.length, maxV)).join('')}</div></div>`;
       // By Model (차종 섹션 안 모델별)
-      const modelName = v=>[v.series,v.model,v.axle,v.cab,modelOptTag(v)].filter(Boolean).join(' · '); // 11/4: Option 대신 비표준 옵션만 · 11/6: Gen 삭제 · Model(series) 추가 → Model · Type · Axle · Cab
+      const modelName = v=>[v.model,v.type,v.axle,v.cab,modelOptTag(v)].filter(Boolean).join(' · '); // 11/4: Option 대신 비표준 옵션만 · 11/6: Gen 삭제 · Model 추가 → Model · Type · Axle · Cab
       const byModel = `<div class="card"><div class="section-h" style="margin-top:0">By Model<span class="sub">${tx('차종 섹션 안 모델별 · 모델명 = Model · Type · Axle · Cab · 비표준 옵션')}</span></div>
         ${byVeh.map(x=>{ const groups = Object.values(x.vs.reduce((a,v)=>{ const k=modelName(v); (a[k]=a[k]||{k,vs:[]}).vs.push(v); return a; },{})).sort((a,b)=>b.vs.length-a.vs.length);
           return `<div class="section-h">${x.t}<span class="sub">${tx('{n}대', {n:num(x.vs.length)})} · ${pct(x.vs.length,total)}</span></div><div class="hbars">${groups.map(g=>hbar(g.k, segsOf(g.vs), g.vs.length, maxV, 'model')).join('')}</div>`; }).join('')}</div>`;

@@ -3,9 +3,9 @@
    탭 골격·전환은 logistics.js(LOGI_TABS · renderLogiBody). 여기서는 탭 본문만 그린다. 데이터 쓰기는 Store.vehicles.applyCustoms로만. */
 const CU = { text:{req:'', ins:''}, upload:null, applied:null, procId:null, dec:{} }; // text: 탭별 Commission No 입력값(탭 전환 후 복귀 시 유지) · upload: Excel 업로드 미리보기 행(null = 미선택) · applied: 반영 결과(applyCustoms 반환, 10/28 반영 결과 화면) · procId/dec: 처리 중인 신청 ID와 행별 접수/거절 선택 {comm:{status, reason}} (10/27 #12)
 window.addEventListener('hashchange', ()=>{ CU.upload=null; CU.applied=null; CU.procId=null; CU.dec={}; });
-// 머리글 라벨은 COLUMNS(keyinLabel): series=Model · model=Type · model_year=MY · option_remarks=Option Note · 10/27: 열 순서 확정(BM·PM·Vehicle 추가, Gen 삭제)
-const CU_REQ_COLS = ['commission_no','current_status','customs_clearance_date','model_year','bm','vin_no','bl_no','vehicle','series','model','axle','cab','cab_gen','wheelbase','pto','emission','pm','ata','vessel','option_remarks']; // 11/4: option → 4열
-const CU_INS_COLS = ['commission_no','current_status','model','axle','cab','pm','vin_no','bl_no','vessel','dispatch','shipping','ata','tsc_arrival_date']; // 10/27: Cab 다음 PM
+// 머리글 라벨은 COLUMNS(keyinLabel): model=Model · type=Type · model_year=MY · option_remarks=Option Note · 10/27: 열 순서 확정(BM·PM·Vehicle 추가, Gen 삭제)
+const CU_REQ_COLS = ['commission_no','current_status','customs_clearance_date','model_year','bm','vin_no','bl_no','vehicle','model','type','axle','cab','cab_gen','wheelbase','pto','emission','pm','ata','vessel','option_remarks']; // 11/4: option → 4열
+const CU_INS_COLS = ['commission_no','current_status','type','axle','cab','pm','vin_no','bl_no','vessel','dispatch','shipping','ata','tsc_arrival_date']; // 10/27: Cab 다음 PM
 const CU_MONO = new Set(['commission_no','vin_no','bl_no','bm','pm','customs_clearance_date','ata','dispatch','shipping','tsc_arrival_date','import_license']);
 
 function renderCustomsTab(body, tab){
@@ -123,7 +123,7 @@ function openMailPreview(m, head){
 function openCuRequestConfirm(comms){
   const vs = comms.map(c=>VEHICLE_BY_COMM[c]).filter(Boolean); if(!vs.length) return;
   const me = USERS.find(u=>u.name===state.user), to = USERS.filter(u=>u.role==='Editor' && u.dept==='Ordering & Logistics');
-  const cols = ['commission_no','bl_no','series','model','bm','vin_no']; // 10/27: Commission No · B/L No · Model · Type · BM · VIN No
+  const cols = ['commission_no','bl_no','model','type','bm','vin_no']; // 10/27: Commission No · B/L No · Model · Type · BM · VIN No
   const body = mk('div', null,
     mk('div', {class:'callout'}, tx('선택한 차량 {n}대의 통관을 물류 담당자에게 신청합니다. 신청 내역은 Customs_Requests에 기록되고 담당자에게 메일로 안내됩니다.', {n:num(vs.length)})),
     mk('div', {class:'fields'},

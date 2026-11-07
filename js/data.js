@@ -67,12 +67,12 @@ const COLOR_NAMES = {'9147':'Arctic White','7350':'Silver Grey','3589':'Jupiter 
 const SAP_CODES = ['ZCBC','ZSHP','ZVIB','ZPDY','ZIVB','ZGOR'];
 
 // ---- 선박(항차): 운송중 6척 + 선적 예정 2척 · tsc = TSC Arrival Date 선박 단위 입력값 (10/26 No.9, 샘플 공란) · tsc_status: '' | 'scheduled'(예정, 선박에만 보관) | 'confirmed'(확정, 차량 마스터 반영됨) (10/27) ----
-const VOYAGES = [ // 11/3 #9: gw = 총중량(kg) · 선적·입항 선박별 현황 Key-in(선박 단위) · 선적 예정 항차는 미입력('')
-  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'2026-10-15', tsc:'', tsc_status:'', kind:'transit',   n:12, gw:109440},
-  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'2026-10-22', tsc:'', tsc_status:'', kind:'transit',   n:14, gw:128900},
-  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'2026-11-03', tsc:'', tsc_status:'', kind:'transit',   n:11, gw:101750},
-  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'2026-11-07', tsc:'', tsc_status:'', kind:'transit',   n:10, gw:93200},
-  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'2026-11-26', tsc:'', tsc_status:'', kind:'transit',   n:5,  gw:46300},
+const VOYAGES = [ // 11/3 #9: gw = 총중량(kg) · 선적·입항 선박별 현황 Key-in(선박 단위) · 선적 예정 항차는 미입력('') · 11/6: eta_final = ATA(실제 입항일) — 기준일 현재 입항한 선박이 없어 전부 공란(미래 날짜 불가)
+  {id:'V1', vessel:'Glovis Sunrise',  carrier:'EUKOR', bl:'EUKOHAM2609021', shipping:'2026-08-28', pl:'2026-10-12', eta_carrier:'2026-10-14', eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:12, gw:109440},
+  {id:'V2', vessel:'Morning Cecilie', carrier:'EUKOR', bl:'EUKOBRV2609077', shipping:'2026-09-05', pl:'2026-10-20', eta_carrier:'2026-10-20', eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:14, gw:128900},
+  {id:'V3', vessel:'Hoegh Trapper',   carrier:'MOL',   bl:'MOLUBRV2609112', shipping:'2026-09-14', pl:'2026-10-29', eta_carrier:'2026-11-02', eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:11, gw:101750},
+  {id:'V4', vessel:'MOL Emissary',    carrier:'MOL',   bl:'MOLUHAM2609140', shipping:'2026-09-22', pl:'2026-11-06', eta_carrier:'2026-11-05', eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:10, gw:93200},
+  {id:'V5', vessel:'Glovis Cardinal', carrier:'EUKOR', bl:'EUKOHAM2609188', shipping:'2026-09-30', pl:'2026-11-15', eta_carrier:'2026-11-25', eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:5,  gw:46300},
   {id:'V6', vessel:'Eukor Pioneer',   carrier:'EUKOR', bl:'EUKOBRV2610003', shipping:'2026-10-04', pl:'2026-11-20', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'transit',   n:14, gw:131600},
   {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:8,  gw:''},
   {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:6,  gw:''},
@@ -214,11 +214,13 @@ const VEHICLE_HISTORY = (function(){
   const cand = VEHICLES.filter(v=>['In Transit','Bonded Stock','OH Stock','Shipment scheduled','In Production'].includes(v.current_status));
   for(let i=0;i<60;i++){ const v=pick(cand); const n=ri(1,3);
     for(let j=0;j<n;j++){ const f=pick(fields); const cur=v[f]||''; let old=cur;
-      if(f==='ata'||f==='customs_clearance_date'||f==='eta_from_eukor_pirt'){ old = cur? fmtD(addD(parseD(cur),-ri(1,9))) : ''; }
+      if(f==='ata'||f==='customs_clearance_date'||f==='eta_from_eukor_pirt'){ old = cur? fmtD(addD(parseD(cur),-ri(1,9))) : '';
+        if(!cur && f==='ata' && v.current_status==='In Transit' && v.eta_from_eukor_pirt) ri(1,9); } // 11/6: 운송 중 선박(V1~V5) 샘플 ATA 삭제 — 이후 가짜값의 난수 순서를 바꾸지 않기 위해 난수 소비만 유지
       else if(f==='pm'||f==='sales_month'){ old = cur? ymAdd(cur,-1):''; }
       else if(f==='vessel'){ old = pick(VESSEL_PAST); } else if(f==='bl_no'){ old=''; }
       const src = ['vessel','pm','bl_no'].includes(f)? 'AFAB 업로드' : (f==='sales_month'? '규칙' : '수동');
-      h.push({commission_no:v.commission_no, field:f, old_value:old, new_value:cur, changed_by: src==='AFAB 업로드'?'정물류 (업로드)':pick(['정물류','김백업']), changed_at: fmtD(addD(TODAY,-ri(0,60)))+' '+pad2(ri(8,18))+':'+pad2(ri(0,59)), source:src});
+      const row = {commission_no:v.commission_no, field:f, old_value:old, new_value:cur, changed_by: src==='AFAB 업로드'?'정물류 (업로드)':pick(['정물류','김백업']), changed_at: fmtD(addD(TODAY,-ri(0,60)))+' '+pad2(ri(8,18))+':'+pad2(ri(0,59)), source:src};
+      if(old!=='' || cur!=='') h.push(row); // 11/6: 이전·이후 값이 모두 공란인 행은 이력에서 제외 — 행은 먼저 만들어 난수 순서는 그대로
     } }
   // 10/07 업로드 실제 변경 1건 (Vessel)
   const t=VEHICLES.find(v=>v.vessel==='Eukor Pioneer');
@@ -255,7 +257,7 @@ const CHANGES = (function(){
   const changed = [
     {v:vs.find(v=>v.vessel==='Eukor Pioneer'), f:'vessel', old:'Morning Lady', impact:'단계 유지(In Transit) · 선박별 현황 이동'},
     {v:vs.find(v=>v.current_status==='Ordered(Changeable)'&&v.pm==='2027-02'), f:'pm', old:'2027-02', nw:'2027-03', impact:'original_pm 보존 · KUFRI Production 2027-02 → 2027-03 이동 · Order 분류 유지'},
-    {v:vs.find(v=>v.current_status==='In Production'&&v.pm==='2026-10'), f:'planned_arrival', old:'', nw:'2026-12-05', impact:'입항 예정월 2027-01 → 2026-12 (ETA Final 미입력 시)'},
+    {v:vs.find(v=>v.current_status==='In Production'&&v.pm==='2026-10'), f:'planned_arrival', old:'', nw:'2026-12-05', impact:'입항 예정월 2027-01 → 2026-12 (ATA · ETA 선사 미입력 시)'},
     {v:vs.find(v=>v.current_status==='In Transit'&&v.vessel==='Glovis Sunrise'), f:'invoice', old:'', impact:'In Transit (Invoiced) 표기'},
     {v:vs.find(v=>v.current_status==='Ordered(Changeable)'&&v.pm==='2026-12'), f:'changeability_date', old:'2026-10-20', impact:'D-day 알림 재계산'},
   ].filter(c=>c.v).map(c=>({comm:c.v.commission_no, model:c.v.model_classification, field:c.f, old:c.old, nw:c.nw||c.v[c.f], impact:c.impact}));
@@ -345,8 +347,9 @@ const CUSTOMS_REQUESTS = (function(){
 // ---- 공통 집계 헬퍼 ----
 function countBy(list, fn){ const m={}; list.forEach(v=>{ const k=fn(v); if(k==null||k==='') return; m[k]=(m[k]||0)+1; }); return m; }
 function shippingCalc(pm, leadDays){ return (pm && leadDays) ? fmtD(addD(parseD(pm+'-01'), leadDays)) : ''; } // 10/27 #7: Shipping Calc = PM 1일 + 리드타임(일, PM~Shipping)
-function expectedArrivalYm(v){ // 입항 예정월: eta_final → pl_arrival_afab → PM + 리드타임
+function expectedArrivalYm(v){ // 입항 예정월: ATA → ETA 선사(EUKOR/PIRT) → Pl. arrival(AFAB) → PM + 리드타임 (11/6: ETA 선사 추가 — voyageYm과 같은 순서)
   if(v.ata) return v.ata.slice(0,7);
+  if(v.eta_from_eukor_pirt) return v.eta_from_eukor_pirt.slice(0,7);
   if(v.planned_arrival) return v.planned_arrival.slice(0,7);
   if(v.pm) return ymAdd(v.pm, v.lead_time||3);
   return '';

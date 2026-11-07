@@ -7,7 +7,11 @@ const KUFRI_START = '2026-01';
 function kufriRows(vs, months){
   const prod = months.map(m=>{ if(ymDiff(m,'2028-01')>=0){ const k='prod|'+vs._key+'|'+m; const dflt=Math.round(vs.filter(v=>v.current_status!=='Cancelled'&&v.pm==='2026-'+m.slice(5)).length*0.9); return {v: KF.plans[k] ?? dflt, type:'plan', key:k}; }
     const n = vs.filter(v=>v.current_status!=='Cancelled' && v.pm===m).length; return {v:n, type: ymDiff(m,BASE_YM)<=0?'actual':'confirmed'}; });
-  const arrival = months.map(m=>{ if(ymDiff(m,BASE_YM)<=0) return {v: vs.filter(v=>v.current_status!=='Cancelled'&&v.ata&&v.ata.slice(0,7)===m).length, type:'actual'};
+  // 11/6: 당월 Arrival = ATA 실적 + 당월 입항 예정(ATA 없는 In Transit · Shipment scheduled 중 입항 예정월이 당월 — 대시보드 '당월 입항 예정'과 같은 대상) · 당월 이전 달은 ATA 실적만
+  const dueCur = v=> !v.ata && (v.current_status==='In Transit'||v.current_status==='Shipment scheduled') && expectedArrivalYm(v)===BASE_YM;
+  const arrival = months.map(m=>{ if(ymDiff(m,BASE_YM)<=0){ const live = vs.filter(v=>v.current_status!=='Cancelled'); const a = live.filter(v=>v.ata&&v.ata.slice(0,7)===m).length;
+      if(m!==BASE_YM) return {v:a, type:'actual'};
+      const b = live.filter(dueCur).length; return {v:a+b, type:'actual', tip:{a, b}}; } // tip = 당월 셀 툴팁용(실적 a · 입항 예정 b)
     return {v: vs.filter(v=>v.current_status!=='Cancelled'&&!v.sales_month&&expectedArrivalYm(v)===m&&(!v.ata||v.ata.slice(0,7)===m)).length, type:'confirmed'}; });
   const salesAct = m=>vs.filter(v=>v.sales_month===m).length;
   const recent6 = []; for(let i=5;i>=0;i--) recent6.push(salesAct(ymAdd(BASE_YM,-i)));
@@ -33,7 +37,7 @@ PAGES.kufri = {
       <span class="lg"><span class="sw" style="background:#fff"></span>${tx('실적(≤기준월)')}</span><span class="lg"><span class="sw" style="background:#eef5fd;border-color:#b9d3f5"></span>${tx('확정(AFAB 오더·잠금)')}</span><span class="lg"><span class="sw" style="background:#eef9f1;border-color:#b7e0c3"></span>${tx('계획(입력)')}</span><span class="lg"><span class="sw" style="background:#fff4e0;border-color:#f3d9a8"></span>${tx('기준월')}</span>
       <div class="btn-group">${note('P4')}<button class="btn primary editor-only" onclick="describe('계획 확정','현재 sales_plan/prod_plan을 KUFRI_Plan에 버전(v2026-10b)으로 저장하고 confirmed_by/at을 기록합니다. 이전 버전은 조회만 가능.')">${tx('계획 확정')}</button><button class="btn editor-only" disabled title="2차 범위">${tx('시나리오 복제 (2차)')}</button><button class="btn" onclick="describe('Kufri Excel 내보내기','기존 Kufri 엑셀 레이아웃(모델 × 월, Production/Arrival/Sales/OH/In Transit)을 재현한 .xlsx 생성')">Kufri Excel</button></div></div>
       <div class="kufri-wrap" id="kfWrap"></div>
-      <div class="muted small" style="margin-top:8px">Production: 실적 = PM(final) 해당 월 차량 수(Cancelled 제외), 미래 = AFAB 확정 오더 수(잠금), 2028 이후 = prod_plan 입력 · Arrival: ETA Final → Pl.arrival → PM+리드타임 · Sales 계획 초기값 = 최근 6개월 평균(당월 포함) · OH Stock(월말) = 전월 + Arrival − Sales(보세+통관) · In Transit(월말) = PM 도래 & 입항 미도래 · 재고월수 = (OH + In Transit) ÷ 당월 포함 최근 3개월 평균 Sales → 정상 ≤2.0 / 주의 ≤3.0 / 위험 (제안값)</div></div>`;
+      <div class="muted small" style="margin-top:8px">Production: 실적 = PM(final) 해당 월 차량 수(Cancelled 제외), 미래 = AFAB 확정 오더 수(잠금), 2028 이후 = prod_plan 입력 · Arrival: ATA → ETA 선사 → Pl.arrival → PM+리드타임 (당월 = ATA 실적 + 당월 입항 예정) · Sales 계획 초기값 = 최근 6개월 평균(당월 포함) · OH Stock(월말) = 전월 + Arrival − Sales(보세+통관) · In Transit(월말) = PM 도래 & 입항 미도래 · 재고월수 = (OH + In Transit) ÷ 당월 포함 최근 3개월 평균 Sales → 정상 ≤2.0 / 주의 ≤3.0 / 위험 (제안값)</div></div>`;
     el('kfYear').onchange=e=>{ KF.year=e.target.value; drawKufri(); }; el('kfVeh').onchange=e=>{ KF.vehicle=e.target.value; drawKufri(); };
     const ed=el('kfEdit'); if(ed) ed.onchange=e=>{ KF.edit=e.target.checked; drawKufri(); };
     drawKufri();
@@ -46,7 +50,8 @@ function drawKufri(){
   const keys = [...new Set(all.map(v=>v.model_key))].sort();
   const ratioCls = r=> r==null?'': r<=2?'ratio-ok': r<=3?'ratio-warn':'ratio-danger';
   const ratioTxt = r=> r==null?'—': r.toFixed(1)+(r<=2?tx(' 정상'): r<=3?tx(' 주의'):tx(' 위험'));
-  const cell = (c,m,rowKey)=>{ const isBase=m===BASE_YM; if(c.type==='plan' && KF.edit && c.key) return `<td class="plan ${isBase?'base':''}"><input value="${c.v}" data-plan="${c.key}"></td>`; return `<td class="${c.type} ${isBase?'base':''}">${c.v==null?'—':num(c.v)}</td>`; };
+  const tips = []; // 11/6: 당월 Arrival 셀 툴팁 값(그려진 순서)
+  const cell = (c,m,rowKey)=>{ const isBase=m===BASE_YM; if(c.type==='plan' && KF.edit && c.key) return `<td class="plan ${isBase?'base':''}"><input value="${c.v}" data-plan="${c.key}"></td>`; if(c.tip) tips.push(c.tip); return `<td class="${c.type} ${isBase?'base':''}${c.tip?' tipc':''}">${c.v==null?'—':num(c.v)}</td>`; }; // 11/6: tipc = 당월 Arrival 셀 표시(툴팁은 아래에서 DOM으로 대입)
   const block = (label, vs, isTotal)=>{
     const r = kufriRows(vs, months); const sum = arr=>arr.reduce((a,c)=>a+(c.v||0),0);
     const row = (lbl, arr, main, extra)=>`<tr class="${isTotal?'total':''}"><td class="rowlbl ${main?'main':''}">${lbl}</td>${arr.map((c,i)=>cell(c,months[i])).join('')}<td class="num">${extra!=null?extra:num(sum(arr))}</td></tr>`;
@@ -61,6 +66,7 @@ function drawKufri(){
   keys.forEach(k=>{ const vs = all.filter(v=>v.model_key===k); vs._key=k; h += block(k.replace(/\|/g,' | '), vs, false); }); // 11/6: 그룹 제목 = 묶음 키(model_key) 그대로 → Vehicle | Model | Type | Axle | Cab
   h += '</tbody></table>';
   const w = el('kfWrap'); w.innerHTML = h;
+  qa('td.tipc', w).forEach((td,i)=>{ td.title = tx('실적 {a}대 + 입항 예정 {b}대', {a:num(tips[i].a), b:num(tips[i].b)}); }); // 11/6: 당월 Arrival = ATA 실적 + 당월 입항 예정
   qa('tr.grp[data-key]', w).forEach(tr=>tr.onclick=()=>{ const k=tr.dataset.key; if(KF.collapsed.has(k)) KF.collapsed.delete(k); else KF.collapsed.add(k); drawKufri(); });
   qa('input[data-plan]', w).forEach(i=>i.onchange=()=>{ KF.plans[i.dataset.plan]=Number(i.value)||0; drawKufri(); toast('판매계획 수정(목업)', i.dataset.plan.replace('sales|','').replace('|',' · ')+' → '+i.value+'대 · OH Stock·재고월수 재계산됨 (저장은 "계획 확정")'); });
 }

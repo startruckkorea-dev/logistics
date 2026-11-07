@@ -197,7 +197,7 @@ const I18N = {
   ' 마지막 번호에 이어서 생성':' Continue from last No.', ' 새 번호로 시작 ':' Start from new No. ', '생성':'Create',
   // 선적 · 입항
   '운송중 (In Transit)':'In Transit', 'Shipped / Invoiced · {n}척 · 선적 예정 {m}대 별도':'Shipped / Invoiced · {n} vessels · {m} units scheduled separately',
-  '당월 입항 예정 ({m})':'Arriving This Month ({m})', 'ETA Final 기준, 없으면 Pl. arrival':'By ETA Final, else Pl. arrival', '익월 입항 예정 ({m})':'Arriving Next Month ({m})', 'Shipment scheduled 포함':'Incl. Shipment scheduled',
+  '당월 입항 예정 ({m})':'Arriving This Month ({m})', 'ATA → ETA 선사 → Pl. arrival 순':'ATA → carrier ETA → Pl. arrival', '익월 입항 예정 ({m})':'Arriving Next Month ({m})', 'Shipment scheduled 포함':'Incl. Shipment scheduled',
   '월별 입항 예정·실적 (Arrival Schedule)':'Monthly Arrival Schedule & Actuals', '당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)':'Months before the current month show actual arrivals (ATA; Bonded·OH·Sold)',
   '이번달~연말 ({a}~{b})':'This month to year-end ({a}~{b})', '올해 전체 ({y})':'Full year ({y})', '해당 월 입항 선박 없음':'No vessel arriving this month', '입항 실적 (ATA 기준)':'Actual arrival (ATA)',
   '행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)':'Rows: Gen > Vehicle > Model (Vehicle · Model · Type · Axle · Cab · non-standard options) · Columns: arrival month (ATA → carrier ETA → Pl. arrival) > vessel · Values: units shipped per vessel by model (In Transit + Shipment scheduled)',
@@ -208,16 +208,16 @@ const I18N = {
   '확정':'Confirmed', 'TSC 입고일 확정 — {v}':'Confirm TSC Arrival Date — {v}', '기존 날짜로 확정':'Confirm with current date', '새 날짜 입력 후 확정':'Enter a new date, then confirm', '클릭 → TSC 입고일 확정':'Click → confirm TSC Arrival Date', '구분':'Option', '날짜':'Date', '선택':'Select',
   'TSC 입고일은 예정으로 저장되며, 확정 시 해당 선박 차량 {n}대의 TSC Arrival Date에 반영되고 In Transit {m}대가 Bonded Stock으로 전환됩니다.':'The TSC date is saved as planned. On confirmation it is written to TSC Arrival Date of {n} vehicles on this vessel and {m} In Transit vehicles move to Bonded Stock.',
   'ETA 선사 (EUKOR/MOL)':'Carrier ETA (EUKOR/MOL)', 'TSC 입고일 (TSC Arrival Date)':'TSC Arrival Date',
-  '행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드 또는 Logistics 그리드/상세에서.':"Click a row for that vessel's Logistics list. Enter ATA in edit mode or in the Logistics grid/detail.",
+  '행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드에서 (기준일 이후 날짜 불가).':"Click a row for that vessel's Logistics list. Enter ATA in edit mode (no dates after the base date).",
   // 재고현황
   '현재 ({d}, 상태 Bonded Stock·OH Stock 기준)':'Current ({d}, by status Bonded Stock·OH Stock)', '{m} 월말 마감 ({d})':'{m} month-end closing ({d})',
   '보세(Bonded) {b} · 통관(OH) {c} · 보세/통관 = Customs Clearance DATE ≤ 월말':'Bonded {b} · OH {c} · Bonded/OH = Customs Clearance DATE ≤ month-end',
   '연식(MY) 범례':'Model Year (MY) legend', '기타':'Other', ' (MY23 이하·판독 불가)':' (MY23 or older · unreadable)', '· MY = VIN 10번째 자리 (M=21 … T=26 V=27 W=28)':'· MY = VIN 10th digit (M=21 … T=26 V=27 W=28)',
   '차종별 · 막대 길이 = 대수 · 우측 대수·비율':'By vehicle type · bar length = units · units & share at right', '차종 섹션 안 모델별 · 모델명 = Model · Type · Axle · Cab · 비표준 옵션':'Models within each vehicle section · name = Model · Type · Axle · Cab · non-standard options',
-  '월말 마감 판정 = Cancelled 제외 · 입고일(ETA Final Arrival) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)':'Month-end rule = excl. Cancelled · arrival (ETA Final) ≤ last day of month · Sales Month blank or later (unsold)',
+  '월말 마감 판정 = Cancelled 제외 · 입고일(ATA) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)':'Month-end rule = excl. Cancelled · arrival (ATA) ≤ last day of month · Sales Month blank or later (unsold)',
   '{m} 월말 마감':'{m} month-end', '현재 ({d})':'Current ({d})', '리포트 HTML':'Report HTML',
   // KUFRI
-  '연도':'Year', '차종':'Vehicle', '판매계획 입력 모드':'Sales Plan Input Mode', '실적(≤기준월)':'Actual (≤ base month)', '확정(AFAB 오더·잠금)':'Fixed (AFAB orders · locked)', '계획(입력)':'Plan (input)',
+  '연도':'Year', '차종':'Vehicle', '판매계획 입력 모드':'Sales Plan Input Mode', '실적(≤기준월)':'Actual (≤ base month)', '확정(AFAB 오더·잠금)':'Fixed (AFAB orders · locked)', '계획(입력)':'Plan (input)', '실적 {a}대 + 입항 예정 {b}대':'Actual {a} + arriving {b}',
   '계획 확정':'Confirm Plan', '시나리오 복제 (2차)':'Clone Scenario (Phase 2)', ' 정상':' OK', ' 주의':' Warn', ' 위험':' Risk',
   '{n}대 · 리드타임 {lt}개월':'{n} units · lead time {lt} mo', 'OH Stock (월말)':'OH Stock (month-end)', 'In Transit (월말)':'In Transit (month-end)', '재고월수':'Months of Stock',
   'Fixed Order (당월+익월 Production)':'Fixed Order (current + next month Production)', '모델 (Vehicle | Model | Type | Axle | Cab)':'Model (Vehicle | Model | Type | Axle | Cab)', '합계':'Total', '전체 합계':'Grand Total', '전 차종':'All vehicles',
@@ -316,8 +316,8 @@ function openVehicle(comm){
   const v = VEHICLE_BY_COMM[comm]; if(!v){ toast('차량을 찾을 수 없습니다', comm); return; }
   const ms = [
     {l:'PM', d:v.pm}, {l:'TDD', d:v.tdd_calc}, {l:'Dispatch', d:v.dispatch},
-    {l:'Shipping', d:v.shipping}, {l:'ETA Final', d:v.ata || v.eta_from_eukor_pirt || v.planned_arrival || v.eta_from_tdd}, {l:'Customs', d:v.customs_clearance_date}, {l:'Sales', d:v.sales_month},
-  ]; // 10/19: 'Ordered' 단계 제거 (Order Date 열 제거에 따름) · 10/26 No.11: ETA Final 표시 = ATA > ETA From EUKOR/PIRT > Planned Arrival > ETA From TDD
+    {l:'Shipping', d:v.shipping}, {l:'ETA·ATA', d:v.ata || v.eta_from_eukor_pirt || v.planned_arrival || v.eta_from_tdd}, {l:'Customs', d:v.customs_clearance_date}, {l:'Sales', d:v.sales_month},
+  ]; // 10/19: 'Ordered' 단계 제거 (Order Date 열 제거에 따름) · 10/26 No.11: ETA Final 표시 = ATA > ETA From EUKOR/PIRT > Planned Arrival > ETA From TDD · 11/6: 칸 이름 ETA Final → ETA·ATA (값 순서는 그대로)
   const doneIdx = v.current_status==='Sold'?7: v.current_status==='OH Stock'?6: v.current_status==='Bonded Stock'?5: v.current_status==='In Transit'?4: v.current_status==='Shipment scheduled'?3: v.current_status==='In Production'?(v.dispatch?3:2):0;
   const tl = ms.map((m,i)=>`<div class="ms ${i<doneIdx?'done':''} ${i===doneIdx?'cur':''}"><div class="dot"></div><div class="l">${m.l}</div><div class="d">${esc(m.d)||'—'}</div></div>`).join('');
   const editable = isEditor();

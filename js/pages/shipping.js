@@ -11,7 +11,7 @@ PAGES.shipping = {
     const arrM0 = moving.filter(v=>expectedArrivalYm(v)===m0).length, arrM1 = moving.filter(v=>expectedArrivalYm(v)===m1).length;
     const kpi = `<div class="grid3">
       <div class="card kpi"><span class="label">${tx('운송중 (In Transit)')} ${note('S1')}</span><span class="value num">${num(transit.length)}</span><span class="foot">${tx('Shipped / Invoiced · {n}척 · 선적 예정 {m}대 별도', {n:new Set(transit.map(v=>v.vessel)).size, m:num(moving.length-transit.length)})}</span></div>
-      <div class="card kpi"><span class="label">${tx('당월 입항 예정 ({m})', {m:m0})}</span><span class="value num">${num(arrM0)}</span><span class="foot">${tx('ETA Final 기준, 없으면 Pl. arrival')}</span></div>
+      <div class="card kpi"><span class="label">${tx('당월 입항 예정 ({m})', {m:m0})}</span><span class="value num">${num(arrM0)}</span><span class="foot">${tx('ATA → ETA 선사 → Pl. arrival 순')}</span></div>
       <div class="card kpi"><span class="label">${tx('익월 입항 예정 ({m})', {m:m1})}</span><span class="value num">${num(arrM1)}</span><span class="foot">${tx('Shipment scheduled 포함')}</span></div>
     </div>`;
 
@@ -68,6 +68,11 @@ PAGES.shipping = {
     // 선박 단위 입력(B/L No · ETA From EUKOR/PIRT · ATA) → VOYAGES + 해당 선박 차량(Vehicles) 필드에 반영 + Vehicle_History 기록(Store, 10/26).
     // TSC Arrival Date는 10/27부터 별도 경로(tscCell): 입력 = 예정(선박에만 저장) → 배지 클릭으로 확정 시 차량 마스터 반영 + In Transit → Bonded Stock (삭제 시에는 되돌리지 않음)
     const applyToVehicles = (y, voyKey, vehKey, label, val)=>{
+      // 11/6: ATA = 실제 입항일 → 기준일 이후 날짜는 저장하지 않고 안내만, 입력란은 저장된 값으로 되돌림
+      if(voyKey==='eta_final' && val && val>TODAY_S){
+        toast(`ATA 입력 불가 · ${y.vessel}`, `ATA는 실제 입항일이므로 기준일(${TODAY_S}) 이후 날짜는 입력할 수 없습니다. 입항 예정일은 ETA 선사에 입력하세요.`);
+        PAGES.shipping.render(root); return;
+      }
       Store.voyages.update(y.id, {[voyKey]: val});
       const r = Store.voyages.applyToVehicles(y.vessel, vehKey, val, state.user);
       toast(`${label} 입력 · ${y.vessel}`, `${val||'(삭제)'} → 해당 선박 차량 ${num(r.n)}대의 ${vehKey}에 반영(차량 마스터) · Vehicle_History ${num(r.changed)}건 기록(출처: 수동)`);
@@ -157,7 +162,7 @@ PAGES.shipping = {
       mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact even'+(edit? '' : ' clickable')}, // 편집 모드에서는 행 클릭 이동 없음 (10/26) · even: 열 너비 = 열 최대 내용 폭 + 남는 폭 균등 배분 (evenCols, 10/27)
         mk('thead', null, mk('tr', null, ['Vessel','단계'].map(x=>mk('th', null, tx(x))), mk('th', {class:'num'}, tx('대수')), mk('th', {class:'num'}, tx('총중량 (kg)')), ['B/L No','Shipping','Planned Arrival','ETA 선사 (EUKOR/MOL)','ATA','TSC 입고일 (TSC Arrival Date)'].map(x=>mk('th', null, tx(x))), mk('th', {class:'tscst'}, ''))),
         mk('tbody', null, rows))),
-      mk('div', {class:'muted small', style:'margin-top:6px'}, tx('행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드 또는 Logistics 그리드/상세에서.')));
+      mk('div', {class:'muted small', style:'margin-top:6px'}, tx('행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드에서 (기준일 이후 날짜 불가).')));
 
     root.innerHTML = kpi;
     root.append(vessels, monthly); // 10/19 No.8: 선박별 현황을 월별 입항 예정 위로

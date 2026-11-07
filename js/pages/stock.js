@@ -1,7 +1,7 @@
 'use strict';
 /* ===== 재고현황 — Closing Stock Status 리포트 (K1~K2) · 연식 키·색은 common.js MY_KEYS/MY_COLORS (10/29: MY28 추가, 대시보드와 공용) ===== */
 PAGES.stock = {
-  title:'재고현황', sub:'Closing Stock Status · 월말 마감 재고 (입고일 = ETA Final Arrival)',
+  title:'재고현황', sub:'Closing Stock Status · 월말 마감 재고 (입고일 = ATA)',
   render(root, params){
     const opts = []; for(let i=5;i>=1;i--) opts.push(ymAdd(BASE_YM,-i)); // 최근 5개월 월말 마감
     let sel = params.get('m') || 'current';
@@ -104,7 +104,7 @@ PAGES.stock = {
         ${byVeh.map(x=>{ const groups = Object.values(x.vs.reduce((a,v)=>{ const k=modelName(v); (a[k]=a[k]||{k,vs:[]}).vs.push(v); return a; },{})).sort((a,b)=>b.vs.length-a.vs.length);
           return `<div class="section-h">${x.t}<span class="sub">${tx('{n}대', {n:num(x.vs.length)})} · ${pct(x.vs.length,total)}</span></div><div class="hbars">${groups.map(g=>hbar(g.k, segsOf(g.vs), g.vs.length, maxV, 'model')).join('')}</div>`; }).join('')}</div>`;
       // 10/29 #8: 현재 및 미래 탭 = 기준 문구 → 여정 지도 → 연식 범례 → 모델별 구역 현황 → 히트맵(cfsSlot·cfsSlot2에 DOM으로 삽입) → By Vehicle → By Model (10/29 #3: 여정 지도에 연식 구분이 없어져 범례를 모델별 구역 현황 바로 위로)
-      el('stockBody').innerHTML = `<div class="muted small" style="margin:-4px 0 10px">${label} · ${view==='pipe'? tx('확장 뷰는 현재 기준만 지원 (월말 마감 없음)') : tx('월말 마감 판정 = Cancelled 제외 · 입고일(ETA Final Arrival) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)')}</div>` + (view==='pipe' ? '<div id="cfsSlot"></div>' + legend + '<div id="cfsSlot2"></div>' : cards + legend) + byVehicle + byModel;
+      el('stockBody').innerHTML = `<div class="muted small" style="margin:-4px 0 10px">${label} · ${view==='pipe'? tx('확장 뷰는 현재 기준만 지원 (월말 마감 없음)') : tx('월말 마감 판정 = Cancelled 제외 · 입고일(ATA) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)')}</div>` + (view==='pipe' ? '<div id="cfsSlot"></div>' + legend + '<div id="cfsSlot2"></div>' : cards + legend) + byVehicle + byModel;
       if(view==='pipe'){ el('cfsSlot').replaceWith(cfsJourney(list)); el('cfsSlot2').replaceWith(cfsMatrix(list), cfsHeat(list)); }
       // 10/27 #15: 탭 강조 · 확장 뷰에서는 기준월 select를 '현재'로 고정
       qa('#stockTabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.view===view));

@@ -50,23 +50,23 @@ const COLUMNS = [
   {key:'ata', label:'ATA', group:'일정', src:'선적·입항'},
   {key:'tsc_arrival_date', label:'TSC Arrival Date', group:'일정', src:'선적·입항'}, // 10/26 No.9: 선적·입항 선박별 현황 입력 → 차량 마스터 반영 · 입력 시 In Transit → Bonded Stock (No.8)
   {key:'bl_no', label:'B/L No', group:'선적', src:'선적·입항'},
-  {key:'vessel', label:'Vessel', group:'선적', src:'선적·입항'},
-  {key:'customs_clearance_date', label:'Customs Clearance Date', group:'통관', src:'입력'},
+  {key:'vessel', label:'Vessel', group:'선적', src:'AFAB'}, // 11/8: 출처 선적·입항 → AFAB (파랑 배지·드로어 잠금)
+  {key:'customs_clearance_date', label:'Customs Clearance Date', group:'통관', src:'통관'}, // 11/8: 출처 입력 → 통관 (회색 배지·드로어 잠금, 통관 완료 처리 Excel 업로드로 반영)
   {key:'color_code', label:'Color Code', group:'사양', src:'AFAB'},
   {key:'color_name', label:'Color Name', group:'사양', src:'COLOR_MASTER'},
   {key:'tires', label:'Tires', group:'사양', src:'WINGS', memo:true}, // 11/3 #8: 메모 → 사양 그룹
   {key:'model_in_afab', label:'Model In AFAB', group:'사양', src:'AFAB'},
   {key:'engine_no', label:'Engine No', group:'기본', src:'AFAB'},
-  {key:'import_license', label:'Import License', group:'통관', src:'입력'},
-  {key:'ref_commission_no', label:'Ref Commission No', group:'메모', src:'입력', keyin:true, wide:true}, // 11/4: 기본 → 메모 그룹(Option Note 위) — 드로어 기본 그룹이 5줄로 바뀌며 빠진 열 · wide: 상세 Drawer에서 한 행 전체 폭(그리드 열 폭과 무관)
+  {key:'import_license', label:'Import License', group:'통관', src:'통관'}, // 11/8: 출처 입력 → 통관 (회색 배지·드로어 잠금)
+  {key:'ref_commission_no', label:'Ref Commission No', group:'메모', src:'입력', keyin:true}, // 11/4: 기본 → 메모 그룹(Option Note 위) — 드로어 기본 그룹이 5줄로 바뀌며 빠진 열 · 11/8: wide 해제 — 옆 칸에 C/O
   {key:'option_remarks', label:'Option Note', group:'메모', src:'입력', keyin:true, memo:true},
   {key:'order_note', label:'Order Note', group:'메모', src:'입력', keyin:true, memo:true}, // 10/15 No.10: Option Note 다음 순서
   {key:'order_update_date', label:'Order Update Date', group:'일정', src:'오더 생성'}, // 10/20 No.10: 시스템 오더 등록일 (AFAB Order Date와 별개) · 11/3 #4: Create Order Date → Order Update Date — 생성일 + 오더 변경 시 변경일(KUFRI 확정 후 Dummy→Changeable 전환일 · Changeable 모델 변경일)로 갱신
-  {key:'b1_factory_order', label:'B1 Factory Order', group:'선적', src:'입력', keyin:true},
-  {key:'co', label:'C/O', group:'선적', src:'입력'}, // 10/20 No.14: Fleet C/O → C/O (fleet_co → co) · Sales Month 바로 앞
-  {key:'sales_month', label:'Sales Month', group:'통관', src:'입력', keyin:true},
+  {key:'b1_factory_order', label:'B1 Factory Order', group:'일정', src:'입력', keyin:true}, // 11/8: 선적 → 일정 그룹 (드로어 Order Update Date 뒤)
+  {key:'co', label:'C/O', group:'메모', src:'입력', drawerAfter:'ref_commission_no'}, // 10/20 No.14: Fleet C/O → C/O (fleet_co → co) · Sales Month 바로 앞 · 11/8: 선적 → 메모 그룹, drawerAfter = 드로어에서만 Ref Commission No 옆 칸(배열·그리드 순서는 그대로)
+  {key:'sales_month', label:'Sales Month', group:'일정', src:'입력', keyin:true}, // 11/8: 통관 → 일정 그룹 (드로어 B1 Factory Order 뒤)
   {key:'model_classification', label:'Model Classification', group:'사양', src:'자동'},
-  {key:'gen', label:'Gen', group:'기본', src:'AFAB'},
+  {key:'gen', label:'Gen', group:'사양', src:'AFAB'}, // 11/8: 기본 → 사양 그룹 (기본 카드 5줄에 없어 드로어에서 빠졌던 열)
   {key:'spec', label:'Spec', group:'사양', src:'자동'},
   {key:'sub_cat', label:'Sub Cat', group:'사양', src:'AFAB'},
   // ---- 사전 제외 열 (뒤쪽 배치) ----
@@ -119,7 +119,13 @@ const I18N = {
   // 차량 상세 Drawer
   '파생·상태':'Derived · Status', '저장하지 않고 계산':'Calculated, not stored', '(VIN 10번째 자리)':'(VIN 10th digit)', 'AFAB 금일 존재':'In AFAB Today',
   '있음':'Yes', '없음 — 확인 필요':'No — check', '해당 없음':'N/A', '(자동 판정)':'(Auto)', 'override 시 사유 필수':'Reason required for override',
-  'Note 저장':'Notes saved', '변경된 Note가 없습니다.':'No note changes.', '{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)':'{comm} · {fields} · {n} Vehicle_History rows (source: Input)', 'Order Note · Option Note 저장 + 변경 이력 기록 (그 외 입력 필드는 목업에서 저장하지 않음)':'Save Order Note · Option Note + change history (other input fields are not saved in the mockup)', // 11/4 드로어 저장
+  '변경된 입력 필드가 없습니다.':'No input changes.', 'Sales Month 형식 오류':'Sales Month format error', 'YYYY-MM 형식으로 입력하세요 (예: 2026-11).':'Use YYYY-MM (e.g. 2026-11).',
+  'B1 Factory Order 형식 오류':'B1 Factory Order format error', 'YYYY-MM-DD 형식으로 입력하세요 (예: 2026-11-09).':'Use YYYY-MM-DD (e.g. 2026-11-09).', // 11/9
+  '여러 행은 붙여넣을 수 없습니다':'Multi-row paste is not allowed', '한 칸을 복사해 범위에 붙여넣으세요 (한 칸 값 → 선택 범위 전체)':'Copy one cell and paste into the range (one value → whole selection)', // 11/9
+  '저장 충돌 {n}건':'{n} save conflicts', '저장 대기에 올린 뒤 다른 경로(드로어 저장 · 선적·입항 입력 · 상태 점검)로 바뀐 행입니다. 현재 값을 확인하고 처리 방법을 고르세요.':'These rows were changed elsewhere (drawer save · shipping input · status check) after you staged them. Check the current values and choose how to proceed.',
+  '내 값':'My value', '현재 값':'Current value', '마지막 수정':'Last modified', '남겨두기':'Keep pending', '건너뛰기':'Skip', '현재 값 덮어쓰기':'Overwrite current', '편집 모드를 유지합니다 · 충돌 행은 저장 대기에 남아 있습니다':'Edit mode stays on · conflicting rows remain pending',
+  '충돌 {n}건 건너뜀 (변경 버림)':'{n} conflicts skipped (changes discarded)', '저장 시 버전 비교 → 다른 사용자가 먼저 바꾼 행은 충돌 목록':'Version check on save → rows changed by others go to a conflict list', '(빈칸)':'(blank)', '(변경 없음)':'(no change)', '빈칸으로':'Set blank', // 11/8: 드로어 저장 = 입력 필드 전부 · C/O 선택
+  'Note 저장':'Notes saved', '변경된 Note가 없습니다.':'No note changes.', '{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)':'{comm} · {fields} · {n} Vehicle_History rows (source: Input)', "출처 '입력' 필드(B1 Factory Order · Sales Month · Ref Commission No · C/O · Option Note · Order Note · Status override · reason) 저장 + 변경 이력 기록":"Save 'Input' fields (B1 Factory Order · Sales Month · Ref Commission No · C/O · Option Note · Order Note · Status override · reason) + change history", 'Order Note · Option Note 저장 + 변경 이력 기록 (그 외 입력 필드는 목업에서 저장하지 않음)':'Save Order Note · Option Note + change history (other input fields are not saved in the mockup)', // 11/4 드로어 저장
   'Order Note 토글 저장':'Order Note toggle saved', '{comm} · {val} · Vehicle_History 기록 (출처: 입력)':'{comm} · {val} · Vehicle_History recorded (source: Input)', 'On = 검토가 필요한 오더 · 토글 즉시 저장 + 변경 이력 기록':'On = order needs review · saved immediately + change history', // 10/30 리뷰 #7
   '변경 이력':'Change History', 'Vehicle_History · 필드 단위 before/after':'Vehicle_History · field-level before/after', '미부여':'not assigned', '수정':'Modified',
   '상태 override':'Status override', '취소 처리':'Cancel Vehicle', '이력 전체':'Full History', '마일스톤 타임라인':'Milestone Timeline',
@@ -143,9 +149,9 @@ const I18N = {
   '바로가기':'Jump to', '· 열 {a}/{b} · 가로 스크롤 · Comm No. 고정':'· Columns {a}/{b} · horizontal scroll · Comm No. pinned',
   '{n}건 중 {a}–{b}':'{a}–{b} of {n}', '‹ 이전':'‹ Prev', '다음 ›':'Next ›', '50행 페이지 (실제 구현은 가상 스크롤 또는 50행 페이지)':'50 rows per page (real build: virtual scroll or 50-row pages)',
   '편집 모드':'Edit Mode', '· 선택 ':'· Selected ', '건':' items', '오더 변경 (모델 일괄)':'Change Order (Bulk Model)', 'Key-in 일괄 입력':'Bulk Key-in', '선택 해제':'Clear Selection',
-  'Key-in 대상 열: B1 Factory Order · Sales Month · Order Note · Option Note (셀 클릭 → 개별 입력 · Note는 여러 줄 팝업, 셀을 끌어 선택 → Ctrl+C / Ctrl+V)':'Key-in columns: B1 Factory Order · Sales Month · Order Note · Option Note (click a cell to edit · notes open a multi-line popup, drag cells to select → Ctrl+C / Ctrl+V)', // 11/3 리뷰 #6
+  'Key-in 대상 열: B1 Factory Order · Sales Month · Ref Commission No · C/O · Order Note · Option Note (셀 클릭 → 개별 입력 · Note는 여러 줄 팝업 · Note·Ref Commission No·C/O는 셀을 끌어 선택 → Ctrl+C / Ctrl+V)':'Key-in columns: B1 Factory Order · Sales Month · Ref Commission No · C/O · Order Note · Option Note (click a cell to edit · notes open a multi-line popup · drag Note/Ref Commission No/C/O cells to select → Ctrl+C / Ctrl+V)', // 11/3 리뷰 #6 · 11/8: Ref Commission No·C/O 추가
   // 11/3 리뷰 #6: Order Note·Option Note 여러 줄 팝업 편집창
-  '여러 줄 입력 가능 (Enter = 줄바꿈)':'Multi-line (Enter = new line)', 'Enter = 줄바꿈 · Ctrl+Enter = 이 행에 적용 · Esc = 취소 · Ctrl+C = 칸 전체 복사':'Enter = new line · Ctrl+Enter = apply to this row · Esc = cancel · Ctrl+C = copy whole cell', '다른 행에 같은 내용: Note 셀을 끌어 범위 선택 → Ctrl+V (엑셀 열 복사도 가능)':'Same text in other rows: drag note cells to select a range → Ctrl+V (an Excel column works too)',
+  '여러 줄 입력 가능 (Enter = 줄바꿈)':'Multi-line (Enter = new line)', 'Enter = 줄바꿈 · Ctrl+Enter = 이 행에 적용 · Esc = 취소 · Ctrl+C = 칸 전체 복사':'Enter = new line · Ctrl+Enter = apply to this row · Esc = cancel · Ctrl+C = copy whole cell', '다른 행에 같은 내용: Note 셀을 끌어 범위 선택 → Ctrl+V (한 칸 값만)':'Same text in other rows: drag note cells to select a range → Ctrl+V (one value only)',
   '이 행에 적용':'Apply to this row', '선택한 {n}건에 적용':'Apply to {n} selected', '체크한 오더 전부(이 행 포함)에 같은 내용으로 덮어씁니다 · 출처 수동/일괄':'Overwrite all checked orders (including this row) with the same text · source Manual/Bulk',
   '{col} {n}칸 복사':'{col}: {n} cells copied', '다른 행의 Note 셀을 끌어 선택한 뒤 Ctrl+V':'Drag to select note cells in other rows, then Ctrl+V',
   '{col} 선택 {n}건에 적용 (저장 대기)':'{col}: applied to {n} selected (pending)', '{col} 붙여넣기 {n}칸 (저장 대기)':'{col}: pasted into {n} cells (pending)',
@@ -155,7 +161,7 @@ const I18N = {
   // 11/3 리뷰 #1~#4: 오더 생성 상태 2종 · 오더 변경 모델 매칭·Original PM·상태 전환 안내
   '오더 변경 — 모델·Original PM 일괄 변경':'Change Order — Bulk Model · Original PM Change', '현재 Original PM 분포':'Current Original PM Mix', '변경할 Original PM (생산월, 비우면 변경 없음)':'New Original PM (production month, blank = no change)',
   'Current Status가 Ordered(Changeable)로 변경(유지)됩니다':'Current Status will be set to (or kept as) Ordered(Changeable)', '선택 {n}건 중 {m}건은 Ordered(Dummy)·Ordered(Changeable)가 아니라 제외됩니다':'{m} of {n} selected are excluded (not Ordered(Dummy)·Ordered(Changeable))',
-  '변경':'Change', '예) B1-12345':'e.g. B1-12345',
+  '변경':'Change',
   '값 검색 (예: 2853)':'Search values (e.g. 2853)', '연·월 검색 (예: 2026-11)':'Search year-month (e.g. 2026-11)', '값 검색':'Search values',
   '{y}년':'{y}', '{m}월':'{mon}', '일치하는 값이 없습니다.':'No matching values.', '{c} 열 필터':'{c} Column Filter',
   '표시된 값 전체 선택':'Select All Shown', '표시된 값 해제':'Clear Shown', '필터 해제':'Clear Filter',
@@ -278,13 +284,22 @@ function qa(sel,root){ return Array.from((root||document).querySelectorAll(sel))
 
 // ---- 작은 컴포넌트 ----
 function note(id){ return `<span class="note" title="${esc(NOTES[id]||'')}" data-note="${id}">${id}</span>`; }
-// 출처 배지 (10/20 No.2 별첨2): 파랑(afab) = AFAB · WINGS · +75 FROM TDD · AFAB/입력 / 초록(input) = keyin 열의 '입력' / 회색(auto) = 그 외
+// 출처 배지 (10/20 No.2 별첨2): 파랑(afab) = AFAB · WINGS · +75 FROM TDD · AFAB/입력 / 초록(input) = '입력' 전부(11/8: keyin 여부와 무관) / 회색(auto) = 그 외
 const SRC_BADGE = {
   'AFAB':{cls:'afab', tip:'AFAB 업로드로만 갱신(잠금)'}, 'AFAB/입력':{cls:'afab', tip:'AFAB 기준 자동 판정 + Editor 입력(override)'}, 'WINGS':{cls:'afab', tip:'WINGS 연동 값(잠금)'}, '+75 FROM TDD':{cls:'afab', tip:'TDD Calc + 75일 자동 계산(잠금)'}, 'PM + LEAD TIME':{cls:'auto', tip:'In Production 진입 시 PM 1일 + 모델 리드타임(일, PM~Shipping)으로 1회 작성 · 이후 수정 없음(잠금)'},
-  '자동':{cls:'auto', tip:'시스템 계산(잠금)'}, 'MODEL_MASTER':{cls:'auto', tip:'모델 마스터에서 자동 반영(잠금)'}, 'COLOR_MASTER':{cls:'auto', tip:'색상 마스터에서 자동 반영(잠금)'}, '선적·입항':{cls:'auto', tip:'선적·입항 화면에서 선박 단위 입력'}, '오더 생성':{cls:'auto', tip:'오더 생성 시 기록(잠금)'}, '입력':{cls:'auto', tip:'Editor 수동 입력'},
+  '자동':{cls:'auto', tip:'시스템 계산(잠금)'}, 'MODEL_MASTER':{cls:'auto', tip:'모델 마스터에서 자동 반영(잠금)'}, 'COLOR_MASTER':{cls:'auto', tip:'색상 마스터에서 자동 반영(잠금)'}, '선적·입항':{cls:'auto', tip:'선적·입항 화면에서 선박 단위 입력(드로어 잠금)'}, '오더 생성':{cls:'auto', tip:'오더 생성 시 기록(잠금)'}, '입력':{cls:'auto', tip:'Editor 수동 입력'},
+  '통관':{cls:'auto', tip:'통관 완료 처리(템플릿 Excel 업로드)로 반영(드로어 잠금)'}, // 11/8: Customs Clearance Date · Import License
 };
-function srcBadge(src, keyin){ const b = SRC_BADGE[src]||SRC_BADGE['입력']; const c = (src==='입력'&&keyin)? 'input' : b.cls; return `<span class="badge ${c}" title="${b.tip}">${esc(tx(src))}</span>`; }
-function srcEditable(src){ return src==='입력' || src==='선적·입항'; } // 상세 Drawer에서 입력창을 여는 출처
+function srcBadge(src, keyin){ const b = SRC_BADGE[src]||SRC_BADGE['입력']; const c = src==='입력'? 'input' : b.cls; return `<span class="badge ${c}" title="${b.tip}">${esc(tx(src))}</span>`; }
+// 11/9: Key-in 입력칸 종류·형식 검사 (그리드 셀 입력 · Key-in 일괄 입력 · 드로어 저장 공통). B1 Factory Order = 날짜(YYYY-MM-DD) · Sales Month = 연월(YYYY-MM). 미지원 브라우저는 텍스트로 떨어지므로 저장 직전 정규식으로 다시 검사
+function keyinInputType(key){ return key==='b1_factory_order'? 'date' : key==='sales_month'? 'month' : 'text'; }
+function validKeyin(key, val){ // 반환 null = 통과, {title, msg} = 오류 (빈값은 통과)
+  val = String(val==null? '' : val).trim(); if(!val) return null;
+  if(key==='sales_month' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(val)) return {title: tx('Sales Month 형식 오류'), msg: tx('YYYY-MM 형식으로 입력하세요 (예: 2026-11).')};
+  if(key==='b1_factory_order' && !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(val)) return {title: tx('B1 Factory Order 형식 오류'), msg: tx('YYYY-MM-DD 형식으로 입력하세요 (예: 2026-11-09).')};
+  return null;
+}
+function srcEditable(src){ return src==='입력'; } // 상세 Drawer에서 입력창을 여는 출처 · 11/8: '선적·입항' 제외 — 선박 단위 입력은 선적·입항 화면에서만, 드로어는 잠금
 function stagePill(stage){ return `<span class="pill ${STAGE_CLASS[stage]||'neutral'}">${esc(stage)}</span>`; }
 function statusPill(kind, text){ return `<span class="pill ${kind}">${esc(text)}</span>`; }
 
@@ -327,7 +342,8 @@ function openVehicle(comm){
     if(c.key==='current_status') inner = stagePill(val);
     else if(c.key==='order_note') inner = editable? '<textarea rows="6" data-f="order_note"></textarea>' : ''; // 10/30 리뷰 #7: 6줄 칸 · 값은 openDrawer 뒤 DOM에서 대입(규칙 2) · Viewer는 .v.note 텍스트
     else if(c.key==='option_remarks' && editable) inner = '<textarea rows="4" data-f="option_remarks"></textarea>'; // 11/4: Option Note 4줄 칸 · 값은 openDrawer 뒤 DOM에서 대입(규칙 2)
-    else if(srcEditable(c.src) && editable) inner = `<input value="${esc(val)}" data-f="${c.key}" placeholder="${c.key.includes('date')?'YYYY-MM-DD': c.key==='sales_month'?'YYYY-MM':''}">`;
+    else if(c.key==='co' && editable) inner = `<select data-f="co"><option value="">${tx('(빈칸)')}</option><option value="O" ${val==='O'?'selected':''}>O</option></select>`; // 11/8: C/O는 O/빈칸 선택
+    else if(srcEditable(c.src) && editable) inner = `<input type="${keyinInputType(c.key)}" value="${esc(val)}" data-f="${c.key}" placeholder="${c.key.includes('date')?'YYYY-MM-DD':''}">`; // 11/9: B1 Factory Order = 날짜 선택 · Sales Month = 월 선택
     else if(editable) inner = `<input value="${esc(c.num?num(val):val)}" readonly title="${esc((SRC_BADGE[c.src]||{}).tip||'')}">`;
     else inner = `<span>${esc(c.num?num(val):val)||'<span class="muted">—</span>'}</span>`;
     const isNote = c.key==='order_note';
@@ -337,14 +353,15 @@ function openVehicle(comm){
   const basicLines = [['Model', [v.model_year, v.model, v.type, v.axle, v.cab, v.cab_gen, v.wheelbase, v.pto, v.emission].filter(Boolean).join(' ')], ['Vehicle', v.vehicle], ['BM', v.bm], ['VIN No', v.vin_no], ['Engine', v.engine_no]];
   const basicCard = mk('div', {class:'card'}, mk('div', {class:'card-h'}, mk('h2', null, tx('기본'))),
     mk('div', {class:'lines'}, basicLines.map(([l,val])=> mk('div', {class:'line'}, mk('span', {class:'k'}, l), mk('span', {class:'c'}, ':'), val? mk('span', {class:'v'}, String(val)) : mk('span', {class:'v muted'}, '—')))));
-  const groups = '<div id="drvBasic"></div>' + GROUPS.filter(g=>g!=='기본').map(g=>`<div class="card"><div class="card-h"><h2>${tx(g)}</h2></div><div class="fields">${COLUMNS.filter(c=>c.group===g).map(field).join('')}</div></div>`).join('');
+  // 11/8: drawerAfter 열(C/O)은 드로어 카드에서만 지정 열(Ref Commission No) 바로 뒤로 옮긴다 — COLUMNS 배열·그리드 열 순서는 그대로
+  const groupCols = (g)=>{ const cols = COLUMNS.filter(c=>c.group===g); cols.filter(c=>c.drawerAfter).forEach(c=>{ const i = cols.indexOf(c); cols.splice(i,1); const j = cols.findIndex(x=>x.key===c.drawerAfter); cols.splice(j<0? cols.length : j+1, 0, c); }); return cols; };
+  const groups = '<div id="drvBasic"></div>' + GROUPS.filter(g=>g!=='기본').map(g=>`<div class="card"><div class="card-h"><h2>${tx(g)}</h2></div><div class="fields">${groupCols(g).map(field).join('')}</div></div>`).join('');
+  const lock = '<span class="lock">🔒</span>'; // 11/8: 파생·상태 카드의 '자동' 칸도 필드 그룹과 같이 자물쇠 표시 · MY·Model Classification 칸 삭제(기본 카드·사양 그룹과 중복) · Status override·reason 배지는 '입력'(초록, 11/8: '입력' 배지 전부 초록)
   const extra = `<div class="card"><div class="card-h"><h2>${tx('파생·상태')}</h2><span class="desc">${tx('저장하지 않고 계산')}</span></div><div class="fields">
-    <div class="f"><div class="k">MY ${srcBadge('자동')}</div><div class="v">${esc(v.model_year)} <span class="muted small">${tx('(VIN 10번째 자리)')}</span></div></div>
-    <div class="f"><div class="k">Model Classification ${srcBadge('자동')}</div><div class="v">${esc(v.model_classification)}</div></div>
-    <div class="f"><div class="k">Changeability D-day ${srcBadge('자동')}</div><div class="v">${v.changeability_dday==null?'—':'D-'+v.changeability_dday}</div></div>
-    <div class="f"><div class="k">${tx('AFAB 금일 존재')} ${srcBadge('자동')}</div><div class="v">${v.in_afab_today? statusPill('ok',tx('있음')) : (['Ordered(Changeable)','Ordered(Fixed)','In Production','Shipment scheduled','In Transit'].includes(v.current_status)? statusPill('warn',tx('없음 — 확인 필요')):`<span class="muted">${tx('해당 없음')}</span>`)}</div></div>
-    <div class="f"><div class="k">Status override ${srcBadge('입력', true)}</div><div class="v">${editable?`<select data-f="status_override"><option value="">${tx('(자동 판정)')}</option>${['Cancelled','Rejected','Sold','OH Stock','Bonded Stock','In Transit','Shipment scheduled','In Production','Ordered(Fixed)','Ordered(Changeable)','Ordered(Dummy)'].map(s=>`<option ${v.status_override===s?'selected':''}>${s}</option>`).join('')}</select>`:esc(v.status_override||'—')}</div></div>
-    <div class="f"><div class="k">Status reason ${srcBadge('입력', true)}</div><div class="v">${editable?`<input value="${esc(v.status_reason)}" placeholder="${tx('override 시 사유 필수')}">`:esc(v.status_reason||'—')}</div></div>
+    <div class="f"><div class="k">Changeability D-day ${srcBadge('자동')}${lock}</div><div class="v">${v.changeability_dday==null?'—':'D-'+v.changeability_dday}</div></div>
+    <div class="f"><div class="k">${tx('AFAB 금일 존재')} ${srcBadge('자동')}${lock}</div><div class="v">${v.in_afab_today? statusPill('ok',tx('있음')) : (['Ordered(Changeable)','Ordered(Fixed)','In Production','Shipment scheduled','In Transit'].includes(v.current_status)? statusPill('warn',tx('없음 — 확인 필요')):`<span class="muted">${tx('해당 없음')}</span>`)}</div></div>
+    <div class="f"><div class="k">Status override ${srcBadge('입력')}</div><div class="v">${editable?`<select data-f="status_override"><option value="">${tx('(자동 판정)')}</option>${['Cancelled','Rejected','Sold','OH Stock','Bonded Stock','In Transit','Shipment scheduled','In Production','Ordered(Fixed)','Ordered(Changeable)','Ordered(Dummy)'].map(s=>`<option ${v.status_override===s?'selected':''}>${s}</option>`).join('')}</select>`:esc(v.status_override||'—')}</div></div>
+    <div class="f"><div class="k">Status reason ${srcBadge('입력')}</div><div class="v">${editable?`<input value="${esc(v.status_reason)}" data-f="status_reason" placeholder="${tx('override 시 사유 필수')}">`:esc(v.status_reason||'—')}</div></div>
   </div></div>`;
   const hist = VEHICLE_HISTORY.filter(h=>h.commission_no===comm);
   const histHtml = `<div class="card"><div class="card-h"><h2>${tx('변경 이력')}</h2><span class="desc">${tx('Vehicle_History · 필드 단위 before/after')}</span></div>
@@ -354,7 +371,7 @@ function openVehicle(comm){
   const head = `<div><h2>${esc(v.commission_no)} ${stagePill(v.current_status)}</h2>
     <div class="meta">${esc(v.model_classification)} · ${esc(v.vehicle)} · VIN ${esc(v.vin_no)||tx('미부여')} · ${tx('수정')} ${esc(v.modified)} (${esc(v.modified_by)})</div>
     <div class="btn-group" style="margin-top:8px">
-      <button class="btn primary sm editor-only" id="drvSave" title="${esc(tx('Order Note · Option Note 저장 + 변경 이력 기록 (그 외 입력 필드는 목업에서 저장하지 않음)'))}">${tx('저장')}</button>
+      <button class="btn primary sm editor-only" id="drvSave" title="${esc(tx("출처 '입력' 필드(B1 Factory Order · Sales Month · Ref Commission No · C/O · Option Note · Order Note · Status override · reason) 저장 + 변경 이력 기록"))}">${tx('저장')}</button>
       <button class="btn sm editor-only" onclick="describe('상태 override', '자동 판정 대신 지정 단계를 적용합니다. 사유(Status reason) 입력이 필수입니다.')">${tx('상태 override')}</button>
       <button class="btn sm danger editor-only" onclick="describe('취소 처리', 'Cancelled는 수동 지정만 가능합니다(자동 취소 금지). 사유 기록 후 KUFRI·대시보드 집계에서 제외됩니다.')">${tx('취소 처리')}</button>
       <button class="btn sm" onclick="describe('이력 보기', 'Vehicle_History 전체를 마스터·설정 > 변경 이력에서 Comm 필터로 조회합니다.')">${tx('이력 전체')}</button>
@@ -368,15 +385,15 @@ function openVehicle(comm){
   const nt = q('.v.note', body); if(nt){ if(v.order_note) nt.textContent = v.order_note; else nt.replaceChildren(mk('span', {class:'muted'}, '—')); }
   const slot = q('.sw-slot', body); if(slot) slot.replaceWith(orderNoteSwitch(v, body));
   const htb = q('.tbl tbody', body); if(htb) htb.prepend(...hist.map(histRowEl)); // 11/6: 변경 이력 행은 DOM으로 삽입(규칙 2) · 필드 칸 = 화면 라벨(histRowEl)
-  // 11/4: '저장' = Order Note·Option Note 텍스트 즉시 저장(Store.vehicles.saveNotes, 출처 '입력') + 드로어 '변경 이력' 표 맨 위에 행 추가 + 그리드가 떠 있으면 다시 그림. 그 외 입력 필드는 목업에서 저장하지 않음
+  // 11/4: '저장' = Order Note·Option Note 텍스트 즉시 저장 → 11/8: 드로어의 data-f 입력칸(출처 '입력' 필드 전부: Note 2열 · B1 Factory Order · Sales Month · Ref Commission No · C/O · Status override · reason)을 모아 Store.vehicles.saveInputs(출처 '입력') + 드로어 '변경 이력' 표 맨 위에 행 추가 + 그리드가 떠 있으면 다시 그림
   const sb = el('drvSave'); if(sb) sb.onclick = ()=>{
-    const oi = q('[data-f="option_remarks"]', body); // 11/4: textarea
-    const rows = Store.vehicles.saveNotes(comm, {order_note: ta? ta.value.trim() : undefined, option_remarks: oi? oi.value.trim() : undefined}, state.user);
-    if(!rows.length){ toast(tx('저장'), tx('변경된 Note가 없습니다.')); return; }
+    const fields = {}; qa('[data-f]', body).forEach(x=>{ fields[x.dataset.f] = x.value.trim(); });
+    for(const k in fields){ const err = validKeyin(k, fields[k]); if(err){ toast(err.title, err.msg); return; } } // 11/9: 셀 입력·일괄 입력과 같은 형식 검사
+    const rows = Store.vehicles.saveInputs(comm, fields, state.user);
+    if(!rows.length){ toast(tx('저장'), tx('변경된 입력 필드가 없습니다.')); return; }
     const tb = q('.tbl tbody', body); if(tb) rows.forEach(r=>tb.prepend(histRowEl(r)));
-    if(ta) ta.value = v.order_note||''; if(oi) oi.value = v.option_remarks||'';
     if(typeof renderGrid==='function' && el('gridwrap')) renderGrid();
-    toast(tx('Note 저장'), tx('{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)', {comm, fields: rows.map(r=>keyinLabel(r.field)).join(' · '), n:num(rows.length)}));
+    toast(tx('저장'), tx('{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)', {comm, fields: rows.map(r=>keyinLabel(r.field)).join(' · '), n:num(rows.length)}));
   };
 }
 // 드로어 '변경 이력' 표 행 (11/4): Vehicle_History 행 → tr (orderNoteSwitch의 행 구성과 동일) · 11/6: 필드 칸은 내부 키 대신 화면 라벨(COLUMNS label, 예: model → Model · type → Type · COLUMNS에 없는 키는 그대로)

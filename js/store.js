@@ -3,6 +3,8 @@
 // 10/30: Shipping Calc는 그 행의 Current Status가 In Production이 되는 시점에 PM 1일 + 모델 리드타임(일)로 1회 작성, 이후 PM·리드타임·상태가 바뀌어도 수정하지 않는다 (값이 있으면 덮어쓰지 않음)
 function stampShippingCalc(v){ if(v.current_status==='In Production' && !v.shipping_calc) v.shipping_calc = shippingCalc(v.pm, v.lead_days); }
 function nowStamp(){ const d=new Date(); return TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes()); } // Vehicle_History changed_at (기준일 + 현재 시각)
+// 11/9: 차량 행 버전(rev) — SharePoint 항목 ETag 흉내. store.js 안의 모든 차량 쓰기에서 1 올린다. 그리드 '편집 종료'가 저장 대기 시점의 rev와 비교해 충돌을 잡는다(logistics.js commitEdits). 샘플은 rev 없음 = 0
+function bumpRev(v){ v.rev = (v.rev||0)+1; }
 // Current Status 자동 전환 규칙 (10/28, 상태 규칙 3·5·7 · 기준일 TODAY_S/BASE_YM): 차량 1대 → {v, from, to, rule, reason} 또는 null. override 여부는 보지 않는다(호출 쪽에서 구분)
 // 규칙 3 Ordered(Changeable) → Ordered(Fixed): Changeability Date 경과 · 규칙 5 Ordered(Fixed) → In Production: PM 도래 · 규칙 7 In Production/Shipment scheduled → In Transit: Shipping Date 경과
 function statusRuleOf(v){
@@ -12,12 +14,14 @@ function statusRuleOf(v){
   if((s==='In Production'||s==='Shipment scheduled') && v.shipping && v.shipping<=TODAY_S) return {v, from:s, to:'In Transit', rule:7, reason:`Shipping Date ${v.shipping} 경과`};
   return null;
 }
+// 11/8: 상세 Drawer '저장'이 쓰는 출처 '입력' 필드 (COLUMNS src '입력' 6열 + 파생·상태의 Status override·reason)
+const DRAWER_INPUT_KEYS = ['order_note','option_remarks','ref_commission_no','co','b1_factory_order','sales_month','status_override','status_reason'];
 const Store = {
   vehicles: {
     // Commission No로 찾은 차량 행에 patch 필드 대입. 없으면 null.
     update(comm, patch){
       const v = VEHICLE_BY_COMM[comm]; if(!v) return null;
-      Object.assign(v, patch);
+      Object.assign(v, patch); bumpRev(v);
       if('current_status' in patch) stampShippingCalc(v); // 10/30: In Production 진입 시 Shipping Calc 1회 작성 (PM·리드타임 변경으로는 재계산하지 않음)
       return v;
     },
@@ -30,16 +34,15 @@ const Store = {
       const row = {commission_no:comm, field:'order_note_flag', old_value: nw?'Off':'On', new_value: nw?'On':'Off', changed_by:by, changed_at:nowStamp(), source:'입력'};
       Store.history.add([row]); return row;
     },
-    // Order Note·Option Note 텍스트 저장 (11/4, 상세 Drawer '저장'): notes = {order_note, option_remarks} (undefined인 필드는 건너뜀). 값이 바뀐 필드만 대입 + Vehicle_History(출처 '입력'). 기록한 이력 행 배열을 반환(변경 없으면 빈 배열)
-    saveNotes(comm, notes, by){
+    // 상세 Drawer '저장' (11/4 Note 2열 → 11/8 출처 '입력' 필드 전부): fields = {key: 값} (undefined인 필드는 건너뜀, DRAWER_INPUT_KEYS 밖의 키는 무시). 값이 바뀐 필드만 대입 + Vehicle_History(출처 '입력'). 기록한 이력 행 배열을 반환(변경 없으면 빈 배열)
+    saveInputs(comm, fields, by){
       const v = VEHICLE_BY_COMM[comm]; if(!v) return [];
       const at = nowStamp(); const patch = {}; const rows = [];
-      ['order_note','option_remarks'].forEach(k=>{ if(notes[k]===undefined) return; const nw = String(notes[k]), old = v[k]==null? '' : String(v[k]); if(nw===old) return;
+      DRAWER_INPUT_KEYS.forEach(k=>{ if(fields[k]===undefined) return; const nw = String(fields[k]), old = v[k]==null? '' : String(v[k]); if(nw===old) return;
         patch[k] = nw; rows.push({commission_no:comm, field:k, old_value:old, new_value:nw, changed_by:by, changed_at:at, source:'입력'}); });
       if(!rows.length) return [];
       Store.vehicles.update(comm, patch); Store.history.add(rows); return rows;
-    },
-    // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
+    },    // Model_Master 행 → 차량에 적용할 모델 속성 patch(파생 모델명 포함). 적용하지 않고 값만 돌려준다 (편집 종료 시 일괄 저장용).
     modelMasterPatch(m){
       const p = { vehicle:m.vehicle, gen:m.gen, model:m.model, type:m.type, axle:m.axle, cab:m.cab, cab_gen:m.cab_gen, wheelbase:m.wheelbase, pto:m.pto, emission:m.emission, lead_time:m.lead, lead_days:m.lead_days, // model = 차량 마스터 'Model' 열 (10/19 No.16) · 11/4: option → cab_gen·wheelbase·pto·emission
         baumuster:[m.prefix, m.suffix].filter(Boolean).join(' '), bm:m.prefix+'-'+m.code2, model_year:m.my }; // 11/4: MY는 BM(Code2)에 묶임 → 모델 마스터 반영 시 차량 MY도 모델 값으로
@@ -50,7 +53,7 @@ const Store = {
     // Model_Master 행의 모델 속성을 차량에 일괄 적용 + 파생 모델명 재계산
     applyModelMaster(comm, m){
       const v = VEHICLE_BY_COMM[comm]; if(!v) return null;
-      Object.assign(v, Store.vehicles.modelMasterPatch(m));
+      Object.assign(v, Store.vehicles.modelMasterPatch(m)); bumpRev(v);
       return v;
     },
     // 마지막 Commission No (숫자 기준 최댓값). 없으면 null.
@@ -81,7 +84,7 @@ const Store = {
         Object.entries(patch).forEach(([k,nw])=>hist.push({commission_no:v.commission_no, field:k, old_value:v[k]||'', new_value:nw, changed_by:by, changed_at:at, source}));
         if(patch.customs_clearance_date && v.current_status==='Bonded Stock'){ patch.current_status = 'OH Stock'; cleared++;
           hist.push({commission_no:v.commission_no, field:'current_status', old_value:'Bonded Stock', new_value:'OH Stock', changed_by:by, changed_at:at, source:'규칙'}); }
-        Object.assign(v, patch); vehicles++; });
+        Object.assign(v, patch); bumpRev(v); vehicles++; });
       Store.history.add(hist);
       return {vehicles, fields:hist.length, cleared};
     },
@@ -98,7 +101,7 @@ const Store = {
     // current_status 대입 + Vehicle_History(출처 규칙) + Audit_Log 1건. 반환 {n, by:{'A → B': n}, excluded}
     applyStatusUpdate(items, excluded, by){
       const at = nowStamp(); const byT = {};
-      const hist = items.map(it=>{ it.v.current_status = it.to; stampShippingCalc(it.v); const k = `${it.from} → ${it.to}`; byT[k] = (byT[k]||0)+1;
+      const hist = items.map(it=>{ it.v.current_status = it.to; bumpRev(it.v); stampShippingCalc(it.v); const k = `${it.from} → ${it.to}`; byT[k] = (byT[k]||0)+1;
         return {commission_no:it.v.commission_no, field:'current_status', old_value:it.from, new_value:it.to, changed_by:by, changed_at:at, source:'규칙'}; });
       Store.history.add(hist);
       AUDIT_LOG.unshift({at, user:by, action:'Current Status 업데이트', target:'Vehicles', detail:`${items.length}건 전환 (${Object.entries(byT).map(([k,n])=>`${k} ${n}`).join(' · ')}) · 제외 ${excluded}건`});
@@ -125,7 +128,7 @@ const Store = {
       const at = nowStamp(); const hist = [];
       const vs = VEHICLES.filter(v=>v.vessel===vessel);
       vs.forEach(v=>{ const old = v[vehKey]==null? '' : v[vehKey]; if(String(old)===String(val==null? '' : val)) return;
-        hist.push({commission_no:v.commission_no, field:vehKey, old_value:old, new_value:val, changed_by:by, changed_at:at, source:'수동'}); v[vehKey] = val; });
+        hist.push({commission_no:v.commission_no, field:vehKey, old_value:old, new_value:val, changed_by:by, changed_at:at, source:'수동'}); v[vehKey] = val; bumpRev(v); });
       Store.history.add(hist);
       return {n:vs.length, changed:hist.length};
     },
@@ -133,7 +136,7 @@ const Store = {
     bondedByTsc(vessel, by){
       const at = nowStamp();
       const vs = VEHICLES.filter(v=>v.vessel===vessel && v.current_status==='In Transit');
-      vs.forEach(v=>{ v.current_status = 'Bonded Stock'; });
+      vs.forEach(v=>{ v.current_status = 'Bonded Stock'; bumpRev(v); });
       Store.history.add(vs.map(v=>({commission_no:v.commission_no, field:'current_status', old_value:'In Transit', new_value:'Bonded Stock', changed_by:by, changed_at:at, source:'규칙'})));
       return vs.length;
     },

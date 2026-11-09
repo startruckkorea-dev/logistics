@@ -125,7 +125,7 @@ function makeVehicle(p, m){
   v.engine_no = v.vin_no? '47191'+String(ri(100000000,999999999)) : '';
   v.vehicle_value_eur = ri(95,165)*1000+ri(0,999); v.order_value_eur = Math.round(v.vehicle_value_eur*1.19);
   // 플래그 (10/19: sap_code · sap_b1_flag 필드 제거)
-  if(ship && ship<=TODAY) { v.b1_factory_order='B1-'+String(ri(10000,99999)); }
+  if(ship && ship<=TODAY) { v.b1_factory_order=fmtD(addD(ship,-ri(3,10))); } // 11/9: B1 Factory Order는 날짜(YYYY-MM-DD, Shipping 3~10일 전) — 'B1-12345' 문자열에서 변경
   if(rnd()<0.1) v.co='O';
   // 메모
   if(rnd()<0.25) v.option_remarks=pick(['Retarder','Hydraulic kit','Retarder, PTO','Roof spoiler','Alcoa wheels']);

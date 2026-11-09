@@ -6,7 +6,9 @@ const LF = { q:'', col:{}, sort:'commission_no', dir:-1, page:1, size:50, tab:'g
 const LOGI_TABS = [['grid','Logistics'], ['afab','AFAB 업로드'], ['req','수입통관 신청'], ['input','통관 완료 처리'], ['ins','보험 조회']];
 function logiTabsForRole(){ return isSales()? LOGI_TABS.filter(t=>t[0]==='req') : isEditor()? LOGI_TABS : LOGI_TABS.filter(t=>t[0]==='grid'); }
 
-const KEYIN_COLS = ['b1_factory_order','sales_month']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외)
+const KEYIN_COLS = ['b1_factory_order','sales_month','ref_commission_no','co']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외) · 11/8: Ref Commission No·C/O 추가
+const RANGE_KEYIN_COLS = ['ref_commission_no','co']; // 11/8: Note 열처럼 끌어서 범위 선택 → Ctrl+C / Ctrl+V (팝업 없이 셀 안 직접 입력 · C/O는 O/빈칸 선택)
+function normKeyin(key, val){ val = String(val==null? '' : val).trim(); return key==='co'? (val.toUpperCase()==='O'? 'O' : '') : val; } // 11/8: C/O는 O 또는 빈칸만
 const NOTE_COLS = ['option_remarks','order_note']; // 11/3 리뷰 #6: 편집 모드에서 셀 클릭 → 여러 줄 팝업 편집창(openNoteEditor) · 그리드 셀 안 직접 입력(startCellEdit)은 KEYIN_COLS만
 // 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Emission(11/4: Option → Cab Gen·Wheelbase·PTO·Emission) + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&type=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
 const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping_calc','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','tsc_arrival_date','customs_clearance_date','order_update_date']; // 10/26 No.9: TSC Arrival Date 추가 · 11/4: Order Update Date 추가
@@ -173,7 +175,7 @@ function syncEditBtn(){
   be.title = EDIT.on? '변경 내용을 저장하고 편집을 종료합니다' : '오더 복수 선택 → 오더 변경 · Key-in 입력 · 열 표시/숨김';
 }
 function toggleEdit(){
-  if(EDIT.on){ commitEdits(); EDIT.on=false; EDIT.sel.clear(); clearNoteRange(); renderGrid(); return; }
+  if(EDIT.on){ if(commitEdits()) endEditMode(); return; } // 11/9: 충돌 모달이 열리면(false) 편집 모드 유지
   EDIT.on=true; EDIT.sel.clear(); renderGrid();
   toast('편집 모드', '행 클릭 또는 체크박스로 오더를 복수 선택한 뒤 위 버튼으로 일괄 변경합니다. Key-in 열은 셀 클릭, 열 표시/숨김은 머리글 체크박스. 변경 내용은 \'편집 종료\' 클릭 시 저장됩니다.');
 }
@@ -239,7 +241,7 @@ function renderGrid(){
   const keyin = c=> canEdit && EDIT.on && (KEYIN_COLS.includes(c.key) || NOTE_COLS.includes(c.key)); // Key-in 열도 편집 모드에서만 입력 (10/15 No.4) · 11/3 리뷰 #6: Note 열은 팝업 편집창
   const pend = (v,c)=> EDIT.pending[v.commission_no] && c.key in EDIT.pending[v.commission_no];
   const rsel = (v,c)=> (EDIT.on || c.key==='commission_no') && NOTE_RANGE.key===c.key && NOTE_RANGE.set.has(v.commission_no); // 11/4: Note 셀 범위 선택 표시 · 11/3 #5: Commission No 열은 편집 모드 밖에서도 선택
-  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${rsel(v,c)?'rsel':''} ${(c.key==='type'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
+  h += pageRows.map(v=>`<tr data-comm="${v.commission_no}" class="${EDIT.sel.has(v.commission_no)?'sel':''}">`+cols.map(c=>`<td class="${c.key==='commission_no'?'sticky':''} ${c.num?'num':''} ${c.memo?'memo':''} ${keyin(c)?'keyin':''} ${keyin(c)&&RANGE_KEYIN_COLS.includes(c.key)?'range':''} ${hid(c)?'hid':''} ${pend(v,c)?'pend':''} ${rsel(v,c)?'rsel':''} ${(c.key==='type'||c.key==='changeability_date')?'dotcell':''}" data-key="${c.key}" ${c.memo?`title="${esc(v[c.key])}"`:''} ${keyin(c)?'title="클릭하여 개별 입력 (Key-in) · 편집 종료 시 저장"':''}>${hid(c)?'':(c.key==='commission_no'?selBox(v):'')+cellHtml(c,v)}</td>`).join('')+'</tr>').join('');
   h += '</tbody></table>';
   if(!rows.length) h = `<div class="muted" style="padding:30px;text-align:center">${tx('조건에 맞는 차량이 없습니다.')}</div>`;
   const wrap = el('gridwrap'); wrap.innerHTML = h;
@@ -256,6 +258,7 @@ function renderGrid(){
   });
   qa('td.keyin', wrap).forEach(td=>{ const comm = td.closest('tr').dataset.comm, key = td.dataset.key; // 11/3 리뷰 #6: Note 열은 여러 줄 팝업 + 끌어서 범위 선택(엑셀식 복사·붙여넣기)
     if(NOTE_COLS.includes(key)){ td.onmousedown = e=>noteCellDown(e, comm, key); td.onmouseenter = ()=>noteCellEnter(comm, key); td.onclick = e=>{ e.stopPropagation(); noteCellClick(e, td, comm, key); }; }
+    else if(RANGE_KEYIN_COLS.includes(key)){ td.onmousedown = e=>{ if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return; noteCellDown(e, comm, key); }; td.onmouseenter = ()=>noteCellEnter(comm, key); td.onclick = e=>{ e.stopPropagation(); rangeKeyinClick(e, td, comm, key); }; } // 11/8: 범위 선택 + 셀 안 직접 입력
     else td.onclick = e=>{ e.stopPropagation(); startCellEdit(td, comm, key); }; });
   qa('td[data-key="commission_no"]', wrap).forEach(td=>{ const comm = td.closest('tr').dataset.comm; td.onmousedown = e=>commCellDown(e, comm); td.onmouseenter = ()=>noteCellEnter(comm, 'commission_no'); }); // 11/3 #5: Commission No 열 방향 선택(끌기) → Ctrl+C 복사
   syncEditBtn();
@@ -280,8 +283,9 @@ function renderEditbar(){
     mk('button', {class:'btn sm primary', disabled: n===0, onclick: openModelChange}, tx('오더 변경 (모델 일괄)')),
     mk('button', {class:'btn sm', disabled: n===0, onclick: openBulkKeyin}, tx('Key-in 일괄 입력')),
     mk('button', {class:'btn sm', disabled: n===0, onclick: ()=>{ EDIT.sel.clear(); renderGrid(); }}, tx('선택 해제')),
-    mk('span', {class:'muted small'}, tx('Key-in 대상 열: B1 Factory Order · Sales Month · Order Note · Option Note (셀 클릭 → 개별 입력 · Note는 여러 줄 팝업, 셀을 끌어 선택 → Ctrl+C / Ctrl+V)')),
-    mk('span', {class:'muted small'}, tx("· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록", {n:num(pendingCount())})));
+    mk('span', {class:'muted small'}, tx('Key-in 대상 열: B1 Factory Order · Sales Month · Ref Commission No · C/O · Order Note · Option Note (셀 클릭 → 개별 입력 · Note는 여러 줄 팝업 · Note·Ref Commission No·C/O는 셀을 끌어 선택 → Ctrl+C / Ctrl+V)')),
+    mk('span', {class:'muted small'}, tx("· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록", {n:num(pendingCount())})),
+    mk('span', {class:'muted small'}, '· '+tx('저장 시 버전 비교 → 다른 사용자가 먼저 바꾼 행은 충돌 목록'))); // 11/9
 }
 function keyinLabel(key){ const c = COLUMNS.find(x=>x.key===key); return c? c.label : key; }
 function setKeyinCell(td, val){ td.replaceChildren(); if(val==null||val==='') td.append(mk('span', {class:'dim'}, '·')); else td.append(String(val)); }
@@ -289,43 +293,79 @@ function setKeyinCell(td, val){ td.replaceChildren(); if(val==null||val==='') td
 // ---- 편집 단위 저장 (10/15 No.9): 편집 중 변경은 pending에 쌓고 '편집 종료' 시 Store로 저장 + Vehicle_History 기록 ----
 function stageChange(comm, key, nw, src){
   const v = VEHICLE_BY_COMM[comm]; if(!v) return;
-  const p = EDIT.pending[comm] || (EDIT.pending[comm] = {});
+  const p = EDIT.pending[comm] || (EDIT.pending[comm] = {_rev: v.rev||0}); // 11/9: 저장 대기에 처음 올릴 때의 행 버전(Store bumpRev) — 편집 종료 시 비교
   const old = key in p ? p[key].old : (v[key]==null? '' : v[key]);
-  if(String(old)===String(nw==null? '' : nw)){ delete p[key]; if(!Object.keys(p).length) delete EDIT.pending[comm]; return; }
+  if(String(old)===String(nw==null? '' : nw)){ delete p[key]; if(!pendingFields(comm).length) delete EDIT.pending[comm]; return; }
   p[key] = {old, nw, src};
 }
-function pendingCount(){ return Object.values(EDIT.pending).reduce((a,p)=>a+Object.keys(p).length, 0); }
-function commitEdits(){
+function pendingFields(comm){ return Object.entries(EDIT.pending[comm]||{}).filter(([k])=>k[0]!=='_'); } // 11/9: _rev 같은 메타 키 제외
+function pendingCount(){ return Object.keys(EDIT.pending).reduce((a,c)=>a+pendingFields(c).length, 0); }
+// 11/9: 저장 시 버전 비교(SharePoint ETag·If-Match 412 흉내). 저장 대기에 올린 뒤 다른 경로(드로어 저장 · 선적·입항 입력 · 상태 점검 등 Store 쓰기)로 바뀐 행은 저장하지 않고 충돌 모달로.
+// 반환 true = 끝남(편집 모드 종료 가능) · false = 충돌 모달이 열려 편집 모드 유지. force = 충돌 행도 현재 값을 덮어씀(출처에 '(덮어씀)')
+function commitEdits(force){
   const comms = Object.keys(EDIT.pending);
-  if(!comms.length){ toast('편집 종료', '변경 내용이 없습니다.'); return; }
-  const d = new Date(); const at = TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
-  const hist = [];
-  comms.forEach(comm=>{ const patch = {};
-    Object.entries(EDIT.pending[comm]).forEach(([k,c])=>{ patch[k]=c.nw; hist.push({commission_no:comm, field:k, old_value:c.old, new_value:c.nw, changed_by:state.user, changed_at:at, source:c.src}); });
-    Store.vehicles.update(comm, patch); });
+  if(!comms.length){ toast('편집 종료', '변경 내용이 없습니다.'); return true; }
+  const at = nowStamp();
+  const hist = []; const conflicts = []; let saved = 0;
+  comms.forEach(comm=>{ const v = VEHICLE_BY_COMM[comm]; const p = EDIT.pending[comm];
+    if(!force && v && (v.rev||0)!==(p._rev||0)){ conflicts.push(comm); return; }
+    const patch = {};
+    pendingFields(comm).forEach(([k,c])=>{ patch[k]=c.nw; hist.push({commission_no:comm, field:k, old_value:c.old, new_value:c.nw, changed_by:state.user, changed_at:at, source: force? c.src+'(덮어씀)' : c.src}); });
+    Store.vehicles.update(comm, patch); saved++; delete EDIT.pending[comm]; });
   Store.history.add(hist);
-  EDIT.pending = {};
-  toast(`편집 종료 · 저장 ${num(comms.length)}건`, `${num(hist.length)}개 필드 → Vehicles 갱신 · Vehicle_History ${num(hist.length)}건 기록 · 대시보드·KUFRI 즉시 반영`);
+  if(saved) toast(`편집 종료 · 저장 ${num(saved)}건`, `${num(hist.length)}개 필드 → Vehicles 갱신 · Vehicle_History ${num(hist.length)}건 기록 · 대시보드·KUFRI 즉시 반영${conflicts.length? ` · 충돌 ${num(conflicts.length)}건은 저장하지 않음` : ''}`);
+  if(conflicts.length){ openConflictModal(conflicts); return false; }
+  return true;
+}
+function endEditMode(){ EDIT.on=false; EDIT.sel.clear(); clearNoteRange(); renderGrid(); }
+// 11/9: 충돌 모달 — Commission No · 필드 · 내 값 · 현재 값 · 마지막 수정(Vehicle_History 최근 행). 남겨두기 = 편집 모드 유지(저장 대기 그대로) · 건너뛰기 = 충돌 행 변경 버림 · 현재 값 덮어쓰기 = 충돌 행도 저장
+function openConflictModal(comms){
+  const lastHist = comm=>VEHICLE_HISTORY.filter(h=>h.commission_no===comm).reduce((a,h)=> (!a || h.changed_at>a.changed_at)? h : a, null);
+  const rows = comms.flatMap(comm=>{ const v = VEHICLE_BY_COMM[comm]; const last = lastHist(comm);
+    return pendingFields(comm).map(([k,c])=>mk('tr', null, mk('td', {class:'mono'}, comm), mk('td', null, tx(keyinLabel(k))), mk('td', null, mk('b', null, c.nw||'—')), mk('td', {class:'cur-val'}, (v[k]==null||v[k]==='')? '—' : String(v[k])),
+      mk('td', {class:'small'}, last? `${last.changed_by} · ${last.changed_at} · ${last.source}` : '—'))); });
+  const body = mk('div', null,
+    mk('div', {class:'callout warn'}, tx('저장 대기에 올린 뒤 다른 경로(드로어 저장 · 선적·입항 입력 · 상태 점검)로 바뀐 행입니다. 현재 값을 확인하고 처리 방법을 고르세요.')),
+    mk('table', {class:'tbl'}, mk('thead', null, mk('tr', null, ['Commission No','필드','내 값','현재 값','마지막 수정'].map(h=>mk('th', null, tx(h))))), mk('tbody', null, rows)));
+  openModal(tx('저장 충돌 {n}건', {n:num(comms.length)}), '', ' ');
+  el('modal-body').replaceChildren(body);
+  el('modal-foot').replaceChildren(
+    mk('button', {class:'btn', onclick: ()=>{ closeModal(); toast(tx('남겨두기'), tx('편집 모드를 유지합니다 · 충돌 행은 저장 대기에 남아 있습니다')); }}, tx('남겨두기')),
+    mk('button', {class:'btn', onclick: ()=>{ comms.forEach(c=>delete EDIT.pending[c]); closeModal(); toast(tx('건너뛰기'), tx('충돌 {n}건 건너뜀 (변경 버림)', {n:num(comms.length)})); endEditMode(); }}, tx('건너뛰기')),
+    mk('button', {class:'btn primary', onclick: ()=>{ closeModal(); commitEdits(true); endEditMode(); }}, tx('현재 값 덮어쓰기')));
 }
 function startCellEdit(td, comm, key){
   if(q('input', td)) return;
   const v = VEHICLE_BY_COMM[comm]; if(!v) return;
   const before = pendingVal(v, key)||'';
-  const inp = mk('input', {class:'cell-in', value: before, placeholder: key==='sales_month'?'YYYY-MM':''});
+  const inp = key==='co'? mk('select', {class:'cell-in'}, mk('option', {value:''}, tx('(빈칸)')), mk('option', {value:'O', selected: before==='O'||null}, 'O')) // 11/8: C/O는 O/빈칸 선택
+    : mk('input', {class:'cell-in', type: keyinInputType(key), value: before}); // 11/9: B1 Factory Order = 날짜 선택 · Sales Month = 월 선택
   let done = false;
   const finish = save=>{ if(done) return; done = true;
-    const val = inp.value.trim();
+    const val = normKeyin(key, inp.value);
+    if(save){ const err = validKeyin(key, val); if(err){ toast(err.title, err.msg); setKeyinCell(td, before); return; } } // 11/9: 형식 오류는 저장 대기에 올리지 않음
     if(save && val!==before){ stageChange(comm, key, val, '수동'); renderEditbar(); }
     setKeyinCell(td, save? val : before); td.classList.toggle('pend', !!(EDIT.pending[comm] && key in EDIT.pending[comm])); };
   inp.onkeydown = e=>{ if(e.key==='Enter') finish(true); else if(e.key==='Escape') finish(false); e.stopPropagation(); };
   inp.onblur = ()=>finish(true);
   inp.onclick = e=>e.stopPropagation();
-  td.replaceChildren(inp); inp.focus(); inp.select();
+  if(key==='co') inp.onchange = ()=>finish(true); // 11/8: 선택 즉시 확정
+  else inp.onpaste = e=>{ const cells = clipboardCells((e.clipboardData||window.clipboardData).getData('text/plain')); e.preventDefault(); // 11/9: 셀 입력창 안 붙여넣기도 한 칸 값만 — 브라우저 기본 동작은 여러 행을 공백으로 이어 붙임
+    if(cells.length>1){ toast(tx('여러 행은 붙여넣을 수 없습니다'), tx('한 칸을 복사해 범위에 붙여넣으세요 (한 칸 값 → 선택 범위 전체)')); return; }
+    if(cells.length) inp.value = cells[0]; };
+  td.replaceChildren(inp); inp.focus(); if(inp.select) inp.select();
+}
+// 11/8: Ref Commission No·C/O 셀 클릭 — Note 열(noteCellClick)과 같은 끌기·Shift+클릭 범위 선택, 그냥 클릭은 팝업 대신 셀 안 직접 입력(startCellEdit)
+function rangeKeyinClick(e, td, comm, key){
+  if(NOTE_DRAG.moved){ NOTE_DRAG.moved = false; return; } // 드래그를 끝내는 클릭은 무시
+  if(e.shiftKey && NOTE_RANGE.anchor && NOTE_RANGE.key===key){ setNoteRange(key, NOTE_RANGE.anchor, comm); return; }
+  if(q('input,select', td)) return; // 입력 중인 셀 재클릭
+  NOTE_RANGE.anchor = comm; setNoteRange(key, comm, comm); startCellEdit(td, comm, key);
 }
 // ---- 11/3 리뷰 #6: Order Note·Option Note 여러 줄 입력 — 편집 모드에서 셀 클릭 → 셀 아래 6줄 팝업 편집창 ----
 // Enter = 줄바꿈 · Ctrl+Enter·바깥 클릭·'이 행에 적용' = 이 행만 저장 대기(출처 수동) · Esc·취소 = 버림 · '선택한 n건에 적용' = 체크한 오더 전부(이 행 포함)에 같은 내용(출처 수동/일괄)
 // 11/4 엑셀식 복사·붙여넣기: Note 셀을 누른 채 끌거나 Shift+클릭하면 같은 열 안에서 범위 선택(NOTE_RANGE, 파란 테두리 · 팝업 없음) · Ctrl+C = 선택한 셀 내용 복사(여러 줄·탭·따옴표는 엑셀 규칙 "…")
-// · Ctrl+V = 범위 전체에 붙여넣기 — 클립보드 1칸이면 범위 모두 같은 값, 여러 행이면 범위 맨 위부터 아래로 순서대로(출처 수동/일괄) · Esc·다른 곳 클릭 = 범위 해제
+// · Ctrl+V = 범위 전체에 붙여넣기 — 클립보드 1칸만 허용, 범위 모두 같은 값(출처 수동/일괄) · 11/9: 여러 행 클립보드는 행 어긋남 위험으로 거부(토스트) · Esc·다른 곳 클릭 = 범위 해제
 // · 팝업 안: 글자를 따로 선택하지 않은 Ctrl+C = 칸 전체 복사, Ctrl+V = 보통 붙여넣기. 셀 클릭(끌지 않음) = 그 셀 1칸 선택 + 팝업
 const NOTE_RANGE = { key:'', set:new Set(), anchor:'' }; // 범위 선택 (현재 페이지 50행 안)
 const NOTE_DRAG = { on:false, moved:false, key:'', anchor:'' };
@@ -372,11 +412,11 @@ document.addEventListener('paste', e=>{
   if(!EDIT.on || !NOTE_RANGE.set.size || NOTE_RANGE.key==='commission_no' || el('notepop') || isTyping()) return; // 11/3 #5: Commission No 범위에는 붙여넣기 없음
   const cells = clipboardCells((e.clipboardData||window.clipboardData).getData('text/plain')); if(!cells.length) return;
   e.preventDefault();
-  const order = pageRowsNow().map(v=>v.commission_no); const sel = rangeComms(); if(!sel.length) return;
-  const key = NOTE_RANGE.key; let targets;
-  if(cells.length===1) targets = sel.map(c=>[c, cells[0]]); // 1칸 복사 → 범위 전체 같은 값
-  else { const start = order.indexOf(sel[0]); targets = order.slice(start, start+cells.length).map((c,i)=>[c, cells[i]]); } // 여러 행 → 범위 맨 위부터 아래로
-  targets.forEach(([c,val])=>stageChange(c, key, val, '수동/일괄'));
+  if(cells.length>1){ toast(tx('여러 행은 붙여넣을 수 없습니다'), tx('한 칸을 복사해 범위에 붙여넣으세요 (한 칸 값 → 선택 범위 전체)')); return; } // 11/9: 클립보드 1칸만 — 여러 행은 행 어긋남 위험으로 거부
+  const sel = rangeComms(); if(!sel.length) return;
+  const key = NOTE_RANGE.key;
+  const targets = sel.map(c=>[c, cells[0]]); // 1칸 복사 → 선택 범위 전체 같은 값
+  targets.forEach(([c,val])=>stageChange(c, key, normKeyin(key, val), '수동/일괄')); // 11/8: C/O는 O/빈칸으로 정규화
   NOTE_RANGE.set = new Set(targets.map(t=>t[0])); renderGrid();
   toast(tx('{col} 붙여넣기 {n}칸 (저장 대기)', {col:keyinLabel(key), n:num(targets.length)}), tx("'편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록"));
 });
@@ -399,7 +439,7 @@ function openNoteEditor(td, comm, key){
     mk('div', {class:'cf-h'}, mk('b', null, keyinLabel(key)), mk('span', {class:'muted small mono'}, comm), mk('button', {class:'x', title:tx('취소'), onclick:()=>finish('cancel')}, '×')),
     ta,
     mk('div', {class:'muted small'}, tx('Enter = 줄바꿈 · Ctrl+Enter = 이 행에 적용 · Esc = 취소 · Ctrl+C = 칸 전체 복사')),
-    mk('div', {class:'muted small'}, tx('다른 행에 같은 내용: Note 셀을 끌어 범위 선택 → Ctrl+V (엑셀 열 복사도 가능)')),
+    mk('div', {class:'muted small'}, tx('다른 행에 같은 내용: Note 셀을 끌어 범위 선택 → Ctrl+V (한 칸 값만)')), // 11/9: 여러 행 붙여넣기 제거
     mk('div', {class:'cf-foot'},
       mk('button', {class:'btn sm', onclick:()=>finish('cancel')}, tx('취소')),
       mk('button', {class:'btn sm', disabled: selN===0, title:tx('체크한 오더 전부(이 행 포함)에 같은 내용으로 덮어씁니다 · 출처 수동/일괄'), onclick:()=>finish('sel')}, tx('선택한 {n}건에 적용', {n:num(selN)})),
@@ -473,17 +513,19 @@ function openModelChange(){
 function openBulkKeyin(){
   const vs = selectedVehicles(); if(!vs.length) return;
   const inputs = {};
-  const row = (key, ph)=>{ inputs[key] = mk('input', {placeholder: ph}); return mk('div', {class:'f'}, mk('div', {class:'k'}, keyinLabel(key)), mk('div', {class:'v'}, inputs[key])); };
+  const row = (key, ph)=>{ inputs[key] = key==='co'? mk('select', null, mk('option', {value:''}, tx('(변경 없음)')), mk('option', {value:'O'}, 'O'), mk('option', {value:'-'}, tx('빈칸으로'))) : mk('input', {type: keyinInputType(key), placeholder: ph}); return mk('div', {class:'f'}, mk('div', {class:'k'}, keyinLabel(key)), mk('div', {class:'v'}, inputs[key])); }; // 11/8: C/O는 O / 빈칸으로 선택 · 11/9: B1 Factory Order 날짜 · Sales Month 월 선택
   const body = mk('div', null,
     mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건에 아래 값을 일괄 입력합니다. 비워 둔 열은 변경하지 않습니다. 변경 내용은 '편집 종료' 시 저장됩니다.`),
-    mk('div', {class:'fields'}, row('b1_factory_order',tx('예) B1-12345')), row('sales_month','YYYY-MM')));
+    mk('div', {class:'fields'}, row('b1_factory_order'), row('sales_month'), row('ref_commission_no',tx('예) 123456')), row('co'))); // 11/8: Ref Commission No·C/O 추가
   openModal(tx('Key-in 일괄 입력'), '', ' ');
   el('modal-body').replaceChildren(body);
   el('modal-foot').replaceChildren(
     mk('button', {class:'btn', onclick: closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick: ()=>{ const changed = KEYIN_COLS.filter(k=>inputs[k].value.trim()!=='');
       if(!changed.length){ toast('입력값 없음', '하나 이상의 열에 값을 입력하세요.'); return; }
-      vs.forEach(v=>changed.forEach(k=>stageChange(v.commission_no, k, inputs[k].value.trim(), '수동/일괄'))); closeModal(); renderGrid();
+      const valOf = k=> k==='co'? (inputs.co.value==='-'? '' : 'O') : inputs[k].value.trim(); // 11/8: C/O 선택 '-' = 빈칸으로
+      for(const k of changed){ const err = validKeyin(k, valOf(k)); if(err){ toast(err.title, err.msg); return; } } // 11/9: 형식 검사
+      vs.forEach(v=>changed.forEach(k=>stageChange(v.commission_no, k, valOf(k), '수동/일괄'))); closeModal(); renderGrid();
       toast(`Key-in 일괄 입력 ${num(vs.length)}건 (저장 대기)`, `열: ${changed.map(keyinLabel).join(' · ')} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('적용')));
 }
 

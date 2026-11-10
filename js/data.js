@@ -77,6 +77,8 @@ const VOYAGES = [ // 11/3 #9: gw = 총중량(kg) · 선적·입항 선박별 현
   {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:8,  gw:''},
   {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:6,  gw:''},
 ];
+// 11/9: 선박별 현황 공지란 — 자유 입력 한 칸(선박별 항목 아님). 선적·입항 '선박별 현황' 제목 아래에서 편집 모드로 입력, 대시보드 '입항 예정 선박' 제목 아래에 3줄 표시(스크롤). 객체로 두어 Store.vesselNotice.set이 값을 바꾼다
+const VESSEL_NOTICE = { text: 'Glovis Sunrise 10/14 평택항 동부두 접안 예정 · 하역 10/15 오전 · TSC 이송 10/16\nHoegh Trapper 첫 주문 모델 Arocs 3348K 2대 포함 — 인증 서류 선행 필요\nEukor Pioneer AFAB 미반영 변동 3대(10/4 B/L 정정) — 다음 업로드 시 반영 예정' };
 const VESSEL_PAST = ['Morning Christina','Glovis Symphony','Hoegh Target','MOL Endurance','Eukor Grace','Grand Pioneer','Hyundai Glory','Morning Laura','Glovis Passion','Hoegh Berlin'];
 
 const MY_LETTER = {2021:'M',2022:'N',2023:'P',2024:'R',2025:'S',2026:'T',2027:'V',2028:'W'};
@@ -126,7 +128,7 @@ function makeVehicle(p, m){
   v.vehicle_value_eur = ri(95,165)*1000+ri(0,999); v.order_value_eur = Math.round(v.vehicle_value_eur*1.19);
   // 플래그 (10/19: sap_code · sap_b1_flag 필드 제거)
   if(ship && ship<=TODAY) { v.b1_factory_order=fmtD(addD(ship,-ri(3,10))); } // 11/9: B1 Factory Order는 날짜(YYYY-MM-DD, Shipping 3~10일 전) — 'B1-12345' 문자열에서 변경
-  if(rnd()<0.1) v.co='O';
+  { const r = rnd(); if(r<0.1) v.co = r<0.05? 'Requested' : 'Received'; } // 11/9: C/O 값 Requested / Received (난수 1회 호출은 그대로 → 이후 가짜값 불변)
   // 메모
   if(rnd()<0.25) v.option_remarks=pick(['Retarder','Hydraulic kit','Retarder, PTO','Roof spoiler','Alcoa wheels']);
   { const on = MODEL_OPTION_NOTE[m.prefix]; if(on) v.option_remarks = v.option_remarks? on+', '+v.option_remarks : on; } // 11/4: 모델 Option 분리 — CTT·Export·Domestic은 Option Note로
@@ -136,7 +138,7 @@ function makeVehicle(p, m){
   // 파생 (10/19: days_in_stock · stock_level · stock_age_optimus 제거)
   v.model_year = v.vin_no ? 'MY'+MY_FROM_LETTER[v.vin_no[9]] : 'MY'+MY_FROM_LETTER[myL];
   v.model_classification = [v.gen,v.type,v.axle,v.cab,modelOptTag(v)].filter(Boolean).join(' '); // 11/4: Option 대신 비표준 값만 접미
-  v.model_key = [v.vehicle,m.model,v.type,v.axle,v.cab].join('|'); // 11/6: KUFRI 묶음 기준에 Model 추가 → Vehicle|Model|Type|Axle|Cab (v.model은 아래에서 대입되므로 m.model 사용)
+  v.model_key = [v.vehicle,m.model,v.type,v.axle,v.cab,v.cab_gen,v.wheelbase,v.pto,v.emission].join('|'); // 11/6: KUFRI 묶음 기준에 Model 추가 · 11/9: Cab Gen·Wheelbase·PTO·Emission 추가 → Vehicle|Model|Type|Axle|Cab|Cab Gen|Wheelbase|PTO|Emission (v.model은 아래에서 대입되므로 m.model 사용)
   v.eta_month = etaF? ymOf(etaF):''; v.tdd_month = tdd? ymOf(tdd):''; v.shipping_month = ship? ymOf(ship):'';
   const noShip = !v.vessel && !v.shipping;
   v.order_class = (s==='Ordered'||s==='In Production') && noShip ? (ymDiff(pm,BASE_YM)===0||ymDiff(pm,BASE_YM)===1 ? 'Fixed order' : ymDiff(pm,BASE_YM)>=2 ? 'Order (Changeable)' : '—') : '—';
@@ -144,7 +146,7 @@ function makeVehicle(p, m){
   // ---- 신규 열 (data-dictionary v2_1_2) ----
   v.bm = m.prefix+'-'+code2ForMy(m, v.model_year);              // BM = Baumuster Code1 - Baumuster Code2 (예 96302210-3BT) · 11/4: Code2는 연식(MY)별 → BM이 MY를 결정
   v.model = m.model;                                            // 값 형식 Actros/Arocs/eActros — Model_Master 'Model' 열과 연동 (10/19 No.16)
-  v.spec = [v.vehicle, v.model, v.type, v.axle, v.cab].join(' '); // Vehicle + Model + Type + Axle + Cab
+  v.spec = [v.vehicle, v.model, v.type, v.axle, v.cab, v.cab_gen, v.wheelbase, v.pto, v.emission].filter(Boolean).join(' '); // Vehicle + Model + Type + Axle + Cab · 11/9: + Cab Gen + Wheelbase + PTO + Emission (model_key의 화면 표시형, 빈 값만 생략)
   v.eta_from_tdd = tdd ? fmtD(addD(tdd,75)) : '';                 // TDD Calc + 75일
   v.color_name = COLOR_NAMES[v.color_code]||'';                   // 색상 코드 → 이름
   v.ref_commission_no = '';                                       // genVehicles에서 Commission No 부여 후 일부 채움

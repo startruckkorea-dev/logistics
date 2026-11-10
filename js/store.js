@@ -47,7 +47,8 @@ const Store = {
       const p = { vehicle:m.vehicle, gen:m.gen, model:m.model, type:m.type, axle:m.axle, cab:m.cab, cab_gen:m.cab_gen, wheelbase:m.wheelbase, pto:m.pto, emission:m.emission, lead_time:m.lead, lead_days:m.lead_days, // model = 차량 마스터 'Model' 열 (10/19 No.16) · 11/4: option → cab_gen·wheelbase·pto·emission
         baumuster:[m.prefix, m.suffix].filter(Boolean).join(' '), bm:m.prefix+'-'+m.code2, model_year:m.my }; // 11/4: MY는 BM(Code2)에 묶임 → 모델 마스터 반영 시 차량 MY도 모델 값으로
       p.model_classification = [p.gen,p.type,p.axle,p.cab,modelOptTag(p)].filter(Boolean).join(' ');
-      p.model_key = [p.vehicle,p.model,p.type,p.axle,p.cab].join('|'); // 11/6: Model 추가 (data.js와 같은 구성)
+      p.model_key = [p.vehicle,p.model,p.type,p.axle,p.cab,p.cab_gen,p.wheelbase,p.pto,p.emission].join('|'); // 11/6: Model 추가 · 11/9: Cab Gen·Wheelbase·PTO·Emission 추가 (data.js와 같은 구성)
+      p.spec = [p.vehicle,p.model,p.type,p.axle,p.cab,p.cab_gen,p.wheelbase,p.pto,p.emission].filter(Boolean).join(' '); // 11/9: Spec = model_key의 화면 표시형 — 오더 변경·모델 마스터 반영 시 함께 갱신(오더 변경 이력의 모델 정보 행)
       return p;
     },
     // Model_Master 행의 모델 속성을 차량에 일괄 적용 + 파생 모델명 재계산
@@ -68,7 +69,7 @@ const Store = {
         modified:TODAY_S, modified_by:o.by };
       Object.assign(v, Store.vehicles.modelMasterPatch(o.m));
       v.shipping_calc = ''; stampShippingCalc(v); // 10/30: 생성 상태가 In Production이면 즉시 작성, 그 외 공란
-      v.model = o.m.model; v.spec = [v.vehicle, v.model, v.type, v.axle, v.cab].join(' ');
+      v.model = o.m.model; // 11/9: spec은 modelMasterPatch가 9개 항목으로 채움
       return v;
     },
     // 차량 행 추가 (Vehicles + Comm 색인). Commission No 중복은 건너뛰고 추가한 건수를 반환.
@@ -151,6 +152,10 @@ const Store = {
       const moved = Store.voyages.bondedByTsc(y.vessel, by);
       return {vessel:y.vessel, date, n:r.n, changed:r.changed, moved};
     },
+  },
+  vesselNotice: {
+    // 11/9: 선박별 현황 공지란(자유 입력 한 칸) 저장 — 선적·입항 편집 모드에서 입력 즉시. 차량 마스터·Vehicle_History·Audit_Log 무관(총중량 gw와 같은 수준). 반환 저장된 글
+    set(text){ VESSEL_NOTICE.text = String(text==null? '' : text); return VESSEL_NOTICE.text; },
   },
   customsRequests: {
     // 통관 신청 등록 (10/27, Sales): comms = Commission No 배열 · by = 신청자. CUSTOMS_REQUESTS 맨 앞(최신순) + Audit_Log 기록. 차량 행·Vehicle_History는 건드리지 않는다. 반환 {req, to: 수신자 이름 배열}

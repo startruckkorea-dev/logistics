@@ -61,9 +61,9 @@ function drawKufri(){
       `<tr class="${isTotal?'total':''}"><td class="rowlbl">${tx('재고월수')}</td>${r.ratio.map((c,i)=>`<td class="${ratioCls(c.v)} ${months[i]===BASE_YM?'base':''}">${ratioTxt(c.v)}</td>`).join('')}<td></td></tr>` +
       (isTotal? `<tr class="total"><td class="rowlbl main">${tx('Fixed Order (당월+익월 Production)')}</td>${fixed.map((c,i)=>cell(c,months[i])).join('')}<td></td></tr>`:''));
   };
-  let h = `<table class="kufri"><thead><tr><th>${tx('모델 (Vehicle | Model | Type | Axle | Cab)')} ${note('P2')}</th>${months.map(m=>`<th class="${m===BASE_YM?'base':''}">${m}</th>`).join('')}<th>${tx('합계')}</th></tr></thead><tbody>`;
+  let h = `<table class="kufri"><thead><tr><th>${tx('모델 (Vehicle | Model | Type | Axle | Cab | Cab Gen | Wheelbase | PTO | Emission)')} ${note('P2')}</th>${months.map(m=>`<th class="${m===BASE_YM?'base':''}">${m}</th>`).join('')}<th>${tx('합계')}</th></tr></thead><tbody>`;
   h += `<tr class="grp"><td colspan="${months.length+2}">${tx('전체 합계')} ${note('P3')} <span class="muted small" style="font-weight:500">${KF.vehicle||tx('전 차종')} · ${tx('{n}대', {n:num(all.length)})}</span></td></tr>` + block('전체', all, true);
-  keys.forEach(k=>{ const vs = all.filter(v=>v.model_key===k); vs._key=k; h += block(k.replace(/\|/g,' | '), vs, false); }); // 11/6: 그룹 제목 = 묶음 키(model_key) 그대로 → Vehicle | Model | Type | Axle | Cab
+  keys.forEach(k=>{ const vs = all.filter(v=>v.model_key===k); vs._key=k; h += block(k.split('|').map(x=>x||'—').join(' | '), vs, false); }); // 11/6: 그룹 제목 = 묶음 키(model_key) 그대로 → Vehicle | Model | Type | Axle | Cab · 11/9: + Cab Gen | Wheelbase | PTO | Emission (빈 값은 —)
   h += '</tbody></table>';
   const w = el('kfWrap'); w.innerHTML = h;
   qa('td.tipc', w).forEach((td,i)=>{ td.title = tx('실적 {a}대 + 입항 예정 {b}대', {a:num(tips[i].a), b:num(tips[i].b)}); }); // 11/6: 당월 Arrival = ATA 실적 + 당월 입항 예정

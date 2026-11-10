@@ -208,7 +208,7 @@ body.drawer-open .drawer-bg{display:block}
 .lines .line .v{word-break:break-all}
 /* 10/30 리뷰 #7: 상세 Drawer Order Note 6줄 칸 + On/Off 스위치 */
 .fields .f textarea{border:1px solid var(--line-strong);border-radius:6px;padding:4px 6px;width:100%;background:#fff;resize:vertical;line-height:1.45}
-.fields .f .v.note{white-space:pre-wrap;line-height:1.45;min-height:calc(1.45em*6 + 8px);padding:4px 0}
+.fields .f .v.note{white-space:pre-wrap;line-height:1.45;min-height:calc(1.45em*3 + 8px);padding:4px 0} /* 11/9 결의 #2: Order Note 3줄 */
 .sw{display:inline-flex;align-items:center;gap:5px;margin-left:auto;cursor:pointer;user-select:none}
 .sw input{position:absolute;opacity:0;width:0;height:0;margin:0}
 .sw-track{position:relative;width:32px;height:18px;border-radius:999px;background:#c9d1dc;transition:background .15s;flex:none}
@@ -493,3 +493,11 @@ body.viewer .viewer-only{display:inline}
 .grid td.keyin.memo,.grid td.keyin.range{cursor:cell} /* 11/4: Note 셀은 끌어서 범위 선택 · 11/8: Ref Commission No·C/O 셀도 */
 .grid td.rsel{outline:2px solid var(--accent);outline-offset:-2px;background:var(--accent-soft)}
 .grid td.sticky.rsel,.grid tbody tr:hover td.sticky.rsel{background:var(--accent-soft)} /* 11/3 #5: Commission No 열 선택 표시 — 고정 열 흰 배경·행 hover보다 우선 */
+/* 11/9 결의 #4: 선박별 현황 공지란 — 선적·입항(제목 아래, 편집 모드 textarea) · 대시보드 입항 예정 선박(3줄 고정, 넘치면 스크롤) */
+.notice-wrap{margin-bottom:8px}
+.notice-box{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--soft);white-space:pre-wrap;line-height:21px;font-size:13px;margin-bottom:8px}
+.notice-box.clamp{height:calc(21px*3 + 8px);padding-bottom:0;overflow-y:auto} /* 3줄 고정: 행간 21px×3 + 위 패딩 6px + 테두리 2px (전역 border-box) · 아래 패딩 0 → 보이는 영역이 정확히 3줄에서 끝나 4번째 줄이 비치지 않음 · 선적·입항 보기 모드·대시보드 동일 · 4줄부터 상자 안 스크롤 (11/10) */
+.notice-ta{width:100%;box-sizing:border-box;border:1px solid var(--line-strong);border-radius:6px;padding:6px 8px;resize:vertical;line-height:1.45;font:inherit;margin-bottom:8px}
+/* 11/9 결의 #5: 모델 마스터 머리글 클릭 정렬 (.grid 밖 .tbl용) */
+.tbl th[data-sort]{cursor:pointer;user-select:none}
+.tbl th .sort{color:var(--accent);margin-left:3px}

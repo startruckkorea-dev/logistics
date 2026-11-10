@@ -68,6 +68,7 @@ PAGES.dashboard = {
       return mk('td', {class:'mono'}, tag==='ATA'? mk('b', null, d) : d, ' ', mk('span', {class:'pill '+(tag==='ATA'?'st-oh':tag==='ETA'?'st-transit':'neutral'), title: tag==='ATA'?'실제 입항일':tag==='ETA'?'ETA (EUKOR, 평택)':'Planned Arrival'}, tag)); };
     const ships = mk('div', {class:'card'},
       mk('div', {class:'card-h'}, mk('h2', null, tx('입항 예정 선박')), noteEl('D3'), mk('span', {class:'desc'}, tx('Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환 · ATA 후 2일까지 표시')), mk('span', {class:'spacer'}), mk('a', {href:'#/shipping'}, tx('선적·입항 →'))),
+      noticeBoxEl(VESSEL_NOTICE.text, true), // 11/9 결의 #4: 선박별 현황 공지란 표시 전용(3줄 높이 고정, 4줄부터 스크롤 · 선적·입항 보기 모드와 동일) · 입력은 선적·입항 편집 모드
       mk('table', {class:'tbl clickable'},
         mk('thead', null, mk('tr', null, ['Vessel','단계','Shipping','입항 예정'].map(x=>mk('th', null, tx(x))), mk('th', {class:'num'}, tx('대수')))),
         mk('tbody', null, vy.map(y=>mk('tr', {'data-vessel':y.vessel},

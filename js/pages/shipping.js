@@ -158,11 +158,16 @@ PAGES.shipping = {
         tscCell(y), tscStatusCell(y)); }); // 10/26 No.9 → 10/27: TSC는 예정/확정 2단계(tscCell + 배지 열)
     const vessels = mk('div', {class:'card'},
       mk('div', {class:'card-h'}, mk('h2', null, tx('선박별 현황')), noteEl('S2'), mk('span', {class:'desc'}, tx('ATA = 실제 입항일(구 ETA Final) · TSC 입고일 입력 = 예정 저장(선박 단위) · 확정 시 차량 마스터 반영 · 해당 선박 In Transit → Bonded Stock 전환')), mk('span', {class:'spacer'}),
-        mk('button', {class:'btn editor-only '+(edit?'primary':''), title: edit? '편집을 종료합니다 (입력값은 입력 즉시 저장됨)' : 'B/L No · ETA 선사 · ATA · TSC 입고일(예정) 입력란을 엽니다', onclick:()=>{ SH.edit=!SH.edit; PAGES.shipping.render(root); }}, edit? tx('편집 종료') : tx('편집'))), // 10/27: '선사 스케줄 일괄 업데이트'·'엑셀' 버튼 삭제
+        mk('button', {class:'btn editor-only '+(edit?'primary':''), title: edit? '편집을 종료합니다 (입력값은 입력 즉시 저장됨)' : '공지 · B/L No · ETA 선사 · ATA · TSC 입고일(예정) 입력란을 엽니다', onclick:()=>{ SH.edit=!SH.edit; PAGES.shipping.render(root); }}, edit? tx('편집 종료') : tx('편집'))), // 10/27: '선사 스케줄 일괄 업데이트'·'엑셀' 버튼 삭제
+      // 11/9 결의 #4: 공지란 — 제목 아래 자유 입력 한 칸. 보기 모드 = 글 상자(noticeBoxEl) · 편집 모드 = textarea, 입력 즉시 Store.vesselNotice.set(다시 그리지 않음, gwCell과 같은 방식) → 대시보드 입항 예정 선박에 3줄 표시
+      mk('div', {class:'notice-wrap'}, // 11/10: '공지' 라벨 줄 삭제 (대시보드와 동일하게 상자만)
+        edit ? (()=>{ const ta = mk('textarea', {class:'notice-ta', rows:'4', placeholder: tx('접안·하역 안내 · 첫 주문·인증 필요차 · AFAB 미반영 변동 등'), onclick:e=>e.stopPropagation(),
+                 onchange:e=>{ Store.vesselNotice.set(e.target.value.trim()); toast(tx('공지 저장'), tx('선박별 현황 공지란에 저장 · 대시보드 입항 예정 선박에 표시')); }}); ta.value = VESSEL_NOTICE.text; return ta; })()
+             : noticeBoxEl(VESSEL_NOTICE.text, true)),
       mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl compact even'+(edit? '' : ' clickable')}, // 편집 모드에서는 행 클릭 이동 없음 (10/26) · even: 열 너비 = 열 최대 내용 폭 + 남는 폭 균등 배분 (evenCols, 10/27)
         mk('thead', null, mk('tr', null, ['Vessel','단계'].map(x=>mk('th', null, tx(x))), mk('th', {class:'num'}, tx('대수')), mk('th', {class:'num'}, tx('총중량 (kg)')), ['B/L No','Shipping','Planned Arrival','ETA 선사 (EUKOR/MOL)','ATA','TSC 입고일 (TSC Arrival Date)'].map(x=>mk('th', null, tx(x))), mk('th', {class:'tscst'}, ''))),
         mk('tbody', null, rows))),
-      mk('div', {class:'muted small', style:'margin-top:6px'}, tx('행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드에서 (기준일 이후 날짜 불가).')));
+      mk('div', {class:'muted small', style:'margin-top:6px'}, tx('행 클릭 → 해당 선박의 차량 Logistics 목록. ATA 입력은 편집 모드에서 (기준일 이후 날짜 불가).')+' '+tx('공지는 편집 모드에서 입력 → 대시보드 입항 예정 선박에 표시.')));
 
     root.innerHTML = kpi;
     root.append(vessels, monthly); // 10/19 No.8: 선박별 현황을 월별 입항 예정 위로

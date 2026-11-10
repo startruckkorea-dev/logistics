@@ -7,8 +7,9 @@ const LOGI_TABS = [['grid','Logistics'], ['afab','AFAB 업로드'], ['req','수�
 function logiTabsForRole(){ return isSales()? LOGI_TABS.filter(t=>t[0]==='req') : isEditor()? LOGI_TABS : LOGI_TABS.filter(t=>t[0]==='grid'); }
 
 const KEYIN_COLS = ['b1_factory_order','sales_month','ref_commission_no','co']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외) · 11/8: Ref Commission No·C/O 추가
-const RANGE_KEYIN_COLS = ['ref_commission_no','co']; // 11/8: Note 열처럼 끌어서 범위 선택 → Ctrl+C / Ctrl+V (팝업 없이 셀 안 직접 입력 · C/O는 O/빈칸 선택)
-function normKeyin(key, val){ val = String(val==null? '' : val).trim(); return key==='co'? (val.toUpperCase()==='O'? 'O' : '') : val; } // 11/8: C/O는 O 또는 빈칸만
+const RANGE_KEYIN_COLS = ['ref_commission_no','co']; // 11/8: Note 열처럼 끌어서 범위 선택 → Ctrl+C / Ctrl+V (팝업 없이 셀 안 직접 입력 · C/O는 Requested/Received/빈칸 선택)
+function normKeyin(key, val){ val = String(val==null? '' : val).trim(); return key==='co'? (CO_VALUES.find(x=>x.toLowerCase()===val.toLowerCase()) || '') : val; } // 11/8: C/O 값 제한 · 11/9 결의 #3: Requested / Received(대소문자 무시) 또는 빈칸만
+const ORDER_HIST_KEYS = ['original_pm','spec','model_year','bm']; // 11/9 결의 #1: 오더 생성·오더 변경이 Vehicle_History에 남기는 필드 = Original PM · Spec(모델 정보, 9개 항목) · MY · BM — 그 외 모델 속성·상태·Order Update Date는 값만 대입(이력 없음)
 const NOTE_COLS = ['option_remarks','order_note']; // 11/3 리뷰 #6: 편집 모드에서 셀 클릭 → 여러 줄 팝업 편집창(openNoteEditor) · 그리드 셀 안 직접 입력(startCellEdit)은 KEYIN_COLS만
 // 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Emission(11/4: Option → Cab Gen·Wheelbase·PTO·Emission) + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&type=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
 const DATE_FILTER_COLS = ['changeability_date','pm','original_pm','tdd_calc','dispatch','shipping_calc','shipping','invoice','planned_arrival','eta_from_tdd','eta_from_eukor_pirt','ata','tsc_arrival_date','customs_clearance_date','order_update_date']; // 10/26 No.9: TSC Arrival Date 추가 · 11/4: Order Update Date 추가
@@ -291,12 +292,12 @@ function keyinLabel(key){ const c = COLUMNS.find(x=>x.key===key); return c? c.la
 function setKeyinCell(td, val){ td.replaceChildren(); if(val==null||val==='') td.append(mk('span', {class:'dim'}, '·')); else td.append(String(val)); }
 
 // ---- 편집 단위 저장 (10/15 No.9): 편집 중 변경은 pending에 쌓고 '편집 종료' 시 Store로 저장 + Vehicle_History 기록 ----
-function stageChange(comm, key, nw, src){
+function stageChange(comm, key, nw, src, noHist){ // 11/9 결의 #1: noHist = 값은 저장하되 Vehicle_History에는 남기지 않음(오더 변경의 Original PM·Spec·MY·BM 외 필드)
   const v = VEHICLE_BY_COMM[comm]; if(!v) return;
   const p = EDIT.pending[comm] || (EDIT.pending[comm] = {_rev: v.rev||0}); // 11/9: 저장 대기에 처음 올릴 때의 행 버전(Store bumpRev) — 편집 종료 시 비교
   const old = key in p ? p[key].old : (v[key]==null? '' : v[key]);
   if(String(old)===String(nw==null? '' : nw)){ delete p[key]; if(!pendingFields(comm).length) delete EDIT.pending[comm]; return; }
-  p[key] = {old, nw, src};
+  p[key] = {old, nw, src, noHist: !!noHist};
 }
 function pendingFields(comm){ return Object.entries(EDIT.pending[comm]||{}).filter(([k])=>k[0]!=='_'); } // 11/9: _rev 같은 메타 키 제외
 function pendingCount(){ return Object.keys(EDIT.pending).reduce((a,c)=>a+pendingFields(c).length, 0); }
@@ -306,14 +307,15 @@ function commitEdits(force){
   const comms = Object.keys(EDIT.pending);
   if(!comms.length){ toast('편집 종료', '변경 내용이 없습니다.'); return true; }
   const at = nowStamp();
-  const hist = []; const conflicts = []; let saved = 0;
+  const hist = []; const conflicts = []; let saved = 0, fields = 0;
   comms.forEach(comm=>{ const v = VEHICLE_BY_COMM[comm]; const p = EDIT.pending[comm];
     if(!force && v && (v.rev||0)!==(p._rev||0)){ conflicts.push(comm); return; }
     const patch = {};
-    pendingFields(comm).forEach(([k,c])=>{ patch[k]=c.nw; hist.push({commission_no:comm, field:k, old_value:c.old, new_value:c.nw, changed_by:state.user, changed_at:at, source: force? c.src+'(덮어씀)' : c.src}); });
+    pendingFields(comm).forEach(([k,c])=>{ patch[k]=c.nw; fields++; if(c.noHist) return; // 11/9 결의 #1: 오더 변경의 부수 필드는 값만 저장, 이력 생략
+      hist.push({commission_no:comm, field:k, old_value:c.old, new_value:c.nw, changed_by:state.user, changed_at:at, source: force? c.src+'(덮어씀)' : c.src}); });
     Store.vehicles.update(comm, patch); saved++; delete EDIT.pending[comm]; });
   Store.history.add(hist);
-  if(saved) toast(`편집 종료 · 저장 ${num(saved)}건`, `${num(hist.length)}개 필드 → Vehicles 갱신 · Vehicle_History ${num(hist.length)}건 기록 · 대시보드·KUFRI 즉시 반영${conflicts.length? ` · 충돌 ${num(conflicts.length)}건은 저장하지 않음` : ''}`);
+  if(saved) toast(`편집 종료 · 저장 ${num(saved)}건`, `${num(fields)}개 필드 → Vehicles 갱신 · Vehicle_History ${num(hist.length)}건 기록 · 대시보드·KUFRI 즉시 반영${conflicts.length? ` · 충돌 ${num(conflicts.length)}건은 저장하지 않음` : ''}`);
   if(conflicts.length){ openConflictModal(conflicts); return false; }
   return true;
 }
@@ -338,7 +340,7 @@ function startCellEdit(td, comm, key){
   if(q('input', td)) return;
   const v = VEHICLE_BY_COMM[comm]; if(!v) return;
   const before = pendingVal(v, key)||'';
-  const inp = key==='co'? mk('select', {class:'cell-in'}, mk('option', {value:''}, tx('(빈칸)')), mk('option', {value:'O', selected: before==='O'||null}, 'O')) // 11/8: C/O는 O/빈칸 선택
+  const inp = key==='co'? mk('select', {class:'cell-in'}, mk('option', {value:''}, tx('(빈칸)')), CO_VALUES.map(o=>mk('option', {value:o, selected: before===o||null}, o))) // 11/8: C/O 선택 · 11/9 결의 #3: Requested / Received / 빈칸
     : mk('input', {class:'cell-in', type: keyinInputType(key), value: before}); // 11/9: B1 Factory Order = 날짜 선택 · Sales Month = 월 선택
   let done = false;
   const finish = save=>{ if(done) return; done = true;
@@ -488,7 +490,7 @@ function openModelChange(){
   const dist = o=> Object.keys(o).sort().map(k=>tx('{k} {n}건', {k:k||tx('(공란)'), n:num(o[k])})).join(' · ') || tx('(공란)');
   const field = (label, ctl, wide)=> mk('div', {class:'f'+(wide?' wide':'')}, mk('div', {class:'k'}, label), mk('div', {class:'v'}, ctl));
   const body = mk('div', null,
-    mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건의 모델 속성(Vehicle · Gen · Model · Type · Axle · Cab · Cab Gen · Wheelbase · PTO · Emission · Baumuster · BM · MY)을 Model_Master에서 매칭한 모델로, Original PM(생산월)을 입력한 월로 일괄 변경합니다. Original PM을 비워 두면 모델만 바뀝니다. Model In AFAB는 AFAB 업로드 값이라 바뀌지 않으며, 'Type' 열의 점(초록/빨강)으로 일치 여부를 확인합니다. 변경 내용은 '편집 종료' 시 저장되고 Order Update Date에 변경일이 기록됩니다.`),
+    mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건의 모델 속성(Vehicle · Gen · Model · Type · Axle · Cab · Cab Gen · Wheelbase · PTO · Emission · Baumuster · BM · MY)을 Model_Master에서 매칭한 모델로, Original PM(생산월)을 입력한 월로 일괄 변경합니다. Original PM을 비워 두면 모델만 바뀝니다. Model In AFAB는 AFAB 업로드 값이라 바뀌지 않으며, 'Type' 열의 점(초록/빨강)으로 일치 여부를 확인합니다. 변경 내용은 '편집 종료' 시 저장되고 Order Update Date에 변경일이 기록됩니다. `+tx('변경 이력은 Original PM·Spec·MY·BM만 기록됩니다.')), // 11/9 결의 #1
     mk('div', {class:'callout', style:'font-weight:600'}, tx('Current Status가 Ordered(Changeable)로 변경(유지)됩니다')),
     excluded.length? mk('div', {class:'callout warn'}, tx('선택 {n}건 중 {m}건은 Ordered(Dummy)·Ordered(Changeable)가 아니라 제외됩니다', {n:num(all.length), m:num(excluded.length)}), ' (', dist(byEx), ')') : null,
     mk('div', {class:'fields'},
@@ -507,13 +509,13 @@ function openModelChange(){
       const pm = pmIn.value.trim(); if(pm && !/^\d{4}-(0[1-9]|1[0-2])$/.test(pm)){ toast('Original PM 형식 오류', 'YYYY-MM 형식으로 입력하세요 (예: 2027-03).'); return; }
       const patch = Store.vehicles.modelMasterPatch(m); if(pm) patch.original_pm = pm;
       patch.current_status = 'Ordered(Changeable)'; patch.order_update_date = TODAY_S; // #2 상태 전환(유지) · #4 변경일 기록 — 같은 값은 stageChange에서 저장 대기에 오르지 않음
-      vs.forEach(v=>Object.entries(patch).forEach(([k,val])=>stageChange(v.commission_no, k, val, '수동/일괄'))); closeModal(); renderGrid();
-      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${[m.model, m.type, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · ${m.my}${pm? ` · Original PM ${pm}` : ''} · Current Status → Ordered(Changeable) · Order Update Date ${TODAY_S} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('변경')));
+      vs.forEach(v=>Object.entries(patch).forEach(([k,val])=>stageChange(v.commission_no, k, val, '수동/일괄', !ORDER_HIST_KEYS.includes(k)))); closeModal(); renderGrid(); // 11/9 결의 #1: 이력은 Original PM·Spec·MY·BM만
+      toast(`오더 변경 ${num(vs.length)}건 (저장 대기)`, `→ ${[m.model, m.type, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · ${m.my}${pm? ` · Original PM ${pm}` : ''} · Current Status → Ordered(Changeable) · Order Update Date ${TODAY_S} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History는 Original PM·Spec·MY·BM만 기록(출처: 수동/일괄)`); }}, tx('변경')));
 }
 function openBulkKeyin(){
   const vs = selectedVehicles(); if(!vs.length) return;
   const inputs = {};
-  const row = (key, ph)=>{ inputs[key] = key==='co'? mk('select', null, mk('option', {value:''}, tx('(변경 없음)')), mk('option', {value:'O'}, 'O'), mk('option', {value:'-'}, tx('빈칸으로'))) : mk('input', {type: keyinInputType(key), placeholder: ph}); return mk('div', {class:'f'}, mk('div', {class:'k'}, keyinLabel(key)), mk('div', {class:'v'}, inputs[key])); }; // 11/8: C/O는 O / 빈칸으로 선택 · 11/9: B1 Factory Order 날짜 · Sales Month 월 선택
+  const row = (key, ph)=>{ inputs[key] = key==='co'? mk('select', null, mk('option', {value:''}, tx('(변경 없음)')), CO_VALUES.map(o=>mk('option', {value:o}, o)), mk('option', {value:'-'}, tx('빈칸으로'))) : mk('input', {type: keyinInputType(key), placeholder: ph}); return mk('div', {class:'f'}, mk('div', {class:'k'}, keyinLabel(key)), mk('div', {class:'v'}, inputs[key])); }; // 11/8: C/O 선택 · 11/9 결의 #3: Requested / Received / 빈칸으로 · 11/9: B1 Factory Order 날짜 · Sales Month 월 선택
   const body = mk('div', null,
     mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건에 아래 값을 일괄 입력합니다. 비워 둔 열은 변경하지 않습니다. 변경 내용은 '편집 종료' 시 저장됩니다.`),
     mk('div', {class:'fields'}, row('b1_factory_order'), row('sales_month'), row('ref_commission_no',tx('예) 123456')), row('co'))); // 11/8: Ref Commission No·C/O 추가
@@ -523,7 +525,7 @@ function openBulkKeyin(){
     mk('button', {class:'btn', onclick: closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick: ()=>{ const changed = KEYIN_COLS.filter(k=>inputs[k].value.trim()!=='');
       if(!changed.length){ toast('입력값 없음', '하나 이상의 열에 값을 입력하세요.'); return; }
-      const valOf = k=> k==='co'? (inputs.co.value==='-'? '' : 'O') : inputs[k].value.trim(); // 11/8: C/O 선택 '-' = 빈칸으로
+      const valOf = k=> k==='co'? (inputs.co.value==='-'? '' : inputs.co.value) : inputs[k].value.trim(); // 11/8: C/O 선택 '-' = 빈칸으로 · 11/9 결의 #3: 그 외는 선택값(Requested / Received)
       for(const k of changed){ const err = validKeyin(k, valOf(k)); if(err){ toast(err.title, err.msg); return; } } // 11/9: 형식 검사
       vs.forEach(v=>changed.forEach(k=>stageChange(v.commission_no, k, valOf(k), '수동/일괄'))); closeModal(); renderGrid();
       toast(`Key-in 일괄 입력 ${num(vs.length)}건 (저장 대기)`, `열: ${changed.map(keyinLabel).join(' · ')} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('적용')));
@@ -672,7 +674,7 @@ function openAddOrder(){
       const rows = cs.map(c=>Store.vehicles.create({commission_no:c, m, pm, status:stSel.value, model_year:pk.mySel.value, by:state.user}));
       const n = Store.vehicles.add(rows);
       const d = new Date(); const at = TODAY_S+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
-      Store.history.add(rows.map(v=>({commission_no:v.commission_no, field:'(전체)', old_value:'', new_value:'수동 생성', changed_by:state.user, changed_at:at, source:'수동'})));
+      Store.history.add(rows.flatMap(v=>ORDER_HIST_KEYS.map(k=>({commission_no:v.commission_no, field:k, old_value:'', new_value:v[k]==null? '' : String(v[k]), changed_by:state.user, changed_at:at, source:'수동'})))); // 11/9 결의 #1: '(전체) 수동 생성' 1행 → Original PM · Spec · MY · BM 4행
       closeModal(); renderGrid();
       toast(`오더 생성 ${num(n)}건`, `${cs[0]}${n>1?` ~ ${cs[n-1]}`:''} · ${modelLine(m)} · Original PM ${pm} · ${stSel.value} → Vehicles 추가(출처: 수동) · Vehicle_History 기록 · 대시보드·KUFRI 즉시 반영`); }}, tx('생성')));
 }

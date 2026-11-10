@@ -1,6 +1,6 @@
 'use strict';
 /* ===== 마스터 · 설정 (C1~C8) ===== */
-const ST = { tab:'arch' };
+const ST = { tab:'arch', mmQ:'', mmF:{vehicle:'', model:'', my:'', cab_gen:'', active:''}, mmSort:null, mmDir:1 }; // 11/9 결의 #5: 모델 마스터 검색어·드롭다운 필터·정렬(열 key, 1 오름/-1 내림, null = 마스터 원래 순서) — 탭 전환·편집 진입에도 유지
 PAGES.settings = {
   title:'마스터 · 설정', sub:'아키텍처 · 모델 마스터 · AFAB 매핑 · 상태 규칙 · 기준값 · 사용자 · 이력 · 감사',
   render(root, params){
@@ -66,40 +66,70 @@ const MM_SELECT = {vehicle: VEHICLE_TYPES, cab_gen: ['SFTP','ProCabin'], my: MY_
 const MM_TITLES = {model:"차량 마스터 'Model' 열과 연동 (model)", type:"차량 마스터 'Type' 열과 연동 (type)", lead_days:'기준 구간: PM(생산월 1일) ~ Shipping(선적일) · 일 단위 · Logistics Shipping Calc = PM 1일 + 이 값', lead:'기준 구간: PM ~ ETA(입항) · 월 단위 · 입항 예정월(대시보드·KUFRI) 계산에 사용'};
 const MM_SUB = {lead_days:'PM ~ Shipping', lead:'PM ~ ETA'};
 function pillEl(kind, text){ return mk('span', {class:'pill '+kind}, text); }
+// 11/9 결의 #5: 검색(Code1·Code2·BM·Type·Model, 대소문자 무시) · 드롭다운 필터(Vehicle·Model·MY·Cab Gen·Active) · 머리글 클릭 정렬(▲▼, 빈값 뒤, 숫자형은 숫자 비교). 편집 모드에서는 모두 비활성(저장 대기 입력 보호) · 필터된 행만 표시·저장 대상
+const MM_NUM_KEYS = ['lead','lead_days','wheelbase','n'];
+function mmRows(){
+  const qq = ST.mmQ.trim().toLowerCase(); const f = ST.mmF;
+  const rows = MODEL_MASTER.filter(m=>{
+    if(qq && ![m.prefix, m.code2, Store.modelMaster.bmOf(m), m.type, m.model].some(x=>String(x||'').toLowerCase().includes(qq))) return false;
+    if(f.vehicle && m.vehicle!==f.vehicle) return false; if(f.model && m.model!==f.model) return false; if(f.my && m.my!==f.my) return false; if(f.cab_gen && m.cab_gen!==f.cab_gen) return false;
+    if(f.active && (m.active? 'Y' : 'N')!==f.active) return false; return true; })
+    .map(m=>({m, n: VEHICLES.filter(v=>v.bm===Store.modelMaster.bmOf(m)).length})); // 11/4: 차량 수는 BM 기준(연식별 행)
+  const k = ST.mmSort; if(!k) return rows;
+  const val = r=> k==='n'? r.n : k==='active'? (r.m.active? 'Y' : 'N') : r.m[k];
+  const d = ST.mmDir, numeric = MM_NUM_KEYS.includes(k);
+  return rows.sort((a,b)=>{ let x=val(a), y=val(b); if(numeric){ x = x===''||x==null? '' : Number(x); y = y===''||y==null? '' : Number(y); }
+    if(x===y) return 0; if(x===''||x==null) return 1; if(y===''||y==null) return -1; return (x>y?1:-1)*d; }); // 빈값 뒤 (logistics.js filtered()와 같은 규칙)
+}
 function drawModelMaster(b, admin){
   const edit = admin && !!ST.mmEdit; const inputs = new Map(); // MODEL_MASTER 행 → {key: input|select|checkbox}
   b.replaceChildren();
   if(!admin) b.append(mk('div', {class:'callout warn'}, 'Viewer 역할은 조회만 가능합니다. 마스터·기준값 수정은 Editor 중 관리자만.'));
-  // 헤더: 보기 모드 [편집] [＋ 모델 추가] · 편집 모드 [저장] [취소] (모델 추가는 비활성)
-  const head = mk('div', {class:'card-h'}, mk('h2', null, tx('모델 마스터 (Model_Master)')), mk('span', {class:'spacer'}));
+  // 헤더: 제목 · 검색/필터(11/9 결의 #5) · 보기 모드 [편집] [＋ 모델 추가] · 편집 모드 [저장] [취소] (모델 추가는 비활성)
+  const distinct = key=> [...new Set(MODEL_MASTER.map(m=>m[key]).filter(Boolean))];
+  const sel = (key, opts)=>{ const s = mk('select', {disabled: edit||null, onchange:e=>{ ST.mmF[key] = e.target.value; drawRows(); }}, mk('option', {value:''}, tx('전체')), opts.map(o=>mk('option', {value:o, selected: ST.mmF[key]===o||null}, o))); return s; };
+  const qIn = mk('input', {placeholder: tx('Code1 · Code2 · BM · Type · Model 검색'), value: ST.mmQ, style:'width:240px', disabled: edit||null, oninput:e=>{ ST.mmQ = e.target.value; drawRows(); }});
+  const count = mk('span', {class:'muted small'});
+  const filters = mk('div', {class:'filters'}, mk('label', null, tx('검색'), ' ', qIn),
+    mk('label', null, 'Vehicle ', sel('vehicle', VEHICLE_TYPES)), mk('label', null, 'Model ', sel('model', distinct('model'))), mk('label', null, 'MY ', sel('my', MY_LIST.filter(x=>distinct('my').includes(x)))),
+    mk('label', null, 'Cab Gen ', sel('cab_gen', MM_SELECT.cab_gen)), mk('label', null, 'Active ', sel('active', ['Y','N'])),
+    mk('button', {class:'btn sm', disabled: edit||null, onclick:()=>{ ST.mmQ=''; Object.keys(ST.mmF).forEach(k=>ST.mmF[k]=''); ST.mmSort=null; ST.mmDir=1; drawModelMaster(b, admin); }}, tx('초기화')), count);
+  const head = mk('div', {class:'card-h'}, mk('h2', null, tx('모델 마스터 (Model_Master)')), filters, mk('span', {class:'spacer'}));
   if(admin){
     if(edit) head.append(mk('button', {class:'btn primary sm', onclick: save}, tx('저장')), mk('button', {class:'btn sm', onclick: ()=>{ ST.mmEdit = false; drawSettings(); }}, tx('취소')));
     else head.append(mk('button', {class:'btn sm', onclick: ()=>{ ST.mmEdit = true; drawSettings(); }}, tx('편집')));
     head.append(mk('button', {class:'btn primary sm', disabled: edit, onclick: openAddModel}, tx('＋ 모델 추가')));
   }
-  // 머리글
+  // 머리글 — data-sort 열은 클릭 정렬(보기 모드만) · '실적 중앙값'은 리드타임(일)과 같은 값이라 정렬 없음
+  const sortTh = (key, attrs, ...kids)=> mk('th', Object.assign({'data-sort':key, onclick:()=>{ if(edit) return; if(ST.mmSort===key) ST.mmDir*=-1; else { ST.mmSort=key; ST.mmDir=1; } drawRows(); }}, attrs), ...kids);
   const thead = mk('thead', null, mk('tr', null,
-    ...MM_COLS.map(([key, label, , cls])=>{ const th = mk('th', {class: cls==='num'? 'num' : null, title: MM_TITLES[key]||null}, MM_SUB[key]? tx(label) : label);
+    ...MM_COLS.map(([key, label, , cls])=>{ const th = sortTh(key, {class: cls==='num'? 'num' : null, title: MM_TITLES[key]||null}, MM_SUB[key]? tx(label) : label);
       if(MM_SUB[key]) th.append(mk('div', {class:'muted small', style:'font-weight:500'}, MM_SUB[key])); return th; }),
-    mk('th', {class:'num', title:'PM ~ Shipping 실적 중앙값 (최근 6개월, 일)'}, tx('실적 중앙값')), mk('th', {class:'num'}, tx('차량 수')), mk('th', null, 'Active')));
-  // 행
-  const tbody = mk('tbody', null, ...MODEL_MASTER.map(m=>{
-    const bm = Store.modelMaster.bmOf(m); const n = VEHICLES.filter(v=>v.bm===bm).length; const ins = {}; // 11/4: 차량 수는 BM 기준(연식별 행)
-    const tr = mk('tr');
-    MM_COLS.forEach(([key, , w, cls])=>{ const td = mk('td', {class: cls||null});
-      if(edit){ let inp;
-        if(MM_SELECT[key]){ inp = mk('select', null, ...MM_SELECT[key].map(o=>mk('option', {value:o}, o))); inp.value = m[key]; }
-        else inp = mk('input', {value: m[key]==null? '' : String(m[key]), style:`width:${w}px${cls==='num'? ';text-align:right' : ''}`});
-        ins[key] = inp; td.append(inp); }
-      else { const val = m[key]; if(val==null || val==='') td.append(mk('span', {class:'muted'}, '—')); else td.textContent = String(val); }
-      tr.append(td); });
-    tr.append(mk('td', {class:'num muted'}, m.lead_days+'일'), mk('td', {class:'num'}, num(n)));
-    const act = mk('td');
-    if(edit){ const cb = mk('input', {type:'checkbox'}); cb.checked = !!m.active; ins.active = cb; act.append(cb); }
-    else act.append(pillEl(m.active? 'ok' : 'neutral', m.active? 'Y' : 'N'));
-    tr.append(act); inputs.set(m, ins); return tr; }));
+    mk('th', {class:'num', title:'PM ~ Shipping 실적 중앙값 (최근 6개월, 일)'}, tx('실적 중앙값')), sortTh('n', {class:'num'}, tx('차량 수')), sortTh('active', null, 'Active')));
+  const tbody = mk('tbody');
+  // 행 — tbody만 다시 그려 검색창 포커스 유지 (변경 이력 탭과 같은 방식)
+  function drawRows(){
+    const rows = mmRows(); inputs.clear();
+    qa('th[data-sort]', thead).forEach(th=>{ const old = q('.sort', th); if(old) old.remove(); if(th.dataset.sort===ST.mmSort) th.append(mk('span', {class:'sort'}, ST.mmDir>0? '▲' : '▼')); });
+    count.textContent = tx('{n}건 / 전체 {m}', {n:num(rows.length), m:num(MODEL_MASTER.length)});
+    tbody.replaceChildren(...rows.map(({m, n})=>{ const ins = {};
+      const tr = mk('tr');
+      MM_COLS.forEach(([key, , w, cls])=>{ const td = mk('td', {class: cls||null});
+        if(edit){ let inp;
+          if(MM_SELECT[key]){ inp = mk('select', null, ...MM_SELECT[key].map(o=>mk('option', {value:o}, o))); inp.value = m[key]; }
+          else inp = mk('input', {value: m[key]==null? '' : String(m[key]), style:`width:${w}px${cls==='num'? ';text-align:right' : ''}`});
+          ins[key] = inp; td.append(inp); }
+        else { const val = m[key]; if(val==null || val==='') td.append(mk('span', {class:'muted'}, '—')); else td.textContent = String(val); }
+        tr.append(td); });
+      tr.append(mk('td', {class:'num muted'}, m.lead_days+'일'), mk('td', {class:'num'}, num(n)));
+      const act = mk('td');
+      if(edit){ const cb = mk('input', {type:'checkbox'}); cb.checked = !!m.active; ins.active = cb; act.append(cb); }
+      else act.append(pillEl(m.active? 'ok' : 'neutral', m.active? 'Y' : 'N'));
+      tr.append(act); inputs.set(m, ins); return tr; }));
+  }
+  drawRows();
   b.append(head, mk('div', {class:'tbl-wrap'}, mk('table', {class:'tbl'}, thead, tbody)),
-    mk('div', {class:'muted small', style:'margin-top:6px'}, tx('모든 열을 수정할 수 있습니다. 저장 시 BM(Code1-Code2)이 같은 차량에 반영됩니다.')),
+    mk('div', {class:'muted small', style:'margin-top:6px'}, tx('모든 열을 수정할 수 있습니다. 저장 시 BM(Code1-Code2)이 같은 차량에 반영됩니다.')+' '+tx('검색·필터·정렬은 보기 모드에서만 · 표시된 행만 저장 대상')),
     mk('div', {class:'muted small', style:'margin-top:4px'}, "리드타임(일) = PM(생산월 1일) ~ Shipping(선적일) 실적 중앙값으로 자동 제안 → Logistics 'Shipping Calc' = PM 1일 + 리드타임(일) · 리드타임(월) = PM ~ ETA 기준, 입항 예정월(대시보드 월별 추이·KUFRI Arrival) 계산에 사용."));
   // 저장: 바뀐 행만 patch → 검증(Code1 8자리 숫자 · Code2 필수 · 리드타임 숫자 · BM 중복) → Store.modelMaster.update → 편집 종료
   function save(){
@@ -157,6 +187,7 @@ function openAddModel(){
       const row = {prefix:val('prefix'), code2:val('code2'), my:f.my.value, suffix:'', type_desc:'', vehicle:f.vehicle.value, model:val('model'), gen:val('gen'), type:val('type'), axle:val('axle'), cab:val('cab'),
         cab_gen:f.cab_gen.value, wheelbase:val('wheelbase'), pto:val('pto'), emission:val('emission'), lead:Number(val('lead')), lead_days:Number(val('lead_days')), active:f.active.checked};
       const m = Store.modelMaster.add(row, state.user); if(!m) return fail(`BM ${row.prefix}-${row.code2}는 이미 등록된 모델입니다.`);
+      ST.mmQ=''; Object.keys(ST.mmF).forEach(k=>ST.mmF[k]=''); // 11/9 결의 #5: 추가한 행이 필터에 가려지지 않도록 검색·필터 초기화(정렬은 유지)
       closeModal(); drawSettings();
       toast(tx('모델 추가'), `${Store.modelMaster.bmOf(m)} · ${m.my} · ${[m.vehicle, m.model, m.type, m.axle, m.cab, modelOptTag(m)].filter(Boolean).join(' ')} · Model_Master 추가 · Audit_Log 기록`); }}, tx('추가')));
 }

@@ -75,17 +75,17 @@ const COLUMNS = [
   {key:'baumuster', label:'Baumuster', group:'사양', src:'AFAB'},
 ];
 const GROUPS = ['기본','메모','일정','선적','통관','사양']; // 11/3 #8: 메모 그룹을 기본 바로 아래로 (상세 Drawer 카드 순서)
-const CO_VALUES = ['Requested','Received']; // 11/9 결의 #3: C/O 값 (그 외는 빈칸) — 드로어·그리드 셀·Key-in 일괄 입력 select 공용
+const CO_VALUES = ['Requested','Received','N/A']; // 11/9 결의 #3: C/O 값 (그 외는 빈칸) — 드로어·그리드 셀·Key-in 일괄 입력 select 공용 · 11/10 리뷰 #3: N/A(해당 없음) 추가, 빈칸 = 미확인 (select 항목에 설명 괄호는 쓰지 않음, 11/11)
 const DEFAULT_HIDDEN_COLS = []; // 사전 주석: 'Original PM'은 숨기기 기능으로 구현 → 11/4: 오더 생성·변경이 Original PM을 쓰므로 기본 표시로 전환(편집 모드 열 머리글 체크박스로 숨길 수 있음)
 const GRID_JUMPS = ['current_status','tdd_calc','bl_no','option_remarks']; // 그리드 바로가기 버튼(이름 = 열 라벨) → 이동할 열 key. current_status는 맨 처음으로
 
 // 설계 노트 (목업 전용)
 const NOTES = {
   G1:'상단 메뉴 바 7개(좌측 사이드바 아님) + AFAB 최근 반영 표시', G2:'화면 제목 줄: 통합 검색(Comm/VIN/B/L → 1건이면 상세 즉시) · 설계 노트 토글 · 로그인 사용자·역할', G3:'Viewer에게는 입력·반영·확정 버튼이 보이지 않는다. Sales = 대시보드·선적·입항·Logistics(Request 탭) 조회 + 통관 신청만. UI 한국어, 필드명은 기존 엑셀 영문',
-  D1:'차량 주문·재고 흐름: 카드 6종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit, 하단에 당월 입항 예정 대수) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘(재고 카드 창고에 벤츠 스타 마크, 10/27 #3), Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 8개월만 표시, 나머지는 가로 스크롤(Y축 고정). 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시 · 제목 아래 공지란(선적·입항 선박별 현황에서 입력, 3줄 표시·스크롤, 11/9)', D4:'차종별 파이프라인(7단계, Sold 제외) · 단계 색 = Current Status 색', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)', D7:'당월 도착 예정: 선적·입항 월별 입항 예정 피벗의 당월 블록 (행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 열: 당월 입항 선박 + Total · 선박 입항월 = ATA → ETA 선사 → Pl. arrival) · 당월 입항 예정 카드와 동일 기준',
+  D1:'차량 주문·재고 흐름: 카드 6종 한 줄 수정 가능 주문(Ordered(Changeable)) → 확정 주문(Ordered(Fixed)) → 확정 재고(Factory Stock = In Production + Shipment scheduled) → 운송 중(In Transit, 하단에 당월 입항 예정 대수) → 재고(Bonded + OH) → 판매(Sold YTD). 카드별 아이콘(재고 카드 창고에 벤츠 스타 마크, 10/27 #3), Cancelled 카드 없음. 카드 클릭 → 관련 목록', D2:'월별 생산/입항/판매 추이: 26년 1월~27년 12월 24개월 중 당월 포함 8개월만 표시, 나머지는 가로 스크롤(Y축 고정). 막대 수치 표시, 기준월 강조, 기준월 이후 음영', D3:'입항 예정 선박: 입항예정 값은 Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환, ATA 후 2일까지 표시', D4:'차종별 파이프라인(7단계, Sold 제외) · 단계 색 = Current Status 색', D6:'연식별 재고: 세로 누적 막대(연식 최신순, Tractor/Rigid/Tipper/BB)', D7:'당월 도착 예정: 선적·입항 월별 입항 예정 피벗의 당월 블록 (행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 열: 당월 입항 선박 + Total · 선박 입항월 = ATA → ETA 선사 → Pl. arrival) · 당월 입항 예정 카드와 동일 기준',
   L1:'탭 5개: Logistics(홈 그리드) · AFAB 업로드(10/29 상단 메뉴에서 이동) · 수입통관 신청(Sales 통관 신청 · 신청 접수 처리 · 통관 여부 조회 · 신청번호 Customs-YYYY-MM-DD-N · 신청/처리 시 메일 자동 발송) · 통관 완료 처리(템플릿 Excel 업로드로 통관일·수입필증번호 반영) · 보험 조회(Excel Export). 역할별 표시: Editor 전체 · Viewer Logistics만 · Sales 수입통관 신청만. 편집 중 저장 대기 값이 있으면 탭 전환 차단',
   L2:'열 필터(Current Status 단계 순 10단계 + Cancelled · 모델 관련 Vehicle~Emission · 날짜 열 Changeability Date~Customs Clearance Date·Order Update Date 연·월 체크 트리 · Vessel) · 텍스트 검색(Comm · VIN · B/L · Vessel · Type · Engine · Order Note · Option Note, 일치 텍스트 하이라이트) · 정렬(기본 Commission No 최신순) · Shipping Calc 열 필터의 경과 배지 행만 항목(10/30, 리드타임 재검토 후보)', L3:'Comm No. 기준 한 행에 전체 48열을 data-dictionary 순서로 표시(Shipping Calc = In Production 진입 시 PM 1일 + 리드타임(일)로 1회 작성, 10/27 #7·10/30 · 경과 배지 선적 전 빨강, 선적 후 회색으로 Shipping − Shipping Calc 고정 10/30 #8), Comm No. 열 고정, 바로가기(Current Status · TDD Calc · B/L No · Option Note)', L4:'열 표시/숨김: 편집 모드에서 열 머리글 체크박스로 조정(변경 이력 없음)', L5:'출처 배지: 파랑 = AFAB · WINGS · +75 FROM TDD · AFAB/입력, 초록 = Key-in 입력(B1 Factory Order · Sales Month · Option Note · Order Note · Ref Commission No), 회색 = 마스터·자동·화면 입력·그 외 입력', L6:'행 클릭 → 상세 Drawer(마일스톤 타임라인, 필드 그룹, 변경 이력)', L7:'수동 오더 추가 · Current Status 업데이트(편집자 진입 시 하루 1회 자동 점검 팝업, 규칙 3·5·7, 제외 선택 후 즉시 반영, 배지로 재열기) · 엑셀 내보내기',
-  S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박 + 미배정 열 = Vessel 없이 ETA From TDD만 있는 오더, 10/27 #14)', S2:'선박별 현황(Vessel·단계·대수·총중량(kg, Key-in, 11/3 #9)·B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC Arrival Date). 선박 단위 입력은 해당 선박 차량의 차량 마스터 열에 반영·Vehicle_History 기록. TSC 입고일은 예정(선박 단위) 저장 후 배지 클릭으로 확정 → 차량 마스터 반영 + In Transit → Bonded Stock. ETA 불일치 카드·탭·표시는 제외. 제목 아래 공지란(자유 입력 한 칸, 편집 모드에서 입력 즉시 저장 → 대시보드 입항 예정 선박에 표시, 11/9)',
+  S1:'KPI 3종(운송중·당월/익월 입항 예정) + 월별 입항 예정(엑셀 Arrival Schedule 피벗: 구분 > 차종 > 모델 × 월 > 선박 + 미배정 열 = Vessel 없이 ETA From TDD만 있는 오더, 10/27 #14)', S2:'선박별 현황(Vessel·단계·대수·총중량(kg, Key-in, 11/3 #9)·B/L·Shipping·Pl.arrival·ETA 선사·ATA·TSC Arrival Date). 선박 단위 입력은 해당 선박 차량의 차량 마스터 열에 반영·Vehicle_History 기록. TSC 입고일은 예정(선박 단위) 저장 후 배지 클릭으로 확정 → 차량 마스터 반영 + In Transit → Bonded Stock. ETA 불일치 카드·탭·표시는 제외. 제목 아래 공지란(자유 입력 한 칸, 편집 모드에서 입력 즉시 저장, 11/9 · 11/10: 선적·입항에만 표시)',
   K1:'상단 탭(TSC 재고 = Bonded + OH Stock 월말 마감 / 현재 및 미래 재고현황 = Ordered(Fixed) ~ OH Stock 현재 기준만, 10/27 #15 · 10/29 #7) → 기준월 선택(최근 5개월 월말 마감 + 현재) → TSC 재고: 요약 카드(Total Stock + 연식 MY24~28 대수·비율) · 현재 및 미래: 여정 지도(5구역 원 + 장소 띠·항구 세로선, 연식 구분 없음 · 10/29 #3) → 연식 범례 → 모델별 구역 현황(모델 × 5구역 연식 막대) → 상태 × 연식 히트맵 (10/29 #8~#10) → 연식 범례', K2:'By Vehicle(차종별 스택 바, 길이=대수) → By Model(차종 섹션 안 모델별 스택 바) → 마감 리포트 HTML·Excel 내보내기',
   A1:'4단계 흐름 + 드롭존', A2:'파일 검증 결과(헤더 32개, 중복 0, 날짜/금액 변환, FIN 형식)', A3:'변경점(신규/변경/제외/변동없음) 체크 반영', A4:'반영 이력(AFAB_Uploads)', A5:'매핑 요약(32열)',
   P1:'연도·차종 선택, 판매계획 입력 모드(Editor), 범례(실적/확정/계획)', P2:'모델 그룹(묶음 키 = Vehicle | Model | Type | Axle | Cab | Cab Gen | Wheelbase | PTO | Emission, 11/9) 접기, 행 = Production/Arrival/Sales/OH Stock/In Transit/재고월수, 기준월 열 강조', P3:'전체 합계 + Fixed Order', P4:'계획 확정·시나리오(2차)·Kufri Excel',
@@ -117,8 +117,8 @@ const I18N = {
   '기본':'Basic', '일정':'Schedule', '선적':'Shipping', '통관':'Customs', '사양':'Spec', '메모':'Memo',
   '입력':'Input', '자동':'Auto', 'AFAB/입력':'AFAB/Input', '선적·입항':'Shipping·Arrival', '오더 생성':'Create Order', 'AFAB 수정 가능':'AFAB Editable',
   '(빈 값)':'(blank)', '(공란)':'(blank)', '전체':'All',
-  '공지 없음':'No notice', '공지 저장':'Notice saved', '접안·하역 안내 · 첫 주문·인증 필요차 · AFAB 미반영 변동 등':'Berthing/unloading · first-order/certification vehicles · changes not yet in AFAB', '선박별 현황 공지란에 저장 · 대시보드 입항 예정 선박에 표시':'Saved to the vessel status notice · shown under Arriving Vessels on the dashboard', '공지는 편집 모드에서 입력 → 대시보드 입항 예정 선박에 표시.':'Notice is entered in edit mode → shown under Arriving Vessels on the dashboard.', // 11/9 결의 #4
-  'Code1 · Code2 · BM · Type · Model 검색':'Search Code1 · Code2 · BM · Type · Model', '검색·필터·정렬은 보기 모드에서만 · 표시된 행만 저장 대상':'Search · filter · sort in view mode only · only displayed rows are saved', 'Y':'Y', 'N':'N', // 11/9 결의 #5
+  '공지 없음':'No notice', '공지 저장':'Notice saved', '접안·하역 안내 · 첫 주문·인증 필요차 · AFAB 미반영 변동 등':'Berthing/unloading · first-order/certification vehicles · changes not yet in AFAB', '선박별 현황 공지란에 저장':'Saved to the vessel status notice', '공지는 편집 모드에서 입력.':'Notice is entered in edit mode.', // 11/9 결의 #4 · 11/10 리뷰 #1: 대시보드 표시 삭제
+  'BM · Type · Model 검색':'Search BM · Type · Model', '검색·필터·정렬은 보기 모드에서만 · 표시된 행만 저장 대상':'Search · filter · sort in view mode only · only displayed rows are saved', 'Y':'Y', 'N':'N', // 11/9 결의 #5
   '변경 이력은 Original PM·Spec·MY·BM만 기록됩니다.':'Only Original PM · Spec · MY · BM are written to the change history.', // 11/9 결의 #1
   // 차량 상세 Drawer
   '파생·상태':'Derived · Status', '저장하지 않고 계산':'Calculated, not stored', '(VIN 10번째 자리)':'(VIN 10th digit)', 'AFAB 금일 존재':'In AFAB Today',
@@ -346,7 +346,7 @@ function openVehicle(comm){
     if(c.key==='current_status') inner = stagePill(val);
     else if(c.key==='order_note') inner = editable? '<textarea rows="3" data-f="order_note"></textarea>' : ''; // 10/30 리뷰 #7: 6줄 칸 → 11/9 결의 #2: 3줄 · 값은 openDrawer 뒤 DOM에서 대입(규칙 2) · Viewer는 .v.note 텍스트
     else if(c.key==='option_remarks' && editable) inner = '<textarea rows="3" data-f="option_remarks"></textarea>'; // 11/4: Option Note 4줄 칸 → 11/9 결의 #2: 3줄 · 값은 openDrawer 뒤 DOM에서 대입(규칙 2)
-    else if(c.key==='co' && editable) inner = `<select data-f="co"><option value="">${tx('(빈칸)')}</option>${CO_VALUES.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}</select>`; // 11/8: C/O 선택 · 11/9 결의 #3: 값 Requested / Received / 빈칸
+    else if(c.key==='co' && editable) inner = `<select data-f="co"><option value="">${tx('(빈칸)')}</option>${CO_VALUES.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}</select>`; // 11/8: C/O 선택 · 11/9 결의 #3: 값 Requested / Received / 빈칸 · 11/10 리뷰 #3: N/A 추가
     else if(srcEditable(c.src) && editable) inner = `<input type="${keyinInputType(c.key)}" value="${esc(val)}" data-f="${c.key}" placeholder="${c.key.includes('date')?'YYYY-MM-DD':''}">`; // 11/9: B1 Factory Order = 날짜 선택 · Sales Month = 월 선택
     else if(editable) inner = `<input value="${esc(c.num?num(val):val)}" readonly title="${esc((SRC_BADGE[c.src]||{}).tip||'')}">`;
     else inner = `<span>${esc(c.num?num(val):val)||'<span class="muted">—</span>'}</span>`;
@@ -388,20 +388,27 @@ function openVehicle(comm){
   const oa = q('textarea[data-f="option_remarks"]', body); if(oa) oa.value = v.option_remarks||''; // 11/4: Option Note 4줄 칸 값 대입
   const nt = q('.v.note', body); if(nt){ if(v.order_note) nt.textContent = v.order_note; else nt.replaceChildren(mk('span', {class:'muted'}, '—')); }
   const slot = q('.sw-slot', body); if(slot) slot.replaceWith(orderNoteSwitch(v, body));
-  const htb = q('.tbl tbody', body); if(htb) htb.prepend(...hist.map(histRowEl)); // 11/6: 변경 이력 행은 DOM으로 삽입(규칙 2) · 필드 칸 = 화면 라벨(histRowEl)
+  const htb = q('.tbl tbody', body); if(htb){ htb.prepend(...hist.map(histRowEl)); mergeHistDates(htb); } // 11/10 리뷰 #2: 같은 일시 연속 행은 일시 칸 병합 · 11/6: 변경 이력 행은 DOM으로 삽입(규칙 2) · 필드 칸 = 화면 라벨(histRowEl)
   // 11/4: '저장' = Order Note·Option Note 텍스트 즉시 저장 → 11/8: 드로어의 data-f 입력칸(출처 '입력' 필드 전부: Note 2열 · B1 Factory Order · Sales Month · Ref Commission No · C/O · Status override · reason)을 모아 Store.vehicles.saveInputs(출처 '입력') + 드로어 '변경 이력' 표 맨 위에 행 추가 + 그리드가 떠 있으면 다시 그림
   const sb = el('drvSave'); if(sb) sb.onclick = ()=>{
     const fields = {}; qa('[data-f]', body).forEach(x=>{ fields[x.dataset.f] = x.value.trim(); });
     for(const k in fields){ const err = validKeyin(k, fields[k]); if(err){ toast(err.title, err.msg); return; } } // 11/9: 셀 입력·일괄 입력과 같은 형식 검사
     const rows = Store.vehicles.saveInputs(comm, fields, state.user);
     if(!rows.length){ toast(tx('저장'), tx('변경된 입력 필드가 없습니다.')); return; }
-    const tb = q('.tbl tbody', body); if(tb) rows.forEach(r=>tb.prepend(histRowEl(r)));
+    const tb = q('.tbl tbody', body); if(tb){ rows.forEach(r=>tb.prepend(histRowEl(r))); mergeHistDates(tb); } // 11/10 리뷰 #2: 일시 칸 병합
     if(typeof renderGrid==='function' && el('gridwrap')) renderGrid();
     toast(tx('저장'), tx('{comm} · {fields} · Vehicle_History {n}건 기록 (출처: 입력)', {comm, fields: rows.map(r=>keyinLabel(r.field)).join(' · '), n:num(rows.length)}));
   };
 }
 // 드로어 '변경 이력' 표 행 (11/4): Vehicle_History 행 → tr (orderNoteSwitch의 행 구성과 동일) · 11/6: 필드 칸은 내부 키 대신 화면 라벨(COLUMNS label, 예: model → Model · type → Type · COLUMNS에 없는 키는 그대로)
 function histRowEl(r){ return mk('tr', null, mk('td', {class:'mono'}, r.changed_at), mk('td', {class:'mono'}, tx(keyinLabel(r.field))),mk('td', {class:'muted'}, r.old_value||'—'), mk('td', null, mk('b', null, r.new_value||'—')), mk('td', null, r.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, r.source))); }
+// 11/10 리뷰 #2: 드로어 '변경 이력' 표 일시 칸 병합 — 위에서부터 연속된 행의 일시(첫 칸 글자)가 같으면 첫 행 칸을 rowspan으로 늘리고 나머지 행의 일시 칸은 hidden(표 레이아웃에서 제외 · .tbl td는 display 미지정). 행이 추가될 때마다 다시 호출 — 먼저 전부 원복(rowSpan 1 · hidden 해제) 후 재계산. 사용자·출처 칸은 그대로
+function mergeHistDates(tb){
+  const tds = [...tb.rows].map(tr=>tr.cells[0]).filter(Boolean);
+  tds.forEach(td=>{ td.rowSpan = 1; td.hidden = false; });
+  let lead = null;
+  tds.forEach(td=>{ if(lead && lead.textContent===td.textContent){ lead.rowSpan += 1; td.hidden = true; } else lead = td; });
+}
 // Order Note On/Off 스위치 (10/30 리뷰 #7): On = 검토가 필요한 오더. Editor만 조작(그 외 비활성·상태만 표시), 바꾸면 즉시 저장(Store.vehicles.setOrderNoteFlag) + Vehicle_History 기록 + 드로어 '변경 이력' 표 맨 위에 행 추가
 function orderNoteSwitch(v, body){
   const txt = mk('span', {class:'sw-txt'}, v.order_note_flag?'On':'Off');
@@ -410,7 +417,7 @@ function orderNoteSwitch(v, body){
     txt.textContent = v.order_note_flag?'On':'Off';
     if(!row) return;
     const tb = q('.tbl tbody', body);
-    if(tb) tb.prepend(mk('tr', null, mk('td', {class:'mono'}, row.changed_at), mk('td', {class:'mono'}, tx(keyinLabel(row.field))),mk('td', {class:'muted'}, row.old_value), mk('td', null, mk('b', null, row.new_value)), mk('td', null, row.changed_by), mk('td', null, mk('span', {class:'pill neutral'}, row.source))));
+    if(tb){ tb.prepend(histRowEl(row)); mergeHistDates(tb); } // 11/10 리뷰 #2: 행 구성은 histRowEl 공용 + 일시 칸 병합
     toast(tx('Order Note 토글 저장'), tx('{comm} · {val} · Vehicle_History 기록 (출처: 입력)', {comm:v.commission_no, val:row.new_value}));
   }});
   return mk('label', {class:'sw', title: tx('On = 검토가 필요한 오더 · 토글 즉시 저장 + 변경 이력 기록')}, input, mk('span', {class:'sw-track'}), txt);

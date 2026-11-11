@@ -7,8 +7,8 @@ const LOGI_TABS = [['grid','Logistics'], ['afab','AFAB 업로드'], ['req','수�
 function logiTabsForRole(){ return isSales()? LOGI_TABS.filter(t=>t[0]==='req') : isEditor()? LOGI_TABS : LOGI_TABS.filter(t=>t[0]==='grid'); }
 
 const KEYIN_COLS = ['b1_factory_order','sales_month','ref_commission_no','co']; // 편집 모드 Key-in 대상 열 (10/15 No.5: Option은 Model_Master 자동 반영으로 제외) · 11/8: Ref Commission No·C/O 추가
-const RANGE_KEYIN_COLS = ['ref_commission_no','co']; // 11/8: Note 열처럼 끌어서 범위 선택 → Ctrl+C / Ctrl+V (팝업 없이 셀 안 직접 입력 · C/O는 Requested/Received/빈칸 선택)
-function normKeyin(key, val){ val = String(val==null? '' : val).trim(); return key==='co'? (CO_VALUES.find(x=>x.toLowerCase()===val.toLowerCase()) || '') : val; } // 11/8: C/O 값 제한 · 11/9 결의 #3: Requested / Received(대소문자 무시) 또는 빈칸만
+const RANGE_KEYIN_COLS = ['ref_commission_no','co']; // 11/8: Note 열처럼 끌어서 범위 선택 → Ctrl+C / Ctrl+V (팝업 없이 셀 안 직접 입력 · C/O는 Requested/Received/N/A/빈칸 선택)
+function normKeyin(key, val){ val = String(val==null? '' : val).trim(); return key==='co'? (CO_VALUES.find(x=>x.toLowerCase()===val.toLowerCase() || (x==='N/A' && /^na$/i.test(val))) || '') : val; } // 11/8: C/O 값 제한 · 11/9 결의 #3: Requested / Received(대소문자 무시) 또는 빈칸만 · 11/10 리뷰 #3: N/A(na도 허용) 추가
 const ORDER_HIST_KEYS = ['original_pm','spec','model_year','bm']; // 11/9 결의 #1: 오더 생성·오더 변경이 Vehicle_History에 남기는 필드 = Original PM · Spec(모델 정보, 9개 항목) · MY · BM — 그 외 모델 속성·상태·Order Update Date는 값만 대입(이력 없음)
 const NOTE_COLS = ['option_remarks','order_note']; // 11/3 리뷰 #6: 편집 모드에서 셀 클릭 → 여러 줄 팝업 편집창(openNoteEditor) · 그리드 셀 안 직접 입력(startCellEdit)은 KEYIN_COLS만
 // 열 필터 적용 열 (10/19 No.3): Current Status(단계 순) + 모델 관련 Vehicle~Emission(11/4: Option → Cab Gen·Wheelbase·PTO·Emission) + 날짜 열(연·월 단위) + Vessel · 모두 URL 파라미터(?vessel=…&type=…&ata=YYYY-MM)로 미리 설정 가능 (10/22)
@@ -340,7 +340,7 @@ function startCellEdit(td, comm, key){
   if(q('input', td)) return;
   const v = VEHICLE_BY_COMM[comm]; if(!v) return;
   const before = pendingVal(v, key)||'';
-  const inp = key==='co'? mk('select', {class:'cell-in'}, mk('option', {value:''}, tx('(빈칸)')), CO_VALUES.map(o=>mk('option', {value:o, selected: before===o||null}, o))) // 11/8: C/O 선택 · 11/9 결의 #3: Requested / Received / 빈칸
+  const inp = key==='co'? mk('select', {class:'cell-in'}, mk('option', {value:''}, tx('(빈칸)')), CO_VALUES.map(o=>mk('option', {value:o, selected: before===o||null}, o))) // 11/8: C/O 선택 · 11/9 결의 #3: Requested / Received / 빈칸 · 11/10 리뷰 #3: N/A 추가
     : mk('input', {class:'cell-in', type: keyinInputType(key), value: before}); // 11/9: B1 Factory Order = 날짜 선택 · Sales Month = 월 선택
   let done = false;
   const finish = save=>{ if(done) return; done = true;
@@ -418,7 +418,7 @@ document.addEventListener('paste', e=>{
   const sel = rangeComms(); if(!sel.length) return;
   const key = NOTE_RANGE.key;
   const targets = sel.map(c=>[c, cells[0]]); // 1칸 복사 → 선택 범위 전체 같은 값
-  targets.forEach(([c,val])=>stageChange(c, key, normKeyin(key, val), '수동/일괄')); // 11/8: C/O는 O/빈칸으로 정규화
+  targets.forEach(([c,val])=>stageChange(c, key, normKeyin(key, val), '수동/일괄')); // 11/8: C/O는 CO_VALUES/빈칸으로 정규화(normKeyin)
   NOTE_RANGE.set = new Set(targets.map(t=>t[0])); renderGrid();
   toast(tx('{col} 붙여넣기 {n}칸 (저장 대기)', {col:keyinLabel(key), n:num(targets.length)}), tx("'편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록"));
 });
@@ -515,7 +515,7 @@ function openModelChange(){
 function openBulkKeyin(){
   const vs = selectedVehicles(); if(!vs.length) return;
   const inputs = {};
-  const row = (key, ph)=>{ inputs[key] = key==='co'? mk('select', null, mk('option', {value:''}, tx('(변경 없음)')), CO_VALUES.map(o=>mk('option', {value:o}, o)), mk('option', {value:'-'}, tx('빈칸으로'))) : mk('input', {type: keyinInputType(key), placeholder: ph}); return mk('div', {class:'f'}, mk('div', {class:'k'}, keyinLabel(key)), mk('div', {class:'v'}, inputs[key])); }; // 11/8: C/O 선택 · 11/9 결의 #3: Requested / Received / 빈칸으로 · 11/9: B1 Factory Order 날짜 · Sales Month 월 선택
+  const row = (key, ph)=>{ inputs[key] = key==='co'? mk('select', null, mk('option', {value:''}, tx('(변경 없음)')), CO_VALUES.map(o=>mk('option', {value:o}, o)), mk('option', {value:'-'}, tx('빈칸으로'))) : mk('input', {type: keyinInputType(key), placeholder: ph}); return mk('div', {class:'f'}, mk('div', {class:'k'}, keyinLabel(key)), mk('div', {class:'v'}, inputs[key])); }; // 11/8: C/O 선택 · 11/9 결의 #3: Requested / Received / 빈칸으로 · 11/10 리뷰 #3: N/A 추가 · 11/9: B1 Factory Order 날짜 · Sales Month 월 선택
   const body = mk('div', null,
     mk('div', {class:'callout'}, `선택한 오더 ${num(vs.length)}건에 아래 값을 일괄 입력합니다. 비워 둔 열은 변경하지 않습니다. 변경 내용은 '편집 종료' 시 저장됩니다.`),
     mk('div', {class:'fields'}, row('b1_factory_order'), row('sales_month'), row('ref_commission_no',tx('예) 123456')), row('co'))); // 11/8: Ref Commission No·C/O 추가
@@ -525,7 +525,7 @@ function openBulkKeyin(){
     mk('button', {class:'btn', onclick: closeModal}, tx('취소')),
     mk('button', {class:'btn primary', onclick: ()=>{ const changed = KEYIN_COLS.filter(k=>inputs[k].value.trim()!=='');
       if(!changed.length){ toast('입력값 없음', '하나 이상의 열에 값을 입력하세요.'); return; }
-      const valOf = k=> k==='co'? (inputs.co.value==='-'? '' : inputs.co.value) : inputs[k].value.trim(); // 11/8: C/O 선택 '-' = 빈칸으로 · 11/9 결의 #3: 그 외는 선택값(Requested / Received)
+      const valOf = k=> k==='co'? (inputs.co.value==='-'? '' : inputs.co.value) : inputs[k].value.trim(); // 11/8: C/O 선택 '-' = 빈칸으로 · 11/9 결의 #3: 그 외는 선택값(Requested / Received / N/A)
       for(const k of changed){ const err = validKeyin(k, valOf(k)); if(err){ toast(err.title, err.msg); return; } } // 11/9: 형식 검사
       vs.forEach(v=>changed.forEach(k=>stageChange(v.commission_no, k, valOf(k), '수동/일괄'))); closeModal(); renderGrid();
       toast(`Key-in 일괄 입력 ${num(vs.length)}건 (저장 대기)`, `열: ${changed.map(keyinLabel).join(' · ')} · '편집 종료' 시 Vehicles 갱신 · Vehicle_History(출처: 수동/일괄) 기록`); }}, tx('적용')));

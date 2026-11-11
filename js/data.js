@@ -77,7 +77,7 @@ const VOYAGES = [ // 11/3 #9: gw = 총중량(kg) · 선적·입항 선박별 현
   {id:'V7', vessel:'Morning Lady',    carrier:'EUKOR', bl:'',               shipping:'2026-10-18', pl:'2026-12-03', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:8,  gw:''},
   {id:'V8', vessel:'Hoegh Tracer',    carrier:'MOL',   bl:'',               shipping:'2026-10-30', pl:'2026-12-14', eta_carrier:'',           eta_final:'',           tsc:'', tsc_status:'', kind:'scheduled', n:6,  gw:''},
 ];
-// 11/9: 선박별 현황 공지란 — 자유 입력 한 칸(선박별 항목 아님). 선적·입항 '선박별 현황' 제목 아래에서 편집 모드로 입력, 대시보드 '입항 예정 선박' 제목 아래에 3줄 표시(스크롤). 객체로 두어 Store.vesselNotice.set이 값을 바꾼다
+// 11/9: 선박별 현황 공지란 — 자유 입력 한 칸(선박별 항목 아님). 선적·입항 '선박별 현황' 제목 아래에서 편집 모드로 입력, 보기 모드 3줄 표시(스크롤). 11/10 리뷰 #1: 대시보드 표시 삭제. 객체로 두어 Store.vesselNotice.set이 값을 바꾼다
 const VESSEL_NOTICE = { text: 'Glovis Sunrise 10/14 평택항 동부두 접안 예정 · 하역 10/15 오전 · TSC 이송 10/16\nHoegh Trapper 첫 주문 모델 Arocs 3348K 2대 포함 — 인증 서류 선행 필요\nEukor Pioneer AFAB 미반영 변동 3대(10/4 B/L 정정) — 다음 업로드 시 반영 예정' };
 const VESSEL_PAST = ['Morning Christina','Glovis Symphony','Hoegh Target','MOL Endurance','Eukor Grace','Grand Pioneer','Hyundai Glory','Morning Laura','Glovis Passion','Hoegh Berlin'];
 
@@ -128,7 +128,7 @@ function makeVehicle(p, m){
   v.vehicle_value_eur = ri(95,165)*1000+ri(0,999); v.order_value_eur = Math.round(v.vehicle_value_eur*1.19);
   // 플래그 (10/19: sap_code · sap_b1_flag 필드 제거)
   if(ship && ship<=TODAY) { v.b1_factory_order=fmtD(addD(ship,-ri(3,10))); } // 11/9: B1 Factory Order는 날짜(YYYY-MM-DD, Shipping 3~10일 전) — 'B1-12345' 문자열에서 변경
-  { const r = rnd(); if(r<0.1) v.co = r<0.05? 'Requested' : 'Received'; } // 11/9: C/O 값 Requested / Received (난수 1회 호출은 그대로 → 이후 가짜값 불변)
+  { const r = rnd(); if(r<0.1) v.co = r<0.1/3? 'Requested' : r<0.2/3? 'Received' : 'N/A'; } // 11/9: C/O 값 Requested / Received · 11/10 리뷰 #3: N/A 추가 — 10% 안에서 3등분 (난수 1회 호출은 그대로 → 이후 가짜값 불변)
   // 메모
   if(rnd()<0.25) v.option_remarks=pick(['Retarder','Hydraulic kit','Retarder, PTO','Roof spoiler','Alcoa wheels']);
   { const on = MODEL_OPTION_NOTE[m.prefix]; if(on) v.option_remarks = v.option_remarks? on+', '+v.option_remarks : on; } // 11/4: 모델 Option 분리 — CTT·Export·Domestic은 Option Note로

@@ -3,3 +3,8 @@
    Thumbs.db
 # 브랜드 자산(MB Trucks 로고 PDF) — 저장소에 올리지 않는다
 docs/MB Trucks_combined-logo-*.pdf
+
+# 로컬 전용 문서 — 저장소에 올리지 않는다 (업무 규칙·개발 규칙)
+docs/
+CLAUDE.md
+README.md

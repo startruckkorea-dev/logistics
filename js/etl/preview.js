@@ -2,29 +2,69 @@
 // 시트별 사용 범위와 처음 몇 행을 엑셀과 같은 좌표(열 문자·행 번호)로 보여준다.
 import { mk } from "../lib/dom.js";
 import { columnLetter } from "./read.js";
+import { profileSheet, describeKinds } from "./profile.js";
 
 const PREVIEW_ROWS = 20;
 
 const isHidden = (sheet) => sheet.visibility && sheet.visibility !== "Visible";
 
-// 가공 규칙을 정할 때 붙여 쓰기 좋은 요약. 데이터 행은 넣지 않고 1행(헤더로 보이는 행)만 넣는다.
+const dataRowCount = (sheet) => Math.max(0, sheet.values.length - 1);
+
+// 가공 규칙을 정할 때 붙여 쓰기 좋은 요약.
+// 헤더(1행)와 열별 통계만 넣고 데이터 값은 넣지 않는다.
 function buildSummary(fileName, workbook) {
   const lines = [`파일: ${fileName}`];
   workbook.sheets.forEach((sheet, i) => {
+    const rows = dataRowCount(sheet);
     lines.push(
       "",
       `시트 ${i + 1}: ${sheet.name}${isHidden(sheet) ? " (숨김)" : ""}` +
-        ` | 범위 ${sheet.address} | ${sheet.rowCount}행 × ${sheet.columnCount}열`
+        ` | 범위 ${sheet.address} | 데이터 ${rows}행 × ${sheet.columnCount}열`,
+      "  열 | 헤더 | 채움 | 값 종류 | 고유값 | 최대 길이"
     );
-    const first = sheet.text[0] ?? [];
-    lines.push(
-      `  ${sheet.firstRow}행: ` +
-        first
-          .map((cell, c) => `${columnLetter(sheet.firstColumn + c)}=${cell}`)
-          .join(" | ")
-    );
+    for (const column of profileSheet(sheet)) {
+      lines.push(
+        "  " +
+          [
+            columnLetter(sheet.firstColumn + column.index),
+            column.header || "(헤더 없음)",
+            `${column.filled}/${rows}`,
+            describeKinds(column),
+            `${column.distinct}${column.unique ? " (전부 다름)" : ""}`,
+            column.maxLength,
+          ].join(" | ")
+      );
+    }
   });
   return lines.join("\n");
+}
+
+function profileTable(sheet) {
+  const rows = dataRowCount(sheet);
+  const head = mk(
+    "tr",
+    null,
+    ["열", "헤더", "채움", "값 종류", "고유값", "최대 길이"].map((label) =>
+      mk("th", null, label)
+    )
+  );
+  const body = profileSheet(sheet).map((column) =>
+    mk(
+      "tr",
+      null,
+      mk("th", { class: "rownum" }, columnLetter(sheet.firstColumn + column.index)),
+      mk("td", null, column.header || "(헤더 없음)"),
+      mk("td", null, `${column.filled}/${rows}`),
+      mk("td", null, describeKinds(column)),
+      mk("td", null, column.distinct, column.unique ? " (전부 다름)" : ""),
+      mk("td", null, column.maxLength)
+    )
+  );
+  return mk(
+    "div",
+    { class: "grid-wrap" },
+    mk("table", { class: "grid" }, mk("thead", null, head), mk("tbody", null, body))
+  );
 }
 
 function summaryBox(fileName, workbook) {
@@ -50,7 +90,7 @@ function summaryBox(fileName, workbook) {
     mk(
       "p",
       { class: "hint" },
-      "시트별 범위와 첫 행만 담은 요약입니다. 데이터 행은 들어 있지 않습니다."
+      "시트별 범위, 헤더, 열별 통계만 담은 요약입니다. 데이터 값은 들어 있지 않습니다."
     ),
     textarea,
     button
@@ -85,8 +125,11 @@ function sheetSection(sheet) {
     mk(
       "p",
       { class: "hint" },
-      `범위 ${sheet.address} · ${sheet.rowCount}행 × ${sheet.columnCount}열 · 처음 ${shown}행 표시`
+      `범위 ${sheet.address} · ${sheet.rowCount}행 × ${sheet.columnCount}열`
     ),
+    mk("h4", null, "열 프로필 (1행을 헤더로 봄)"),
+    profileTable(sheet),
+    mk("h4", null, `처음 ${shown}행`),
     mk(
       "div",
       { class: "grid-wrap" },

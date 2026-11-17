@@ -4,6 +4,19 @@ node_modules/
 # 환경 변수·비밀값 — 절대 커밋 금지
 .env
 .env.*
+*.pem
+*.pfx
+*.key
+
+# 데이터 파일·출력 폴더 — 업무 데이터는 저장소에 올리지 않는다
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.tsv
+out/
+export/
+tmp/
 
 # OS / 편집기
 .DS_Store

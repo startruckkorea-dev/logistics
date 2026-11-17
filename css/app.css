@@ -94,3 +94,8 @@ table.grid th.corner {
   left: 0;
   z-index: 1;
 }
+#preview h4 {
+  font-size: 13px;
+  margin: 14px 0 6px;
+  color: #57606a;
+}

@@ -1,6 +1,9 @@
 import { SHAREPOINT } from "./lib/config.js";
 import { initAuth, login, logout, getToken } from "./lib/auth.js";
 import { listFolder } from "./lib/sharepoint.js";
+import { mk } from "./lib/dom.js";
+import { readWorkbook, isExcelFile } from "./etl/read.js";
+import { renderPreview } from "./etl/preview.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,6 +23,28 @@ function formatSize(bytes) {
   return `${bytes.toFixed(i ? 1 : 0)} ${units[i]}`;
 }
 
+// 엑셀 파일을 읽어 시트 구조를 미리보기로 보여준다.
+async function showWorkbook(item, button) {
+  button.disabled = true;
+  setStatus(`${item.name} 을(를) 읽는 중...`);
+  try {
+    const workbook = await readWorkbook(item.id);
+    renderPreview($("preview"), item.name, workbook);
+    setStatus(`${item.name} — 시트 ${workbook.sheets.length}개를 읽었습니다.`);
+  } catch (err) {
+    console.error(err);
+    setStatus(`엑셀 읽기 실패: ${err.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function loadButton(item) {
+  const button = mk("button", { type: "button" }, "불러오기");
+  button.addEventListener("click", () => showWorkbook(item, button));
+  return button;
+}
+
 function renderItems(items) {
   const tbody = $("files").querySelector("tbody");
   tbody.replaceChildren(
@@ -34,6 +59,7 @@ function renderItems(items) {
         name,
         item.folder ? `항목 ${item.folder.childCount}개` : formatSize(item.size),
         new Date(item.lastModifiedDateTime).toLocaleString("ko-KR"),
+        isExcelFile(item) ? loadButton(item) : "",
       ];
       for (const cell of cells) {
         const td = document.createElement("td");

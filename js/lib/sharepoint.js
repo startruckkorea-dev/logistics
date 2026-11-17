@@ -4,7 +4,7 @@ import { gfetch, gfetchAll } from "./graph.js";
 // Graph는 사이트 경로와 항목 경로를 한 URL에 같이 쓰는 것을 허용하지 않아
 // 사이트의 기본 문서 라이브러리(drive) ID를 먼저 조회해 둔다.
 let driveIdPromise;
-function getDriveId() {
+export function getDriveId() {
   driveIdPromise ??= gfetch(
     `/sites/${SHAREPOINT.hostname}:${SHAREPOINT.sitePath}:/drive?$select=id`
   ).then((drive) => drive.id);

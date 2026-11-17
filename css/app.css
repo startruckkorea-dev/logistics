@@ -37,3 +37,60 @@ td {
   padding: 6px 8px;
   border-bottom: 1px solid #d0d7de;
 }
+
+/* 엑셀 미리보기 */
+#preview {
+  margin-top: 28px;
+}
+#preview h2 {
+  font-size: 17px;
+}
+#preview h3 {
+  font-size: 15px;
+  margin: 24px 0 4px;
+}
+.hint {
+  color: #656d76;
+  font-size: 12px;
+  margin: 4px 0 8px;
+}
+.summary {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  font-family: Consolas, "Malgun Gothic", monospace;
+  font-size: 12px;
+}
+.grid-wrap {
+  overflow: auto;
+  max-height: 420px;
+  border: 1px solid #d0d7de;
+}
+table.grid {
+  width: auto;
+  margin-top: 0;
+  font-size: 12px;
+}
+table.grid th,
+table.grid td {
+  padding: 3px 8px;
+  border: 1px solid #d8dee4;
+  white-space: nowrap;
+}
+table.grid th {
+  position: sticky;
+  top: 0;
+  background: #f6f8fa;
+  color: #57606a;
+  font-weight: 600;
+  text-align: center;
+}
+table.grid th.rownum {
+  left: 0;
+  top: auto;
+}
+table.grid th.corner {
+  left: 0;
+  z-index: 1;
+}

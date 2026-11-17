@@ -1,0 +1,50 @@
+// Entra ID 앱 등록 정보. SPA(public client)라 client secret 없이 PKCE로 인증한다.
+// clientId / tenantId 는 인증 요청 URL 에 그대로 실려 나가는 공개 식별자라 소스에 둔다.
+export const AUTH = {
+  clientId: "9b247088-5afb-4622-9c5e-b5f27142761d",
+  tenantId: "19cab1f5-21f4-44df-8ac6-96d6ca595203",
+  // 앱 등록의 SPA 리디렉션 URI와 정확히 일치해야 한다.
+  redirectUri: `${window.location.origin}/`,
+};
+
+// .default = 앱 등록에 이미 부여된 위임 권한만 요청 (추가 동의 팝업 없음)
+export const GRAPH_SCOPES = ["https://graph.microsoft.com/.default"];
+
+export const GRAPH = {
+  base: "https://graph.microsoft.com/v1.0",
+  // 429/503/504 재시도 횟수. Retry-After 를 존중한다.
+  maxRetry: 3,
+  // $batch 한 번에 담는 요청 수(Graph 상한 20)와 동시 실행 수.
+  // SharePoint 부하를 조절하는 레버는 동시성이다.
+  batchSize: 20,
+  concurrency: 4,
+};
+
+// 환경별 값. UAT 와 운영은 같은 코드를 쓰고 호스트명으로만 갈린다.
+// 운영 반영 = 파일 복사가 되도록, 환경에 따라 달라지는 값은 전부 여기에 둔다.
+const ENVIRONMENTS = {
+  uat: {
+    label: "UAT",
+    // 기본 문서 라이브러리(Shared Documents) 기준 경로
+    folderPath: "STK-Kufri_Data/write",
+  },
+  prod: {
+    label: "운영",
+    // 운영(kufri 레포)의 현재 설정값. 운영 반영 전에 다시 확인한다.
+    folderPath: "STK-Kufri_Data/read",
+  },
+};
+
+const PROD_HOSTS = ["kufri.startruckkorea.com"];
+
+// 운영 호스트가 아니면(UAT 도메인, localhost 등) 모두 UAT 로 본다.
+export const ENV_NAME = PROD_HOSTS.includes(window.location.hostname)
+  ? "prod"
+  : "uat";
+export const ENV = ENVIRONMENTS[ENV_NAME];
+
+export const SHAREPOINT = {
+  hostname: "startruckkorea.sharepoint.com",
+  sitePath: "/sites/STK-Kufri",
+  folderPath: ENV.folderPath,
+};

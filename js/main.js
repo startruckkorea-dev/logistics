@@ -1,6 +1,6 @@
-import { SHAREPOINT } from "./config.js";
-import { initAuth, login, logout, getToken } from "./auth.js";
-import { listFolder } from "./sharepoint.js";
+import { SHAREPOINT } from "./lib/config.js";
+import { initAuth, login, logout, getToken } from "./lib/auth.js";
+import { listFolder } from "./lib/sharepoint.js";
 
 const $ = (id) => document.getElementById(id);
 

@@ -1,0 +1,12 @@
+# 의존성 취약점·새 버전 알림 (개발 보안 체크리스트: 오픈소스 취약점 정기 점검).
+#
+# 이 사이트는 빌드가 없어서 package.json 은 "어떤 라이브러리의 어떤 버전을 쓰는지" 적어 두는
+# 관리대장 역할만 한다. Dependabot 이 올리는 PR 은 package.json 의 버전만 바꾸므로,
+# 병합할 때 js/vendor/ 의 실제 파일도 같은 버전으로 교체해야 한다.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

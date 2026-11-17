@@ -1,0 +1,20 @@
+# 의존성 — package.json 은 관리대장용이라 설치 결과물은 올리지 않는다
+node_modules/
+
+# 환경 변수·비밀값 — 절대 커밋 금지
+.env
+.env.*
+
+# OS / 편집기
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# Claude Code 개인 설정 (.claude/settings.json 과 hooks 는 공유하므로 커밋)
+.claude/settings.local.json
+
+# 문서 — 로컬에서만 관리한다. 공개 저장소에 올리지 않는다
+*.md
+docs/

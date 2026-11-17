@@ -47,13 +47,14 @@ function renderItems(items) {
 }
 
 async function showFolder() {
-  setStatus(`${SHAREPOINT.folderPath} 폴더를 불러오는 중...`);
+  const folderPath = SHAREPOINT.folders.modify;
+  setStatus(`${folderPath} 폴더를 불러오는 중...`);
   try {
     const { scopes } = await getToken();
     $("scopes").textContent = `부여된 권한: ${scopes.join(", ")}`;
-    const items = await listFolder();
+    const items = await listFolder(folderPath);
     renderItems(items);
-    setStatus(`${SHAREPOINT.sitePath}/${SHAREPOINT.folderPath} — 항목 ${items.length}개`);
+    setStatus(`${SHAREPOINT.sitePath}/${folderPath} — 항목 ${items.length}개`);
   } catch (err) {
     console.error(err);
     setStatus(`폴더 조회 실패: ${err.errorCode ?? ""} ${err.message}`, true);

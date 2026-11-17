@@ -18,7 +18,8 @@ async function folderPathOf(folderPath) {
 }
 
 // 폴더 바로 아래 항목(파일/하위 폴더)을 모두 가져온다.
-export async function listFolder(folderPath = SHAREPOINT.folderPath) {
+// folderPath 는 SHAREPOINT.folders 의 값 중 하나를 넘긴다.
+export async function listFolder(folderPath) {
   const { items } = await gfetchAll(
     `${await folderPathOf(folderPath)}/children` +
       "?$select=id,name,size,lastModifiedDateTime,webUrl,file,folder&$top=200",

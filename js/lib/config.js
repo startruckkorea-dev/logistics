@@ -23,15 +23,22 @@ export const GRAPH = {
 // 환경별 값. UAT 와 운영은 같은 코드를 쓰고 호스트명으로만 갈린다.
 // 운영 반영 = 파일 복사가 되도록, 환경에 따라 달라지는 값은 전부 여기에 둔다.
 const ENVIRONMENTS = {
+  // folders 의 경로는 기본 문서 라이브러리(Shared Documents) 기준이다.
+  //   modify       : 수정용. 전처리 원본 엑셀도 여기에 있다.
+  //   readDownload : 조회·내려받기용.
   uat: {
     label: "UAT",
-    // 기본 문서 라이브러리(Shared Documents) 기준 경로
-    folderPath: "STK-Kufri_Data/write",
+    folders: {
+      modify: "02._kufri_UAT/Internal/Modify",
+      readDownload: "02._kufri_UAT/Internal/R-Download",
+    },
   },
   prod: {
     label: "운영",
-    // 운영(kufri 레포)의 현재 설정값. 운영 반영 전에 다시 확인한다.
-    folderPath: "STK-Kufri_Data/read",
+    folders: {
+      modify: "01._kufri/Internal/Modify",
+      readDownload: "01._kufri/Internal/R-Download",
+    },
   },
 };
 
@@ -46,5 +53,5 @@ export const ENV = ENVIRONMENTS[ENV_NAME];
 export const SHAREPOINT = {
   hostname: "startruckkorea.sharepoint.com",
   sitePath: "/sites/STK-Kufri",
-  folderPath: ENV.folderPath,
+  folders: ENV.folders,
 };

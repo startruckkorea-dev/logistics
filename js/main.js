@@ -7,6 +7,7 @@ import { renderPreview } from "./etl/preview.js";
 import { validateRules } from "./etl/rules-validate.js";
 import { runRules, RuleError } from "./etl/transform.js";
 import { renderResult, renderRuleErrors, renderRunError } from "./etl/result.js";
+import { renderListCheck, loadSection } from "./etl/lists-ui.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -82,6 +83,7 @@ async function runPreprocess(item, button) {
     try {
       const result = runRules(workbook, rules);
       renderResult(container, info, item.name, result);
+      container.append(loadSection(result, setStatus));
       setStatus(`${item.name} — 전처리 결과 표 ${result.tables.length}개를 만들었습니다.`);
     } catch (err) {
       if (!(err instanceof RuleError)) throw err;
@@ -170,6 +172,8 @@ async function main() {
 
   $("user").textContent = `${account.name ?? ""} (${account.username})`;
   $("logout").hidden = false;
+  $("check-lists").addEventListener("click", () => renderListCheck($("lists"), setStatus));
+  $("tools").hidden = false;
   await showFolder();
 }
 

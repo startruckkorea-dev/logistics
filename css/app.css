@@ -41,11 +41,13 @@ td {
 
 /* 엑셀 미리보기 · 전처리 결과 */
 #preview,
-#result {
+#result,
+#lists {
   margin-top: 28px;
 }
 #preview h2,
-#result h2 {
+#result h2,
+#lists h2 {
   font-size: 17px;
 }
 #preview h3,
@@ -99,7 +101,8 @@ table.grid th.corner {
   z-index: 1;
 }
 #preview h4,
-#result h4 {
+#result h4,
+#lists h4 {
   font-size: 13px;
   margin: 14px 0 6px;
   color: #57606a;
@@ -108,4 +111,7 @@ table.grid th.corner {
 .actions {
   display: inline-flex;
   gap: 6px;
+}
+#tools {
+  margin: 12px 0 0;
 }

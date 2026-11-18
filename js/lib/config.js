@@ -27,6 +27,7 @@ const ENVIRONMENTS = {
   //   modify       : 수정용. 전처리 원본 엑셀도 여기에 있다.
   //   readDownload : 조회·내려받기용.
   // rulesFile 은 전처리 규칙 파일의 경로다. 규칙 내용은 저장소가 아니라 이 파일에만 둔다.
+  // lists 는 SharePoint List 이름이다. 환경 접두어(UAT_/PRD_)를 반드시 붙인다.
   uat: {
     label: "UAT",
     folders: {
@@ -34,6 +35,12 @@ const ENVIRONMENTS = {
       readDownload: "02._kufri_UAT/Internal/R-Download",
     },
     rulesFile: "02._kufri_UAT/Internal/Modify/preprocess-rules.uat.json",
+    lists: {
+      modelMaster: "UAT_ModelMaster",
+      colorMaster: "UAT_ColorMaster",
+      logisticsAfab: "UAT_Logistics_AFAB",
+      logisticsMain: "UAT_Logistics_Main",
+    },
   },
   prod: {
     label: "운영",
@@ -42,6 +49,12 @@ const ENVIRONMENTS = {
       readDownload: "01._kufri/Internal/R-Download",
     },
     rulesFile: "01._kufri/Internal/Modify/preprocess-rules.prod.json",
+    lists: {
+      modelMaster: "PRD_ModelMaster",
+      colorMaster: "PRD_ColorMaster",
+      logisticsAfab: "PRD_Logistics_AFAB",
+      logisticsMain: "PRD_Logistics_Main",
+    },
   },
 };
 
@@ -58,4 +71,6 @@ export const SHAREPOINT = {
   sitePath: "/sites/STK-Kufri",
   folders: ENV.folders,
   rulesFile: ENV.rulesFile,
+  // 같은 사이트를 UAT 와 운영이 같이 쓰므로 List 는 이름의 접두어로 구분한다.
+  lists: ENV.lists,
 };

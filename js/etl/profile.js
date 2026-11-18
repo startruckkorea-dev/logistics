@@ -10,22 +10,29 @@ const DATE_TEXT =
 export const cleanHeader = (text) =>
   String(text ?? "").replace(/\s+/g, " ").trim();
 
-function kindOf(value, text) {
+// 엑셀에 표시된 문자열이 날짜 모양인지
+export const isDateText = (text) => DATE_TEXT.test(String(text ?? "").trim());
+
+// 전처리 결과의 날짜("YYYY-MM-DD")·월("YYYY-MM") 문자열
+const ISO_DATE_OR_MONTH = /^\d{4}-\d{2}(-\d{2})?$/;
+
+function kindOf(value, text, isoDates) {
   if (value == null || value === "") return "empty";
   if (typeof value === "boolean") return "boolean";
-  if (typeof value === "number") {
-    return DATE_TEXT.test(String(text ?? "").trim()) ? "date" : "number";
-  }
+  if (typeof value === "number") return isDateText(text) ? "date" : "number";
+  if (isoDates && ISO_DATE_OR_MONTH.test(value)) return "date";
   return "text";
 }
 
 /**
  * @param {{values: any[][], text: string[][], columnCount: number}} sheet
+ * @param {{isoDates?: boolean}} options isoDates: "YYYY-MM-DD"·"YYYY-MM" 문자열을
+ *   날짜로 센다(전처리 결과용). 원본 엑셀에는 쓰지 않는다.
  * @returns {Array<{index, header, filled, empty, number, date, text, boolean,
  *                   distinct, maxLength, unique}>}
  *   unique = 빈칸이 없고 값이 모두 다르다(키 열로 쓸 수 있다)
  */
-export function profileSheet(sheet) {
+export function profileSheet(sheet, options = {}) {
   const headerRow = sheet.text[0] ?? [];
   const dataRows = sheet.values.length - 1;
 
@@ -37,7 +44,7 @@ export function profileSheet(sheet) {
     for (let r = 1; r < sheet.values.length; r++) {
       const value = sheet.values[r]?.[c];
       const text = sheet.text[r]?.[c];
-      const kind = kindOf(value, text);
+      const kind = kindOf(value, text, options.isoDates);
       counts[kind]++;
       if (kind === "empty") continue;
       seen.add(typeof value === "string" ? value.trim() : value);

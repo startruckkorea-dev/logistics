@@ -26,12 +26,14 @@ const ENVIRONMENTS = {
   // folders 의 경로는 기본 문서 라이브러리(Shared Documents) 기준이다.
   //   modify       : 수정용. 전처리 원본 엑셀도 여기에 있다.
   //   readDownload : 조회·내려받기용.
+  // rulesFile 은 전처리 규칙 파일의 경로다. 규칙 내용은 저장소가 아니라 이 파일에만 둔다.
   uat: {
     label: "UAT",
     folders: {
       modify: "02._kufri_UAT/Internal/Modify",
       readDownload: "02._kufri_UAT/Internal/R-Download",
     },
+    rulesFile: "02._kufri_UAT/Internal/Modify/preprocess-rules.uat.json",
   },
   prod: {
     label: "운영",
@@ -39,6 +41,7 @@ const ENVIRONMENTS = {
       modify: "01._kufri/Internal/Modify",
       readDownload: "01._kufri/Internal/R-Download",
     },
+    rulesFile: "01._kufri/Internal/Modify/preprocess-rules.prod.json",
   },
 };
 
@@ -54,4 +57,5 @@ export const SHAREPOINT = {
   hostname: "startruckkorea.sharepoint.com",
   sitePath: "/sites/STK-Kufri",
   folders: ENV.folders,
+  rulesFile: ENV.rulesFile,
 };

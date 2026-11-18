@@ -17,6 +17,43 @@ async function folderPathOf(folderPath) {
   return path ? `/drives/${driveId}/root:/${path}:` : `/drives/${driveId}/root`;
 }
 
+/**
+ * 문서 라이브러리의 텍스트 파일을 읽는다.
+ * @param {string} filePath 기본 문서 라이브러리 기준 경로
+ * @returns {Promise<{name: string, lastModified: string, version: string, text: string}>}
+ *   version 은 SharePoint 버전 번호("3.0" 등). 조회에 실패하면 "".
+ */
+export async function readTextFile(filePath) {
+  const driveId = await getDriveId();
+  const path = filePath.split("/").map(encodeURIComponent).join("/");
+  const item = await gfetch(
+    `/drives/${driveId}/root:/${path}` +
+      "?$select=id,name,lastModifiedDateTime,@microsoft.graph.downloadUrl",
+    { name: "readTextFile.item" }
+  );
+  const downloadUrl = item["@microsoft.graph.downloadUrl"];
+  if (!downloadUrl) throw new Error("파일을 내려받을 주소를 받지 못했습니다.");
+
+  // downloadUrl 은 짧은 시간만 유효한 사전 인증 주소다. Authorization 헤더를 붙이지 않는다.
+  const res = await fetch(downloadUrl);
+  if (!res.ok) throw new Error(`파일 내려받기 실패 (${res.status})`);
+  const text = await res.text();
+
+  // 버전 번호는 표시용이다. 조회에 실패해도 파일 읽기는 성공으로 본다.
+  let version = "";
+  try {
+    const versions = await gfetch(
+      `/drives/${driveId}/items/${item.id}/versions?$select=id&$top=1`,
+      { name: "readTextFile.versions" }
+    );
+    version = versions.value?.[0]?.id ?? "";
+  } catch {
+    version = "";
+  }
+
+  return { name: item.name, lastModified: item.lastModifiedDateTime, version, text };
+}
+
 // 폴더 바로 아래 항목(파일/하위 폴더)을 모두 가져온다.
 // folderPath 는 SHAREPOINT.folders 의 값 중 하나를 넘긴다.
 export async function listFolder(folderPath) {

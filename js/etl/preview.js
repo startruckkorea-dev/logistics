@@ -39,8 +39,11 @@ function buildSummary(fileName, workbook) {
   return lines.join("\n");
 }
 
-function profileTable(sheet) {
+// options.isoDates : profileSheet 에 그대로 넘긴다(전처리 결과용).
+// options.label    : 첫 칸에 적을 열 표시. 기본은 엑셀 열 문자.
+export function profileTable(sheet, options = {}) {
   const rows = dataRowCount(sheet);
+  const label = options.label ?? ((index) => columnLetter(sheet.firstColumn + index));
   const head = mk(
     "tr",
     null,
@@ -48,11 +51,11 @@ function profileTable(sheet) {
       mk("th", null, label)
     )
   );
-  const body = profileSheet(sheet).map((column) =>
+  const body = profileSheet(sheet, options).map((column) =>
     mk(
       "tr",
       null,
-      mk("th", { class: "rownum" }, columnLetter(sheet.firstColumn + column.index)),
+      mk("th", { class: "rownum" }, label(column.index)),
       mk("td", null, column.header || "(헤더 없음)"),
       mk("td", null, `${column.filled}/${rows}`),
       mk("td", null, describeKinds(column)),
@@ -67,11 +70,19 @@ function profileTable(sheet) {
   );
 }
 
-function summaryBox(fileName, workbook) {
+const summaryBox = (fileName, workbook) =>
+  copyBox(
+    buildSummary(fileName, workbook),
+    "시트별 범위, 헤더, 열별 통계만 담은 요약입니다. 데이터 값은 들어 있지 않습니다.",
+    "엑셀 구조 요약"
+  );
+
+// 복사용 요약 상자. text 에는 데이터 값을 넣지 않는다.
+export function copyBox(text, hint, ariaLabel) {
   const textarea = mk(
     "textarea",
-    { class: "summary", readonly: true, rows: "8", "aria-label": "엑셀 구조 요약" },
-    buildSummary(fileName, workbook)
+    { class: "summary", readonly: true, rows: "8", "aria-label": ariaLabel },
+    text
   );
   const button = mk("button", { type: "button" }, "구조 요약 복사");
   button.addEventListener("click", async () => {
@@ -87,11 +98,7 @@ function summaryBox(fileName, workbook) {
   return mk(
     "div",
     { class: "summary-box" },
-    mk(
-      "p",
-      { class: "hint" },
-      "시트별 범위, 헤더, 열별 통계만 담은 요약입니다. 데이터 값은 들어 있지 않습니다."
-    ),
+    mk("p", { class: "hint" }, hint),
     textarea,
     button
   );

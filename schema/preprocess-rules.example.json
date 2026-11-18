@@ -1,0 +1,163 @@
+{
+  "$schema": "./preprocess-rules.schema.json",
+  "schemaVersion": 1,
+  "environment": "uat",
+  "description": "형식을 보여주는 예시. 시트 이름, 열, 값은 모두 가짜다. 실제 규칙 파일은 저장소에 올리지 않는다.",
+  "baseDate": "2000-01-01",
+  "sheets": [
+    {
+      "sheet": "SampleMaster",
+      "headerRow": 1,
+      "expectHeaders": { "A": "Sample Code" },
+      "rules": [
+        { "id": "m-trim", "type": "trim", "columns": "*" },
+        { "id": "m-code-text", "type": "toText", "columns": ["A"], "source": "displayed" },
+        { "id": "m-lower", "type": "changeCase", "columns": ["C"], "case": "lower" },
+        { "id": "m-flag", "type": "toBoolean", "columns": ["D"], "trueValues": ["Y"], "emptyAs": false }
+      ]
+    },
+    {
+      "sheet": "SampleSheet",
+      "headerRow": 1,
+      "expectHeaders": { "A": "Sample Id", "B": "Sample Status" },
+      "rules": [
+        { "id": "drop-unused", "type": "dropColumns", "columns": ["Y", "Z"] },
+        { "id": "trim-all", "type": "trim", "columns": "*", "collapseSpaces": false },
+        { "id": "id-text", "type": "toText", "columns": ["A"], "source": "displayed" },
+        {
+          "id": "drop-no-id",
+          "type": "dropRows",
+          "where": { "all": [{ "column": "A", "op": "empty" }] }
+        },
+        { "id": "empty-marks", "type": "toEmpty", "columns": ["C", "D"], "values": ["-", "FAKE_NONE"], "excelErrors": true },
+        {
+          "id": "status-map",
+          "type": "replace",
+          "columns": ["B"],
+          "map": { "fake old": "FAKE_NEW", "fake-old-2": "FAKE_NEW" },
+          "ignoreCase": true,
+          "unmapped": "keep"
+        },
+        { "id": "new-columns", "type": "addColumn", "names": ["@note", "@flag", "@due", "@lead_days", "@calc", "@label"] },
+        {
+          "id": "move-note",
+          "type": "transfer",
+          "from": "E",
+          "to": "@note",
+          "mode": "move",
+          "onConflict": "skip",
+          "where": {
+            "all": [
+              { "column": "E", "op": "notEmpty" },
+              { "column": "E", "op": "notMatches", "value": "^FAKE[A-Za-z0-9]+$" }
+            ]
+          }
+        },
+        {
+          "id": "flag-has-code",
+          "type": "set",
+          "columns": ["@flag"],
+          "value": "FAKE_FLAG",
+          "where": { "all": [{ "column": "E", "op": "notEmpty" }] }
+        },
+        {
+          "id": "append-options",
+          "type": "append",
+          "from": "F",
+          "to": "G",
+          "separator": ", ",
+          "splitBy": ",",
+          "excludeValues": ["FAKE_SKIP"],
+          "excludePatterns": ["^FAKE_PREFIX", "FAKE_SUFFIX$"],
+          "ignoreCase": true
+        },
+        {
+          "id": "append-memo",
+          "type": "append",
+          "from": "H",
+          "to": "G",
+          "separator": ", ",
+          "removeWords": ["FAKE_WORD"]
+        },
+        {
+          "id": "from-master",
+          "type": "lookup",
+          "key": "X",
+          "sheet": "SampleMaster",
+          "targetKey": "A",
+          "fill": [
+            { "from": "B", "to": "I" },
+            { "from": "C", "to": "@label" },
+            { "from": "E", "to": "@lead_days" }
+          ],
+          "onMissing": "empty",
+          "onSourceEmpty": "empty"
+        },
+        { "id": "must-have-master", "type": "mustExistIn", "column": "X", "sheet": "SampleMaster", "targetColumn": "A", "onMissing": "keep" },
+        { "id": "dates", "type": "toDate", "columns": ["J", "K"], "formats": ["yyyyMMdd", "dd.MM.yyyy"], "onInvalid": "keep" },
+        { "id": "months", "type": "toDate", "columns": ["L"], "formats": ["MMMM-yy", "MMM-yy"], "precision": "month", "onInvalid": "keep" },
+        { "id": "amount", "type": "toNumber", "columns": ["M"], "onInvalid": "keep" },
+        { "id": "due-date", "type": "dateAdd", "from": "J", "to": "@due", "days": 30 },
+        {
+          "id": "clear-late",
+          "type": "set",
+          "columns": ["K"],
+          "value": null,
+          "where": {
+            "any": [
+              { "column": "B", "op": "notIn", "values": ["FAKE_DONE", "FAKE_CLOSED"] },
+              { "column": "J", "op": "after", "value": "baseDate" }
+            ]
+          }
+        },
+        { "id": "unique-id", "type": "dedupe", "column": "A", "keep": "error" },
+        {
+          "id": "derive-status",
+          "type": "deriveStatus",
+          "columns": {
+            "status": "B",
+            "shipping": "K",
+            "vessel": "N",
+            "pm": "L",
+            "changeability": "J",
+            "orderNote": "@note",
+            "cancelFlag": "@flag"
+          },
+          "sourceStatus": "FAKE_OPEN",
+          "dummyMarker": "FAKE_MARK",
+          "dummyExclude": "FAKE_EXCEPT"
+        },
+        {
+          "id": "derive-shipping-calc",
+          "type": "deriveShippingCalc",
+          "columns": { "status": "B", "pm": "L", "shipping": "K", "leadDays": "@lead_days", "target": "@calc" }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "sample_master",
+      "sheet": "SampleMaster",
+      "key": "A",
+      "columns": [
+        { "from": "A", "name": "sample_code" },
+        { "from": "B", "name": "sample_group" },
+        { "from": "C", "name": "sample_label" }
+      ]
+    },
+    {
+      "name": "sample_main",
+      "sheet": "SampleSheet",
+      "key": "A",
+      "columns": [
+        { "from": "A", "name": "sample_id" },
+        { "from": "B", "name": "status" },
+        { "from": "J", "name": "sample_date" },
+        { "from": "@note", "name": "note" },
+        { "from": "@due", "name": "due_date" },
+        { "from": "@calc", "name": "calc_date" }
+      ]
+    }
+  ]
+}

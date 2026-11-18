@@ -18,7 +18,8 @@ button {
   padding: 6px 14px;
   cursor: pointer;
 }
-#status.error {
+#status.error,
+p.error {
   color: #b3261e;
 }
 #scopes {
@@ -38,14 +39,17 @@ td {
   border-bottom: 1px solid #d0d7de;
 }
 
-/* 엑셀 미리보기 */
-#preview {
+/* 엑셀 미리보기 · 전처리 결과 */
+#preview,
+#result {
   margin-top: 28px;
 }
-#preview h2 {
+#preview h2,
+#result h2 {
   font-size: 17px;
 }
-#preview h3 {
+#preview h3,
+#result h3 {
   font-size: 15px;
   margin: 24px 0 4px;
 }
@@ -94,8 +98,14 @@ table.grid th.corner {
   left: 0;
   z-index: 1;
 }
-#preview h4 {
+#preview h4,
+#result h4 {
   font-size: 13px;
   margin: 14px 0 6px;
   color: #57606a;
+}
+
+.actions {
+  display: inline-flex;
+  gap: 6px;
 }

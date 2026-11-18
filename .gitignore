@@ -18,6 +18,11 @@ out/
 export/
 tmp/
 
+# 전처리 규칙 파일 — 실제 규칙은 SharePoint 에만 둔다. 스키마와 가짜 값 예시만 올린다
+preprocess-rules.*.json
+!schema/preprocess-rules.schema.json
+!schema/preprocess-rules.example.json
+
 # OS / 편집기
 .DS_Store
 Thumbs.db

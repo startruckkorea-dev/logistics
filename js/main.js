@@ -1,9 +1,12 @@
-import { SHAREPOINT } from "./lib/config.js";
+import { SHAREPOINT, ENV, ENV_NAME } from "./lib/config.js";
 import { initAuth, login, logout, getToken } from "./lib/auth.js";
-import { listFolder } from "./lib/sharepoint.js";
+import { listFolder, readTextFile } from "./lib/sharepoint.js";
 import { mk } from "./lib/dom.js";
 import { readWorkbook, isExcelFile } from "./etl/read.js";
 import { renderPreview } from "./etl/preview.js";
+import { validateRules } from "./etl/rules-validate.js";
+import { runRules, RuleError } from "./etl/transform.js";
+import { renderResult, renderRuleErrors, renderRunError } from "./etl/result.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -45,6 +48,64 @@ function loadButton(item) {
   return button;
 }
 
+// 규칙 파일을 읽어 엑셀에 적용하고 결과를 보여준다. List 에는 쓰지 않는다.
+async function runPreprocess(item, button) {
+  button.disabled = true;
+  const container = $("result");
+  try {
+    setStatus(`규칙 파일(${SHAREPOINT.rulesFile})을 읽는 중...`);
+    const file = await readTextFile(SHAREPOINT.rulesFile);
+    const info = { ...file, envLabel: ENV.label };
+
+    let rules;
+    try {
+      rules = JSON.parse(file.text);
+    } catch {
+      // JSON.parse 의 오류 문구에는 파일 내용 일부가 섞일 수 있어 그대로 보여주지 않는다.
+      renderRuleErrors(container, info, [
+        { where: "파일", item: "전체", message: "JSON 형식이 아닙니다(쉼표·따옴표·괄호를 확인하세요)" },
+      ]);
+      setStatus("규칙 파일을 읽을 수 없습니다.", true);
+      return;
+    }
+
+    const errors = validateRules(rules, ENV_NAME);
+    if (errors.length) {
+      renderRuleErrors(container, info, errors);
+      setStatus(`규칙 파일 형식 오류 ${errors.length}건`, true);
+      return;
+    }
+
+    setStatus(`${item.name} 을(를) 읽는 중...`);
+    const workbook = await readWorkbook(item.id);
+
+    try {
+      const result = runRules(workbook, rules);
+      renderResult(container, info, item.name, result);
+      setStatus(`${item.name} — 전처리 결과 표 ${result.tables.length}개를 만들었습니다.`);
+    } catch (err) {
+      if (!(err instanceof RuleError)) throw err;
+      renderRunError(container, info, err);
+      setStatus("전처리를 중단했습니다.", true);
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus(`전처리 실패: ${err.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function preprocessButton(item) {
+  const button = mk("button", { type: "button" }, "전처리");
+  button.addEventListener("click", () => runPreprocess(item, button));
+  return button;
+}
+
+function excelCell(item) {
+  return mk("span", { class: "actions" }, loadButton(item), preprocessButton(item));
+}
+
 function renderItems(items) {
   const tbody = $("files").querySelector("tbody");
   tbody.replaceChildren(
@@ -59,7 +120,7 @@ function renderItems(items) {
         name,
         item.folder ? `항목 ${item.folder.childCount}개` : formatSize(item.size),
         new Date(item.lastModifiedDateTime).toLocaleString("ko-KR"),
-        isExcelFile(item) ? loadButton(item) : "",
+        isExcelFile(item) ? excelCell(item) : "",
       ];
       for (const cell of cells) {
         const td = document.createElement("td");

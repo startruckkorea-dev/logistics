@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "preprocess-rules.schema.json",
+  "title": "전처리 규칙 파일",
+  "description": "엑셀 원본을 가공해 결과 표를 만드는 규칙. 실제 규칙 파일은 SharePoint 에만 두고 저장소에 올리지 않는다. 실행 시 검사는 js/etl 의 검사 코드가 하며, 이 스키마는 문서와 편집기 검사용이다.",
+  "type": "object",
+  "required": ["schemaVersion", "environment", "sheets", "outputs"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "environment": {
+      "enum": ["uat", "prod"],
+      "description": "접속한 환경과 다르면 실행을 거부한다."
+    },
+    "description": { "type": "string" },
+    "baseDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "날짜 비교와 상태 판정의 기준일. 비우면 실행한 날을 쓴다. 결과 요약에 표시된다."
+    },
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "description": "적힌 순서대로 처리한다. lookup 이 참조하는 시트를 먼저 적는다.",
+      "items": { "$ref": "#/$defs/sheet" }
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/output" }
+    }
+  },
+
+  "$defs": {
+    "excelColumn": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,3}$",
+      "description": "원본 엑셀의 열 문자. 앞 규칙에서 열을 삭제해도 밀리지 않는다."
+    },
+    "newColumn": {
+      "type": "string",
+      "pattern": "^@[a-z][a-z0-9_]*$",
+      "description": "addColumn 으로 만든 새 열."
+    },
+    "column": {
+      "anyOf": [{ "$ref": "#/$defs/excelColumn" }, { "$ref": "#/$defs/newColumn" }]
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/column" }
+    },
+    "columnsOrAll": {
+      "anyOf": [{ "const": "*" }, { "$ref": "#/$defs/columns" }]
+    },
+    "scalar": { "type": ["string", "number", "boolean"] },
+    "onInvalid": {
+      "enum": ["empty", "keep", "error"],
+      "description": "변환할 수 없는 값의 처리."
+    },
+
+    "condition": {
+      "type": "object",
+      "required": ["column", "op"],
+      "additionalProperties": false,
+      "properties": {
+        "column": { "$ref": "#/$defs/column" },
+        "op": {
+          "enum": [
+            "empty", "notEmpty",
+            "equals", "notEquals",
+            "in", "notIn",
+            "kind",
+            "matches", "notMatches",
+            "before", "onOrBefore", "after", "onOrAfter"
+          ],
+          "description": "kind: value 는 text|number|date. matches: value 는 정규식. 날짜 비교: value 는 YYYY-MM-DD 또는 \"baseDate\"."
+        },
+        "value": { "$ref": "#/$defs/scalar" },
+        "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/scalar" } },
+        "ignoreCase": { "type": "boolean", "default": false }
+      }
+    },
+    "where": {
+      "type": "object",
+      "description": "행 조건. all 은 모두 만족, any 는 하나라도 만족. 규칙이 실행되는 시점의 값으로 판정한다.",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "all": { "$ref": "#/$defs/whereItems" },
+        "any": { "$ref": "#/$defs/whereItems" }
+      }
+    },
+    "whereItems": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "anyOf": [{ "$ref": "#/$defs/condition" }, { "$ref": "#/$defs/where" }] }
+    },
+
+    "sheet": {
+      "type": "object",
+      "required": ["sheet", "headerRow", "rules"],
+      "additionalProperties": false,
+      "properties": {
+        "sheet": { "type": "string", "minLength": 1 },
+        "headerRow": { "type": "integer", "minimum": 1 },
+        "expectHeaders": {
+          "type": "object",
+          "description": "열 문자 → 기대하는 헤더. 다르면 실행을 중단한다(열이 밀렸는지 검사).",
+          "propertyNames": { "pattern": "^[A-Z]{1,3}$" },
+          "additionalProperties": { "type": "string" }
+        },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } }
+      }
+    },
+
+    "output": {
+      "type": "object",
+      "required": ["name", "sheet", "key", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "sheet": { "type": "string", "minLength": 1 },
+        "key": { "$ref": "#/$defs/column" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "description": "결과에 넣을 열과 새 이름. 여기에 없는 열은 결과에 나가지 않는다.",
+          "items": {
+            "type": "object",
+            "required": ["from", "name"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "$ref": "#/$defs/column" },
+              "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+            }
+          }
+        }
+      }
+    },
+
+    "ruleBase": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "파일 안에서 유일해야 한다. 오류 표시와 환경 간 비교의 기준."
+        },
+        "type": { "type": "string" },
+        "note": { "type": "string" },
+        "where": { "$ref": "#/$defs/where" }
+      }
+    },
+
+    "rule": {
+      "oneOf": [
+        { "$ref": "#/$defs/dropColumns" },
+        { "$ref": "#/$defs/dropRows" },
+        { "$ref": "#/$defs/trim" },
+        { "$ref": "#/$defs/toEmpty" },
+        { "$ref": "#/$defs/replace" },
+        { "$ref": "#/$defs/toText" },
+        { "$ref": "#/$defs/toNumber" },
+        { "$ref": "#/$defs/toDate" },
+        { "$ref": "#/$defs/toBoolean" },
+        { "$ref": "#/$defs/changeCase" },
+        { "$ref": "#/$defs/set" },
+        { "$ref": "#/$defs/addColumn" },
+        { "$ref": "#/$defs/transfer" },
+        { "$ref": "#/$defs/append" },
+        { "$ref": "#/$defs/dateAdd" },
+        { "$ref": "#/$defs/lookup" },
+        { "$ref": "#/$defs/dedupe" },
+        { "$ref": "#/$defs/mustExistIn" },
+        { "$ref": "#/$defs/deriveStatus" },
+        { "$ref": "#/$defs/deriveShippingCalc" }
+      ]
+    },
+
+    "dropColumns": {
+      "description": "열 삭제. where 를 붙일 수 없다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns"],
+      "not": { "required": ["where"] },
+      "properties": { "type": { "const": "dropColumns" }, "columns": { "$ref": "#/$defs/columns" } },
+      "unevaluatedProperties": false
+    },
+    "dropRows": {
+      "description": "where 에 맞는 행 삭제.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["where"],
+      "properties": { "type": { "const": "dropRows" } },
+      "unevaluatedProperties": false
+    },
+    "trim": {
+      "description": "앞뒤 공백 제거. collapseSpaces 면 줄바꿈·연속 공백을 한 칸으로 줄인다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns"],
+      "properties": {
+        "type": { "const": "trim" },
+        "columns": { "$ref": "#/$defs/columnsOrAll" },
+        "collapseSpaces": { "type": "boolean", "default": false }
+      },
+      "unevaluatedProperties": false
+    },
+    "toEmpty": {
+      "description": "지정한 표기를 빈 값으로 바꾼다. excelErrors 면 #N/A 같은 엑셀 오류 값도 비운다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns"],
+      "anyOf": [{ "required": ["values"] }, { "required": ["excelErrors"] }],
+      "properties": {
+        "type": { "const": "toEmpty" },
+        "columns": { "$ref": "#/$defs/columnsOrAll" },
+        "values": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/scalar" } },
+        "excelErrors": { "type": "boolean", "default": false },
+        "ignoreCase": { "type": "boolean", "default": false }
+      },
+      "unevaluatedProperties": false
+    },
+    "replace": {
+      "description": "대응표로 값을 바꾼다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns", "map"],
+      "properties": {
+        "type": { "const": "replace" },
+        "columns": { "$ref": "#/$defs/columns" },
+        "map": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/scalar" } },
+        "ignoreCase": { "type": "boolean", "default": false },
+        "unmapped": { "enum": ["keep", "empty", "error"], "default": "keep" }
+      },
+      "unevaluatedProperties": false
+    },
+    "toText": {
+      "description": "문자로 고정한다. displayed 는 엑셀에 보이는 글자, raw 는 원시 값.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns"],
+      "properties": {
+        "type": { "const": "toText" },
+        "columns": { "$ref": "#/$defs/columns" },
+        "source": { "enum": ["displayed", "raw"], "default": "displayed" }
+      },
+      "unevaluatedProperties": false
+    },
+    "toNumber": {
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns"],
+      "properties": {
+        "type": { "const": "toNumber" },
+        "columns": { "$ref": "#/$defs/columns" },
+        "onInvalid": { "$ref": "#/$defs/onInvalid", "default": "keep" }
+      },
+      "unevaluatedProperties": false
+    },
+    "toDate": {
+      "description": "날짜로 바꾼다. 결과는 day 면 YYYY-MM-DD, month 면 YYYY-MM 문자. 엑셀 날짜 값은 항상 변환되고, 문자·숫자는 formats 에 맞을 때만 변환된다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns"],
+      "properties": {
+        "type": { "const": "toDate" },
+        "columns": { "$ref": "#/$defs/columns" },
+        "formats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["yyyyMMdd", "yyyy-MM-dd", "dd.MM.yyyy", "MMMM-yy", "MMM-yy"] }
+        },
+        "precision": { "enum": ["day", "month"], "default": "day" },
+        "onInvalid": { "$ref": "#/$defs/onInvalid", "default": "keep" }
+      },
+      "unevaluatedProperties": false
+    },
+    "toBoolean": {
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns", "trueValues"],
+      "properties": {
+        "type": { "const": "toBoolean" },
+        "columns": { "$ref": "#/$defs/columns" },
+        "trueValues": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/scalar" } },
+        "falseValues": { "type": "array", "items": { "$ref": "#/$defs/scalar" } },
+        "emptyAs": { "type": "boolean", "description": "빈칸을 참/거짓 중 무엇으로 볼지. 없으면 빈칸으로 둔다." },
+        "onInvalid": { "$ref": "#/$defs/onInvalid", "default": "keep" }
+      },
+      "unevaluatedProperties": false
+    },
+    "changeCase": {
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns", "case"],
+      "properties": {
+        "type": { "const": "changeCase" },
+        "columns": { "$ref": "#/$defs/columns" },
+        "case": { "enum": ["lower", "upper"] }
+      },
+      "unevaluatedProperties": false
+    },
+    "set": {
+      "description": "where 에 맞는 행의 열에 값을 넣는다. value 가 null 이면 비운다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns", "value"],
+      "properties": {
+        "type": { "const": "set" },
+        "columns": { "$ref": "#/$defs/columns" },
+        "value": { "type": ["string", "number", "boolean", "null"] }
+      },
+      "unevaluatedProperties": false
+    },
+    "addColumn": {
+      "description": "빈 새 열을 만든다. 이후 규칙에서 @이름 으로 가리킨다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["names"],
+      "not": { "required": ["where"] },
+      "properties": {
+        "type": { "const": "addColumn" },
+        "names": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/newColumn" } }
+      },
+      "unevaluatedProperties": false
+    },
+    "transfer": {
+      "description": "한 열의 값을 다른 열로 옮기거나 복사한다. 원래 칸이 비어 있으면 아무것도 하지 않는다. skip 으로 건너뛴 행은 move 여도 원래 칸을 비우지 않는다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["from", "to", "mode", "onConflict"],
+      "properties": {
+        "type": { "const": "transfer" },
+        "from": { "$ref": "#/$defs/column" },
+        "to": { "$ref": "#/$defs/column" },
+        "mode": { "enum": ["move", "copy"] },
+        "onConflict": { "enum": ["overwrite", "skip", "error"], "description": "대상 칸에 값이 있을 때." }
+      },
+      "unevaluatedProperties": false
+    },
+    "append": {
+      "description": "한 열의 값을 다른 열 뒤에 이어 붙인다. splitBy 가 있으면 값을 나눠 조각마다 제외 여부를 본다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["from", "to", "separator"],
+      "properties": {
+        "type": { "const": "append" },
+        "from": { "$ref": "#/$defs/column" },
+        "to": { "$ref": "#/$defs/column" },
+        "separator": { "type": "string", "description": "기존 값과 붙일 값 사이, 그리고 조각 사이에 넣을 글자." },
+        "splitBy": { "type": "string", "minLength": 1 },
+        "excludeValues": { "type": "array", "items": { "type": "string" }, "description": "조각 전체가 이 값과 같으면 붙이지 않는다." },
+        "excludePatterns": { "type": "array", "items": { "type": "string" }, "description": "조각이 이 정규식에 맞으면 붙이지 않는다." },
+        "removeWords": { "type": "array", "items": { "type": "string" }, "description": "값 안에서 이 글자를 단어 단위로 지운 뒤 남은 내용을 붙인다." },
+        "ignoreCase": { "type": "boolean", "default": false }
+      },
+      "unevaluatedProperties": false
+    },
+    "dateAdd": {
+      "description": "날짜에 일수를 더해 다른 열에 넣는다. 원본이 날짜가 아니거나 일수가 없으면 비워 둔다. 원본이 YYYY-MM 이면 그 달 1일로 본다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["from", "to"],
+      "oneOf": [{ "required": ["days"] }, { "required": ["daysFrom"] }],
+      "properties": {
+        "type": { "const": "dateAdd" },
+        "from": { "$ref": "#/$defs/column" },
+        "to": { "$ref": "#/$defs/column" },
+        "days": { "type": "integer" },
+        "daysFrom": { "$ref": "#/$defs/column" }
+      },
+      "unevaluatedProperties": false
+    },
+    "lookup": {
+      "description": "키로 다른 시트의 행을 찾아 값을 가져온다. 참조 시트는 그 시트의 규칙이 적용된 뒤의 값이다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["key", "sheet", "targetKey", "fill", "onMissing", "onSourceEmpty"],
+      "properties": {
+        "type": { "const": "lookup" },
+        "key": { "$ref": "#/$defs/column" },
+        "sheet": { "type": "string", "minLength": 1 },
+        "targetKey": { "$ref": "#/$defs/column" },
+        "fill": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "$ref": "#/$defs/column", "description": "참조 시트의 열." },
+              "to": { "$ref": "#/$defs/column", "description": "이 시트의 열." }
+            }
+          }
+        },
+        "onMissing": { "enum": ["empty", "keep", "error"], "description": "키가 참조 시트에 없을 때." },
+        "onSourceEmpty": { "enum": ["empty", "keep"], "description": "참조 시트의 값이 빈칸일 때." }
+      },
+      "unevaluatedProperties": false
+    },
+    "dedupe": {
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["column", "keep"],
+      "properties": {
+        "type": { "const": "dedupe" },
+        "column": { "$ref": "#/$defs/column" },
+        "keep": { "enum": ["first", "last", "error"] }
+      },
+      "unevaluatedProperties": false
+    },
+    "mustExistIn": {
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["column", "sheet", "targetColumn", "onMissing"],
+      "properties": {
+        "type": { "const": "mustExistIn" },
+        "column": { "$ref": "#/$defs/column" },
+        "sheet": { "type": "string", "minLength": 1 },
+        "targetColumn": { "$ref": "#/$defs/column" },
+        "onMissing": { "enum": ["keep", "dropRow", "error"] }
+      },
+      "unevaluatedProperties": false
+    },
+    "deriveStatus": {
+      "description": "Current Status 판정. 조건은 앱과 같이 쓰는 코드(js/domain/status.js)에 있고, 여기에는 이관 전용 설정만 둔다. sourceStatus 인 행만 다시 판정한다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns", "sourceStatus"],
+      "properties": {
+        "type": { "const": "deriveStatus" },
+        "columns": {
+          "type": "object",
+          "required": ["status", "shipping", "vessel", "pm", "changeability"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "$ref": "#/$defs/column" },
+            "shipping": { "$ref": "#/$defs/column" },
+            "vessel": { "$ref": "#/$defs/column" },
+            "pm": { "$ref": "#/$defs/column" },
+            "changeability": { "$ref": "#/$defs/column" },
+            "orderNote": { "$ref": "#/$defs/column" },
+            "cancelFlag": { "$ref": "#/$defs/column", "description": "값이 있으면 취소로 판정하는 표시 열." }
+          }
+        },
+        "sourceStatus": { "type": "string", "minLength": 1 },
+        "dummyMarker": { "type": "string", "description": "orderNote 에 이 문구가 있으면 더미 오더 후보." },
+        "dummyExclude": { "type": "string", "description": "orderNote 에 이 문구가 있으면 더미 오더에서 제외." }
+      },
+      "unevaluatedProperties": false
+    },
+    "deriveShippingCalc": {
+      "description": "Shipping Calc 생성. 계산은 앱과 같이 쓰는 코드(js/domain)에 있다.",
+      "allOf": [{ "$ref": "#/$defs/ruleBase" }],
+      "required": ["columns"],
+      "properties": {
+        "type": { "const": "deriveShippingCalc" },
+        "columns": {
+          "type": "object",
+          "required": ["status", "pm", "shipping", "leadDays", "target"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "$ref": "#/$defs/column" },
+            "pm": { "$ref": "#/$defs/column" },
+            "shipping": { "$ref": "#/$defs/column" },
+            "leadDays": { "$ref": "#/$defs/column" },
+            "target": { "$ref": "#/$defs/column" }
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    }
+  }
+}

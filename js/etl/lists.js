@@ -63,7 +63,7 @@ const DEFINITIONS = [
       ),
       ...note("tires"),
       ...text("import_license", "ref_commission_no"),
-      ...note("option_remarks", "order_note"),
+      ...note("option_note", "order_note"),
       ...text("order_update_date", "b1_factory_order", "co", "sales_month", "model_classification"),
     ],
   },

@@ -26,12 +26,17 @@ async function folderPathOf(folderPath) {
 export async function readTextFile(filePath) {
   const driveId = await getDriveId();
   const path = filePath.split("/").map(encodeURIComponent).join("/");
-  const item = await gfetch(
-    `/drives/${driveId}/root:/${path}` +
-      "?$select=id,name,lastModifiedDateTime,@microsoft.graph.downloadUrl",
+  const itemPath = `/drives/${driveId}/root:/${path}`;
+  const urlOf = (it) => it["@microsoft.graph.downloadUrl"] ?? it["@content.downloadUrl"];
+
+  // 내려받기 주소는 $select 에 content.downloadUrl 로 적어야 온다.
+  // 그래도 오지 않는 테넌트가 있어, 그때만 $select 없이 한 번 더 조회한다.
+  let item = await gfetch(
+    `${itemPath}?$select=id,name,lastModifiedDateTime,content.downloadUrl`,
     { name: "readTextFile.item" }
   );
-  const downloadUrl = item["@microsoft.graph.downloadUrl"];
+  if (!urlOf(item)) item = await gfetch(itemPath, { name: "readTextFile.itemFull" });
+  const downloadUrl = urlOf(item);
   if (!downloadUrl) throw new Error("파일을 내려받을 주소를 받지 못했습니다.");
 
   // downloadUrl 은 짧은 시간만 유효한 사전 인증 주소다. Authorization 헤더를 붙이지 않는다.

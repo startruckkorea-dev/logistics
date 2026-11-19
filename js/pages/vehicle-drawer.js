@@ -1,9 +1,12 @@
-// 차량 상세 드로어(읽기 전용) — 마일스톤 타임라인, 기본 정보, 그룹별 필드.
+// 차량 상세 드로어 — 마일스톤 타임라인, 기본 정보, 그룹별 필드, 입력 열 저장, 변경 이력.
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
-import { openDrawer } from "../app/ui.js";
+import { openDrawer, closeDrawer, openModal, closeModal, toast } from "../app/ui.js";
 import { STATUS } from "../domain/status.js";
 import { COLUMNS, GROUPS, sourceBadge, stageClass } from "../data/columns.js";
+import {
+  INPUT_FIELDS, isDate, isMonth, changedFields, saveVehicleInputs, loadVehicleHistory,
+} from "../data/store.js";
 
 const isEmpty = (v) => v == null || v === "";
 const dash = () => mk("span", { class: "muted" }, "—");
@@ -95,11 +98,39 @@ function groupColumns(group) {
   return columns;
 }
 
+// C/O 열에서 고르는 값
+const CO_VALUES = ["Requested", "Received", "N/A"];
+
+const labelOf = (key) => COLUMNS.find((c) => c.key === key)?.label ?? key;
+
+// 입력 열의 입력칸. data-field 로 열 이름을 달아 두고 저장할 때 모아 읽는다.
+function inputControl(column, value) {
+  const text = isEmpty(value) ? "" : String(value);
+  let node;
+  if (column.memo) {
+    node = mk("textarea", { rows: 3 });
+  } else if (column.key === "co") {
+    // 목록에 없는 기존 값은 선택지에 더해 그대로 둘 수 있게 한다
+    const values = CO_VALUES.includes(text) || text === "" ? CO_VALUES : [...CO_VALUES, text];
+    node = mk("select", null, mk("option", { value: "" }, tx("(빈칸)")), values.map((x) => mk("option", { value: x }, x)));
+  } else {
+    // 날짜·월 선택 칸은 형식이 맞는 값만 담을 수 있다. 형식이 다른 기존 값은 글자 칸으로 보여준다.
+    let type = "text";
+    if (column.key === "b1_factory_order" && (text === "" || isDate(text))) type = "date";
+    if (column.key === "sales_month" && (text === "" || isMonth(text))) type = "month";
+    node = mk("input", { type });
+  }
+  node.value = text;
+  node.dataset.field = column.key;
+  return node;
+}
+
 function field(column, v) {
   const value = v[column.key];
   const badge = sourceBadge(column.src);
   let content;
   if (column.key === "current_status") content = mk("span", { class: `pill ${stageClass(value)}` }, value);
+  else if (INPUT_FIELDS.includes(column.key)) content = inputControl(column, value);
   else content = isEmpty(value) ? dash() : mk("span", null, String(value));
   return mk(
     "div",
@@ -117,8 +148,183 @@ function field(column, v) {
   );
 }
 
-/** 차량 1대의 상세를 드로어로 연다. */
-export function openVehicle(v) {
+// ISO 시각 → 이 PC 시간의 "YYYY-MM-DD HH:mm"
+function localTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const valueCell = (value, strong) =>
+  mk("td", { class: "long-text" }, isEmpty(value) ? dash() : strong ? mk("b", null, value) : value);
+
+// 저장 한 번이 여러 필드를 바꿨으면 일시·사용자·출처 칸을 묶어 보여준다.
+function historyTable(entries) {
+  const rows = entries.flatMap((entry) =>
+    entry.changes.map((change, i) => {
+      const span = (content, cls) =>
+        i === 0 ? mk("td", { class: cls, rowspan: entry.changes.length }, content) : null;
+      return mk(
+        "tr",
+        null,
+        span(localTime(entry.at), "mono"),
+        mk("td", null, tx(labelOf(change.field))),
+        valueCell(change.old, false),
+        valueCell(change.new, true),
+        span(entry.by),
+        span(mk("span", { class: "pill neutral" }, tx(entry.source)))
+      );
+    })
+  );
+  return mk(
+    "table",
+    { class: "tbl" },
+    mk("thead", null, mk("tr", null, ["일시", "필드", "이전", "이후", "사용자", "출처"].map((h) => mk("th", null, tx(h))))),
+    mk("tbody", null, rows)
+  );
+}
+
+function historyCard(v) {
+  const box = mk("div", { class: "muted small" }, tx("변경 이력을 불러오는 중..."));
+  loadVehicleHistory(v.commission_no)
+    .then((entries) => {
+      const shown = entries.filter((entry) => entry.changes.length);
+      if (shown.length) box.replaceWith(historyTable(shown));
+      else box.textContent = tx("변경 이력이 없습니다.");
+    })
+    .catch((err) => {
+      console.error(err);
+      box.textContent = `${tx("변경 이력을 불러오지 못했습니다.")} ${err.status ?? ""}`.trim();
+    });
+  return card(tx("변경 이력"), box);
+}
+
+const INVALID_MESSAGES = {
+  date: "YYYY-MM-DD 형식으로 입력하세요 (예: 2026-11-09).",
+  month: "YYYY-MM 형식으로 입력하세요 (예: 2026-11).",
+  too_long: "255자를 넘을 수 없습니다.",
+};
+
+// 드로어의 입력칸 값을 모은다
+function readInputs() {
+  const inputs = {};
+  for (const node of document.getElementById("drawer-body").querySelectorAll("[data-field]")) {
+    inputs[node.dataset.field] = node.value;
+  }
+  return inputs;
+}
+
+// 같은 필드를 다른 사람이 먼저 바꿨을 때. 저장된 값과 내 입력을 나란히 보여주고 고르게 한다.
+function showConflict(v, inputs, fields, options, closeAfter) {
+  const table = mk(
+    "table",
+    { class: "tbl" },
+    mk("thead", null, mk("tr", null, ["필드", "저장된 값", "내 입력"].map((h) => mk("th", null, tx(h))))),
+    mk(
+      "tbody",
+      null,
+      fields.map((f) => mk("tr", null, mk("td", null, tx(labelOf(f.field))), valueCell(f.theirs, false), valueCell(f.mine, true)))
+    )
+  );
+  const discard = () => {
+    closeModal();
+    options.onSaved?.();
+    openVehicle(v, options);
+  };
+  const overwrite = () => {
+    closeModal();
+    save(v, inputs, options, closeAfter);
+  };
+  openModal(
+    tx("다른 사용자가 먼저 수정했습니다"),
+    [mk("p", null, tx("불러온 뒤에 아래 필드가 바뀌었습니다. 내 입력으로 저장하면 저장된 값이 바뀝니다.")), table],
+    [
+      mk("button", { class: "btn", type: "button", onclick: discard }, tx("내 입력 버리기")),
+      mk("button", { class: "btn primary", type: "button", onclick: overwrite }, tx("내 입력으로 저장")),
+    ]
+  );
+}
+
+// 저장하지 않은 입력이 있는 채로 닫으려 할 때. 저장할지 묻는다.
+// @returns {boolean} 참이면 바로 닫아도 된다
+function confirmClose(v, options) {
+  const inputs = readInputs();
+  const changes = changedFields(v, inputs);
+  if (!changes.length) return true;
+  const keepEditing = () => closeModal();
+  const discard = () => {
+    closeModal();
+    closeDrawer(true);
+  };
+  const saveAndClose = () => {
+    closeModal();
+    save(v, inputs, options, true);
+  };
+  openModal(
+    tx("저장하지 않은 입력이 있습니다"),
+    mk("p", null, tx("입력한 내용을 저장할까요?"), " ", changes.map((c) => tx(labelOf(c.field))).join(" · ")),
+    [
+      mk("button", { class: "btn", type: "button", onclick: keepEditing }, tx("계속 편집")),
+      mk("button", { class: "btn", type: "button", onclick: discard }, tx("저장하지 않고 닫기")),
+      mk("button", { class: "btn primary", type: "button", onclick: saveAndClose }, tx("저장")),
+    ]
+  );
+  return false;
+}
+
+let saving = false;
+
+// closeAfter: 저장에 성공하면 드로어를 닫는다(닫기 확인 창에서 저장을 골랐을 때)
+async function save(v, inputs, options, closeAfter = false) {
+  if (saving) return;
+  saving = true;
+  const button = document.getElementById("drawer-save");
+  if (button) button.disabled = true;
+  try {
+    const result = await saveVehicleInputs(v, inputs);
+    if (result.status === "unchanged") {
+      toast(tx("저장"), tx("변경된 입력 필드가 없습니다."));
+    } else if (result.status === "invalid") {
+      toast(`${tx(labelOf(result.field))} ${tx("형식 오류")}`, tx(INVALID_MESSAGES[result.reason]));
+    } else if (result.status === "conflict") {
+      showConflict(v, inputs, result.fields, options, closeAfter);
+    } else if (result.status === "denied") {
+      toast(tx("저장 실패"), tx("편집 권한이 없습니다."));
+    } else if (result.status === "failed") {
+      toast(tx("저장 실패"), result.code);
+    } else {
+      toast(tx("저장"), `${v.commission_no} · ${result.changes.map((c) => tx(labelOf(c.field))).join(" · ")}`);
+      if (!result.historyOk) {
+        toast(tx("변경 이력 기록 실패"), tx("값은 저장되었습니다. 이력만 기록되지 않았습니다."));
+      }
+      options.onSaved?.();
+      if (closeAfter) {
+        closeDrawer(true);
+      } else {
+        // 저장된 값과 새 이력으로 다시 그린다. 보던 위치는 유지한다.
+        const body = document.getElementById("drawer-body");
+        const top = body.scrollTop;
+        openVehicle(v, options);
+        body.scrollTop = top;
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    toast(tx("저장 실패"), `${err.status ?? ""} ${err.message ?? ""}`.trim());
+  } finally {
+    saving = false;
+    const current = document.getElementById("drawer-save");
+    if (current) current.disabled = false;
+  }
+}
+
+/**
+ * 차량 1대의 상세를 드로어로 연다.
+ * @param {object} v 차량 행
+ * @param {{onSaved?: () => void}} [options] onSaved: 차량 행의 값이 바뀐 뒤(저장·충돌 반영) 부른다
+ */
+export function openVehicle(v, options = {}) {
   const head = mk(
     "div",
     null,
@@ -129,10 +335,21 @@ export function openVehicle(v) {
       [v.model_classification, v.vehicle, `VIN ${isEmpty(v.vin_no) ? tx("미부여") : v.vin_no}`]
         .filter((x) => !isEmpty(x))
         .join(" · ")
+    ),
+    mk(
+      "div",
+      { class: "btn-group drawer-actions" },
+      mk(
+        "button",
+        { class: "btn primary sm", type: "button", id: "drawer-save", onclick: () => save(v, readInputs(), options) },
+        tx("저장")
+      )
     )
   );
   const groups = GROUPS.filter((group) => group !== "기본").map((group) =>
     card(tx(group), mk("div", { class: "fields" }, groupColumns(group).map((column) => field(column, v))))
   );
-  openDrawer(head, [card(tx("마일스톤 타임라인"), timeline(v)), basicCard(v), ...groups]);
+  openDrawer(head, [card(tx("마일스톤 타임라인"), timeline(v)), basicCard(v), ...groups, historyCard(v)], {
+    beforeClose: () => confirmClose(v, options),
+  });
 }

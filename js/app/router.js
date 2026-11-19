@@ -54,7 +54,8 @@ export function route() {
   const { page, params } = parseHash();
   const id = MENU.some(([menuId]) => menuId === page) ? page : DEFAULT_PAGE;
   renderNav(id);
-  closeDrawer();
+  // 화면이 이미 바뀌었으므로 묻지 않고 닫는다
+  closeDrawer(true);
   closeModal();
   const root = document.getElementById("app");
   root.replaceChildren();

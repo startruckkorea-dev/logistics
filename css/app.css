@@ -159,3 +159,14 @@
 .admin #tools {
   margin: 12px 0 0;
 }
+
+/* ---- 차량 상세 드로어: 저장 버튼 줄 ---- */
+.drawer-actions {
+  margin-top: 8px;
+}
+
+/* ---- 변경 이력·충돌 표: 긴 글은 줄바꿈을 살린다 ---- */
+.tbl td.long-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

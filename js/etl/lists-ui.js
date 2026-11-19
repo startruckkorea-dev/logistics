@@ -6,7 +6,7 @@ import { ENV, ENV_NAME } from "../lib/config.js";
 import {
   listLists, listColumns, createList, addListColumn, readListItems, writeListItems,
 } from "../lib/splist.js";
-import { LISTS, listForTable } from "./lists.js";
+import { LISTS, APP_LISTS, listForTable } from "./lists.js";
 import { planLoad, compareColumns } from "./load-plan.js";
 
 // 운영에서 쓰기 전에 입력해야 하는 확인 문구
@@ -52,7 +52,7 @@ function prodConfirm() {
 async function inspect() {
   const existing = await listLists();
   const out = [];
-  for (const def of LISTS) {
+  for (const def of [...LISTS, ...APP_LISTS]) {
     const found = existing.find((l) => l.displayName === def.listName);
     if (!found) {
       out.push({ def, listId: null, diff: null });
@@ -112,7 +112,7 @@ export async function renderListCheck(container, setStatus) {
     );
   }
   if (!toCreate.length && !toExtend.length) {
-    setStatus(manual.length ? "List 는 있지만 정의와 다른 점이 있습니다." : "List 4개가 정의와 같습니다.");
+    setStatus(manual.length ? "List 는 있지만 정의와 다른 점이 있습니다." : `List ${inspection.length}개가 정의와 같습니다.`);
     return;
   }
 

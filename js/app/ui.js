@@ -30,14 +30,20 @@ export function closeModal() {
   document.body.classList.remove("modal-open");
 }
 
+// 드로어를 닫기 전에 묻는 함수. 거짓을 돌려주면 닫지 않는다.
+let drawerGuard = null;
+
 /**
  * @param {Node|string|Array} head
  * @param {Node|string|Array} body
+ * @param {{beforeClose?: () => boolean}} [options] beforeClose: 닫기 전에 부른다. 거짓이면 닫지 않는다
+ *   (저장하지 않은 입력을 확인할 때 쓴다. 확인이 끝나면 closeDrawer(true) 로 닫는다)
  */
-export function openDrawer(head, body) {
+export function openDrawer(head, body, options = {}) {
+  drawerGuard = options.beforeClose ?? null;
   $("drawer-head").replaceChildren(
     ...[head].flat(Infinity).filter((n) => n != null),
-    mk("button", { class: "x", type: "button", title: tx("닫기"), onclick: closeDrawer }, "×")
+    mk("button", { class: "x", type: "button", title: tx("닫기"), onclick: () => closeDrawer() }, "×")
   );
   const bodyEl = $("drawer-body");
   bodyEl.replaceChildren(...[body].flat(Infinity).filter((n) => n != null));
@@ -45,14 +51,18 @@ export function openDrawer(head, body) {
   document.body.classList.add("drawer-open");
 }
 
-export function closeDrawer() {
+/** @param {boolean} [force] 참이면 묻지 않고 닫는다 */
+export function closeDrawer(force = false) {
+  if (!document.body.classList.contains("drawer-open")) return;
+  if (!force && drawerGuard && !drawerGuard()) return;
+  drawerGuard = null;
   document.body.classList.remove("drawer-open");
 }
 
 /** 닫기 동작 연결. 앱 시작 때 한 번 부른다. */
 export function initUi() {
   $("modal-close").addEventListener("click", closeModal);
-  $("drawer-bg").addEventListener("click", closeDrawer);
+  $("drawer-bg").addEventListener("click", () => closeDrawer());
   $("modal-bg").addEventListener("click", (event) => {
     if (event.target === $("modal-bg")) closeModal();
   });
@@ -69,9 +79,9 @@ export function initUi() {
     tip.style.top = `${event.clientY + 12}px`;
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeDrawer();
-      closeModal();
-    }
+    if (event.key !== "Escape") return;
+    // 모달이 떠 있으면 모달만 닫는다(드로어의 닫기 확인 창이 바로 다시 뜨지 않게)
+    if (document.body.classList.contains("modal-open")) closeModal();
+    else closeDrawer();
   });
 }

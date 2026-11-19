@@ -100,14 +100,100 @@ export async function addListColumn(listId, column, def) {
 export async function readListItems(listId, fieldNames) {
   const { items } = await gfetchAll(
     `${await sitePath()}/lists/${listId}/items` +
-      `?$select=id&$expand=fields($select=${fieldNames.join(",")})&$top=500`,
+      `?$select=id,eTag&$expand=fields($select=${fieldNames.join(",")})&$top=500`,
     { name: "list.items" }
   );
-  return items.map((item) => ({ id: item.id, fields: item.fields ?? {} }));
+  return items.map((item) => ({ id: item.id, etag: etagOf(item), fields: item.fields ?? {} }));
+}
+
+// 항목의 버전 표시. 저장할 때 If-Match 로 돌려보내 그사이 바뀌었는지 확인한다.
+const etagOf = (obj) => obj?.["@odata.etag"] ?? obj?.eTag ?? null;
+
+/** 항목 하나를 다시 읽는다. @returns {Promise<{id, etag, fields}>} */
+export async function readListItem(listId, itemId, fieldNames) {
+  const item = await gfetch(
+    `${await sitePath()}/lists/${listId}/items/${itemId}` +
+      `?$select=id,eTag&$expand=fields($select=${fieldNames.join(",")})`,
+    { name: "list.item" }
+  );
+  return { id: item.id, etag: etagOf(item), fields: item.fields ?? {} };
+}
+
+// OData 문자열 값으로 그대로 넣어도 되는 글자만 허용한다(그 밖의 값은 조회하지 않는다).
+const SAFE_FILTER_VALUE = /^[A-Za-z0-9_.-]{1,64}$/;
+
+/**
+ * 한 열의 값이 같은 항목만 읽는다. 그 열에는 인덱스가 있어야 한다.
+ * 만든 사람과 시각(SharePoint 가 기록)을 같이 돌려준다.
+ * @returns {Promise<Array<{id, createdAt: string, createdBy: string, fields: object}>>}
+ */
+export async function readListItemsBy(listId, fieldNames, filterField, value) {
+  if (!SAFE_FILTER_VALUE.test(String(value))) throw new Error("조회할 수 없는 값입니다.");
+  const { items } = await gfetchAll(
+    `${await sitePath()}/lists/${listId}/items` +
+      `?$select=id,createdDateTime,createdBy&$expand=fields($select=${fieldNames.join(",")})` +
+      `&$filter=fields/${filterField} eq '${value}'&$top=500`,
+    { name: "list.itemsBy" }
+  );
+  return items.map((item) => ({
+    id: item.id,
+    createdAt: item.createdDateTime ?? "",
+    createdBy: item.createdBy?.user?.displayName ?? "",
+    fields: item.fields ?? {},
+  }));
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const RETRY_STATUS = [429, 503, 504];
+
+// 요청들을 $batch 묶음으로 보내고, 요청 순서대로 응답을 돌려준다.
+// 스로틀·일시 장애 응답은 Retry-After 만큼 기다렸다가 그 요청만 다시 보낸다.
+// 묶음 자체가 실패하면(네트워크 오류 등) 그 묶음의 요청은 status 0 으로 채운다.
+async function sendBatched(requests, onProgress) {
+  const responses = new Array(requests.length);
+  let done = 0;
+
+  const runChunk = async (indexes) => {
+    let pending = indexes;
+    try {
+      for (let attempt = 0; pending.length; attempt++) {
+        const answers = await gbatch(
+          pending.map((i) => ({ ...requests[i], id: i })),
+          "list.write"
+        );
+        const byId = new Map(answers.map((r) => [String(r.id), r]));
+        const retry = [];
+        let waitSeconds = 0;
+        for (const i of pending) {
+          const res = byId.get(String(i));
+          const status = res?.status ?? 0;
+          if (RETRY_STATUS.includes(status) && attempt < GRAPH.maxRetry) {
+            retry.push(i);
+            waitSeconds = Math.max(waitSeconds, Number(res.headers?.["Retry-After"]) || 2 ** attempt);
+          } else {
+            responses[i] = { status, code: res?.body?.error?.code ?? "unknown", body: res?.body ?? null };
+          }
+        }
+        pending = retry;
+        if (pending.length) await sleep(waitSeconds * 1000);
+      }
+    } catch (error) {
+      for (const i of pending) {
+        responses[i] = { status: error?.status ?? 0, code: error?.code ?? "request_failed", body: null };
+      }
+    }
+    done += indexes.length;
+    onProgress?.(done, requests.length);
+  };
+
+  await runPool(
+    chunk(requests.map((_, i) => i), GRAPH.batchSize).map((indexes) => () => runChunk(indexes)),
+    GRAPH.concurrency
+  );
+  return responses;
+}
+
+const isOk = (status) => status >= 200 && status < 300;
 
 /**
  * 항목 추가·변경을 $batch 로 실행한다. 부하는 동시성(GRAPH.concurrency)으로 조절한다.
@@ -119,45 +205,41 @@ const RETRY_STATUS = [429, 503, 504];
  */
 export async function writeListItems(listId, ops, onProgress) {
   const base = `${await sitePath()}/lists/${listId}/items`;
-  const toRequest = (op, id) =>
-    op.kind === "add"
-      ? { id, method: "POST", url: base, body: { fields: op.fields } }
-      : { id, method: "PATCH", url: `${base}/${op.id}/fields`, body: op.fields };
-
-  let ok = 0;
-  let done = 0;
-  const failed = [];
-
-  const runChunk = async (group) => {
-    let pending = group.map((op, i) => toRequest(op, i));
-    for (let attempt = 0; pending.length; attempt++) {
-      const responses = await gbatch(pending, "list.write");
-      const byId = new Map(responses.map((r) => [String(r.id), r]));
-      const retry = [];
-      let waitSeconds = 0;
-      for (const request of pending) {
-        const res = byId.get(String(request.id));
-        const status = res?.status ?? 0;
-        if (status >= 200 && status < 300) ok++;
-        else if (RETRY_STATUS.includes(status) && attempt < GRAPH.maxRetry) {
-          retry.push(request);
-          waitSeconds = Math.max(waitSeconds, Number(res.headers?.["Retry-After"]) || 2 ** attempt);
-        } else failed.push({ status, code: res?.body?.error?.code ?? "unknown" });
-      }
-      pending = retry;
-      if (pending.length) await sleep(waitSeconds * 1000);
-    }
-    done += group.length;
-    onProgress?.(done, ops.length);
-  };
-
-  const results = await runPool(
-    chunk(ops, GRAPH.batchSize).map((group) => () => runChunk(group)),
-    GRAPH.concurrency
+  const responses = await sendBatched(
+    ops.map((op) =>
+      op.kind === "add"
+        ? { method: "POST", url: base, body: { fields: op.fields } }
+        : { method: "PATCH", url: `${base}/${op.id}/fields`, body: op.fields }
+    ),
+    onProgress
   );
-  // 묶음 자체가 실패한 경우(네트워크 오류 등)
-  for (const r of results) {
-    if (!r.ok) failed.push({ status: r.error?.status ?? 0, code: r.error?.code ?? "request_failed" });
-  }
-  return { ok, failed };
+  const failed = responses
+    .filter((r) => !isOk(r.status))
+    .map((r) => ({ status: r.status, code: r.code }));
+  return { ok: responses.length - failed.length, failed };
+}
+
+/**
+ * 항목을 변경한다. 읽은 뒤 다른 사람이 바꾼 항목은 쓰지 않고 412 로 돌려준다.
+ * @param {string} listId
+ * @param {Array<{id: string, etag: string, fields: object}>} updates fields 는 바뀐 필드만
+ * @returns {Promise<Array<{status: number, code: string, etag: string|null}>>} updates 와 같은 순서.
+ *   etag 는 성공한 항목의 새 버전 표시.
+ */
+export async function updateListItems(listId, updates, onProgress) {
+  const base = `${await sitePath()}/lists/${listId}/items`;
+  const responses = await sendBatched(
+    updates.map((u) => ({
+      method: "PATCH",
+      url: `${base}/${u.id}/fields`,
+      headers: { "If-Match": u.etag },
+      body: u.fields,
+    })),
+    onProgress
+  );
+  return responses.map((r) => ({
+    status: r.status,
+    code: r.code,
+    etag: isOk(r.status) ? etagOf(r.body) : null,
+  }));
 }

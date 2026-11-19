@@ -35,8 +35,8 @@ async function read() {
   const afabKeys = new Set();
 
   const merge = (afabRow, mainRow) => {
-    const { _itemId: afabItemId, ...afabFields } = afabRow ?? {};
-    const { _itemId: mainItemId, ...mainFields } = mainRow ?? {};
+    const { _itemId: afabItemId, _etag: afabEtag, ...afabFields } = afabRow ?? {};
+    const { _itemId: mainItemId, _etag: mainEtag, ...mainFields } = mainRow ?? {};
     const model = modelByKey.get(mainFields.moma_no);
     return {
       ...mainFields,
@@ -46,6 +46,8 @@ async function read() {
       lead_months: model?.lead ?? "",
       // 저장할 때 어느 List 의 어느 항목인지 찾는 데 쓴다
       _items: { afab: afabItemId ?? null, main: mainItemId ?? null },
+      // 읽은 시점의 버전 표시. 저장할 때 그사이 다른 사람이 바꿨는지 확인한다
+      _etags: { afab: afabEtag ?? null, main: mainEtag ?? null },
     };
   };
 

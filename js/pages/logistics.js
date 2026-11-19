@@ -546,7 +546,7 @@ function buildScreen(root, meta) {
     const row = event.target.closest("tbody tr[data-comm]");
     if (row) {
       const vehicle = vehicles.find((v) => v.commission_no === row.dataset.comm);
-      if (vehicle) openVehicle(vehicle);
+      if (vehicle) openVehicle(vehicle, { onSaved: renderGrid });
       return;
     }
     // 정렬은 배지가 있는 둘째 줄에서만. 열 이름 줄은 눌러도 바뀌지 않는다.

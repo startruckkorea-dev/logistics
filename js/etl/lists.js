@@ -69,11 +69,29 @@ const DEFINITIONS = [
   },
 ];
 
-// 현재 환경의 List 이름을 붙인 정의
-export const LISTS = DEFINITIONS.map((def) => ({
+// 앱이 쓰면서 채우는 List. 전처리 결과를 적재하는 대상이 아니다.
+const APP_DEFINITIONS = [
+  {
+    // 변경 이력: 저장 1회 × 차량 1대 = 1행. 변경자와 시각은 SharePoint 의 만든 사람·만든 날짜를 쓴다.
+    //   batch_id: 같은 저장에서 나온 행을 묶는 값
+    //   source  : 변경 경로(입력 등)
+    //   changes : [{ field, old, new }] 를 JSON 으로
+    id: "vehicleHistory",
+    indexed: ["commission_no", "batch_id"],
+    columns: [...text("commission_no", "batch_id", "source"), ...note("changes")],
+  },
+];
+
+const withListName = (def) => ({
   ...def,
   indexed: def.indexed ?? [],
   listName: SHAREPOINT.lists[def.id],
-}));
+});
+
+// 현재 환경의 List 이름을 붙인 정의
+export const LISTS = DEFINITIONS.map(withListName);
+export const APP_LISTS = APP_DEFINITIONS.map(withListName);
+
+export const appList = (id) => APP_LISTS.find((def) => def.id === id);
 
 export const listForTable = (tableName) => LISTS.find((def) => def.table === tableName);

@@ -57,6 +57,10 @@
   line-height: 1.45;
   padding: 4px 0;
 }
+/* 마스터 · 설정의 검색창 */
+.st-search {
+  width: 260px;
+}
 .empty-msg {
   padding: 30px;
   text-align: center;

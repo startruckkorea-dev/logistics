@@ -12,6 +12,7 @@ import { logisticsPage } from "./pages/logistics.js";
 import { dashboardPage } from "./pages/dashboard.js";
 import { shippingPage } from "./pages/shipping.js";
 import { stockPage } from "./pages/stock.js";
+import { settingsPage } from "./pages/settings.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -84,6 +85,7 @@ async function main() {
   registerPage("logistics", logisticsPage);
   registerPage("shipping", shippingPage);
   registerPage("stock", stockPage);
+  registerPage("settings", settingsPage);
   registerPage("admin", adminPage);
   startRouter();
 }

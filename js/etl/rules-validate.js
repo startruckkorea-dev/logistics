@@ -149,6 +149,7 @@ const RULE_TYPES = {
       from: [check.column, true],
       to: [check.column, true],
       separator: [check.string, true],
+      position: [check.oneOf("after", "before")],
       splitBy: [check.nonEmptyString],
       excludeValues: [check.strings],
       excludePatterns: [check.regexes],

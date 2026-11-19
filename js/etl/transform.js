@@ -557,7 +557,8 @@ const RULES = {
       }
       const addition = kept.join(rule.separator);
       const current = str(row, to);
-      setCell(row, to, current ? current + rule.separator + addition : addition);
+      const parts2 = rule.position === "before" ? [addition, current] : [current, addition];
+      setCell(row, to, parts2.filter(Boolean).join(rule.separator));
       changed++;
     }
     return { changed, details };

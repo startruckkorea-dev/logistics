@@ -332,7 +332,7 @@
       "unevaluatedProperties": false
     },
     "append": {
-      "description": "한 열의 값을 다른 열 뒤에 이어 붙인다. splitBy 가 있으면 값을 나눠 조각마다 제외 여부를 본다.",
+      "description": "한 열의 값을 다른 열의 뒤(기본) 또는 앞에 이어 붙인다. splitBy 가 있으면 값을 나눠 조각마다 제외 여부를 본다.",
       "allOf": [{ "$ref": "#/$defs/ruleBase" }],
       "required": ["from", "to", "separator"],
       "properties": {
@@ -340,6 +340,7 @@
         "from": { "$ref": "#/$defs/column" },
         "to": { "$ref": "#/$defs/column" },
         "separator": { "type": "string", "description": "기존 값과 붙일 값 사이, 그리고 조각 사이에 넣을 글자." },
+        "position": { "enum": ["after", "before"], "default": "after", "description": "기존 값의 뒤(after) 또는 앞(before)에 붙인다." },
         "splitBy": { "type": "string", "minLength": 1 },
         "excludeValues": { "type": "array", "items": { "type": "string" }, "description": "조각 전체가 이 값과 같으면 붙이지 않는다." },
         "excludePatterns": { "type": "array", "items": { "type": "string" }, "description": "조각이 이 정규식에 맞으면 붙이지 않는다." },

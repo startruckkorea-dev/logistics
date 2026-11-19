@@ -238,6 +238,35 @@ const DICTIONARY = {
   "계속 편집": "Keep editing",
   "저장하지 않고 닫기": "Close without saving",
   "값은 저장되었습니다. 이력만 기록되지 않았습니다.": "The value was saved. Only the history entry failed.",
+  // 화면 설계의 사전에서 가져온 문구
+  "여러 줄 입력 가능 (Enter = 줄바꿈)": "Multi-line (Enter = new line)",
+  "저장 충돌 {n}건": "{n} save conflicts",
+  "남겨두기": "Keep pending",
+  "대상": "Target",
+  "편집 종료": "End Edit",
+  "편집": "Edit",
+  "편집 모드": "Edit Mode",
+  "· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록": "· {n} pending → saved with history on 'End Edit'",
+  // Logistics 편집 모드
+  "Enter = 줄바꿈 · Ctrl+Enter = 적용 · Esc = 취소": "Enter = new line · Ctrl+Enter = apply · Esc = cancel",
+  "충돌 {n}건": "{n} conflicts",
+  "형식 오류 {n}건": "{n} format errors",
+  "권한 없음 {n}건": "{n} without permission",
+  "실패 {n}건": "{n} failed",
+  "저장 {n}대 · 필드 {m}개": "Saved {n} vehicles · {m} fields",
+  "저장하지 못한 것": "Not saved",
+  "편집 내용 저장": "Save edits",
+  "{n}대 · 필드 {m}개를 저장합니다.": "Saving {m} fields on {n} vehicles.",
+  "클릭하여 입력 · 편집 종료 시 저장": "Click to edit · saved on End Edit",
+  "저장 중...": "Saving...",
+  "변경 취소": "Discard changes",
+  "저장하지 않고 편집을 끝냅니다": "Leave edit mode without saving",
+  "저장 대기 {n}건을 버리고 편집을 끝냅니다. 저장된 값은 바뀌지 않습니다.":
+    "Discards {n} pending changes and leaves edit mode. Saved values are not changed.",
+  "변경 버리기": "Discard",
+  "변경 내용을 저장하고 편집을 종료합니다": "Save changes and leave edit mode",
+  "입력 열을 셀에서 바로 고칩니다": "Edit input columns directly in the grid",
+  "입력 열: {cols} · 셀을 눌러 입력 (Note 는 여러 줄 창)": "Input columns: {cols} · click a cell to edit (notes open a multi-line box)",
 };
 
 /**

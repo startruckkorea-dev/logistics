@@ -1,5 +1,5 @@
-// Logistics 차량 마스터 — Commission No 기준 1행, 전체 열을 보여주는 그리드(읽기 전용).
-// 검색, 열 필터, 정렬, 50행 페이지, Commission No 열 고정, 바로가기.
+// Logistics 차량 마스터 — Commission No 기준 1행, 전체 열을 보여주는 그리드.
+// 검색, 열 필터, 정렬, 50행 페이지, Commission No 열 고정, 바로가기, 편집 모드(입력 열).
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { diffDays } from "../domain/dates.js";
@@ -9,6 +9,10 @@ import { loadVehicles } from "../data/vehicles.js";
 import { changeabilityDday } from "../data/derive.js";
 import { openVehicle } from "./vehicle-drawer.js";
 import {
+  edit, isEditableCell, isPending, shownRow, pendingCount, startCellEdit, openNoteEditor, closeNoteEditor,
+  finishEdit, cancelEdit,
+} from "./logistics-edit.js";
+import {
   COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, STAGE_ORDER,
   sourceBadge, stageClass,
 } from "../data/columns.js";
@@ -16,6 +20,7 @@ import {
 const PAGE_SIZE = 50;
 const MEMO_WIDTH = 220; // 긴 글 열(Tires · Option Note · Order Note)의 고정 너비(px). 넘치면 말줄임
 const WIDTH_SAMPLES = 5; // 열 너비를 잴 때 열마다 쓰는 가장 긴 값의 수
+const KEYIN_MIN_WIDTH = 130; // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
 const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다
 const SEARCH_HINT = "Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note";
 
@@ -151,11 +156,14 @@ function cellContent(column, v, terms, today) {
   }
 }
 
-function cellClass(column) {
+// v 를 넘기면 편집 모드 표시(입력할 수 있는 칸, 저장 대기 칸)를 더한다.
+function cellClass(column, v) {
   return [
     column.key === "commission_no" ? "sticky" : "",
     column.memo ? "memo" : "",
     column.key === "type" || column.key === "changeability_date" ? "dotcell" : "",
+    v && isEditableCell(column.key) ? "keyin" : "",
+    v && isPending(v, column.key) ? "pend" : "",
   ]
     .filter(Boolean)
     .join(" ") || null;
@@ -223,7 +231,8 @@ function measureColumnWidths() {
   els.grid.append(table);
   const widths = [...table.querySelectorAll("thead tr.fld th")].map((th, i) => {
     const width = Math.ceil(th.getBoundingClientRect().width) + 1;
-    return COLUMNS[i].memo ? MEMO_WIDTH : width;
+    if (COLUMNS[i].memo) return MEMO_WIDTH;
+    return COLUMNS[i].src === "입력" ? Math.max(width, KEYIN_MIN_WIDTH) : width;
   });
   table.remove();
   return widths;
@@ -241,7 +250,54 @@ function columnGroup() {
   );
 }
 
+// 칸 하나의 속성과 내용. 저장 대기 값이 있으면 그 값을 보여준다.
+function fillCell(td, column, v, terms, today) {
+  const shown = shownRow(v);
+  const value = shown[column.key];
+  td.className = cellClass(column, v) ?? "";
+  td.title = isEditableCell(column.key)
+    ? tx("클릭하여 입력 · 편집 종료 시 저장")
+    : column.memo && !isEmpty(value)
+      ? value
+      : "";
+  if (!td.title) td.removeAttribute("title");
+  td.replaceChildren(...cellContent(column, shown, terms, today).flat(Infinity).filter((n) => n != null));
+  return td;
+}
+
+// 편집 모드 표시줄과 편집 버튼
+function renderEditState() {
+  const { editButton, reloadButton, editbar } = els;
+  editButton.textContent = edit.saving ? tx("저장 중...") : edit.on ? tx("편집 종료") : tx("편집");
+  editButton.classList.toggle("primary", edit.on);
+  editButton.disabled = edit.saving;
+  editButton.title = edit.on ? tx("변경 내용을 저장하고 편집을 종료합니다") : tx("입력 열을 셀에서 바로 고칩니다");
+  // 편집 중에 다시 불러오면 저장 대기와 화면이 어긋난다
+  reloadButton.disabled = edit.on;
+  editbar.hidden = !edit.on;
+  if (!edit.on) return;
+  editbar.replaceChildren(
+    mk("b", null, tx("편집 모드")),
+    mk("span", { class: "muted small" }, tx("입력 열: {cols} · 셀을 눌러 입력 (Note 는 여러 줄 창)", {
+      cols: COLUMNS.filter((c) => c.src === "입력").map((c) => tx(c.label)).join(" · "),
+    })),
+    mk("span", { class: "muted small" }, tx("· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록", { n: num(pendingCount()) })),
+    mk(
+      "button",
+      {
+        class: "btn sm",
+        type: "button",
+        disabled: edit.saving,
+        title: tx("저장하지 않고 편집을 끝냅니다"),
+        onclick: () => cancelEdit({ render: renderGrid }),
+      },
+      tx("변경 취소")
+    )
+  );
+}
+
 function renderGrid() {
+  renderEditState();
   const rows = filteredRows();
   const terms = searchTerms();
   const today = baseDate();
@@ -272,13 +328,7 @@ function renderGrid() {
           mk(
             "tr",
             { "data-comm": v.commission_no },
-            COLUMNS.map((c) =>
-              mk(
-                "td",
-                { class: cellClass(c), "data-key": c.key, title: c.memo && !isEmpty(v[c.key]) ? v[c.key] : null },
-                cellContent(c, v, terms, today)
-              )
-            )
+            COLUMNS.map((c) => fillCell(mk("td", { "data-key": c.key }), c, v, terms, today))
           )
         )
       )
@@ -529,7 +579,27 @@ function buildScreen(root, meta) {
   const reload = mk("button", { class: "btn sm", type: "button" }, tx("새로 고침"));
   reload.addEventListener("click", () => load(root, true));
 
+  // 편집: 입력 열을 셀에서 고친다. 다시 누르면(편집 종료) 저장한다.
+  const editButton = mk("button", { class: "btn sm", type: "button" });
+  editButton.addEventListener("click", () => {
+    if (!edit.on) {
+      edit.on = true;
+      closeColumnFilter();
+      renderGrid();
+      return;
+    }
+    finishEdit(vehicles, {
+      render: renderGrid,
+      progress: (done, total) => {
+        editButton.textContent = `${tx("저장 중...")} ${num(done)}/${num(total)}`;
+      },
+    });
+  });
+
   els = {
+    editButton,
+    reloadButton: reload,
+    editbar: mk("div", { class: "editbar", hidden: true }),
     count: mk("span", { class: "muted small" }),
     grid: mk("div", { class: "grid-wrap" }),
     pager: mk("div", { class: "pager" }),
@@ -542,11 +612,25 @@ function buildScreen(root, meta) {
       openColumnFilter(filter, filter.dataset.filter);
       return;
     }
-    // 행 클릭: 차량 상세
+    // 행 클릭: 차량 상세. 편집 모드에서는 입력 열의 칸만 반응한다.
     const row = event.target.closest("tbody tr[data-comm]");
     if (row) {
       const vehicle = vehicles.find((v) => v.commission_no === row.dataset.comm);
-      if (vehicle) openVehicle(vehicle, { onSaved: renderGrid });
+      if (!vehicle) return;
+      if (!edit.on) {
+        openVehicle(vehicle, { onSaved: renderGrid });
+        return;
+      }
+      const td = event.target.closest("td[data-key]");
+      const column = td && COLUMNS.find((c) => c.key === td.dataset.key);
+      if (!column || !isEditableCell(column.key) || edit.saving) return;
+      // 입력이 끝나면 그 칸과 표시줄만 다시 그린다(표 전체를 다시 그리면 다음 칸 클릭이 끊긴다)
+      const repaint = () => {
+        fillCell(td, column, vehicle, searchTerms(), baseDate());
+        renderEditState();
+      };
+      if (column.memo) openNoteEditor(td, vehicle, column.key, repaint);
+      else startCellEdit(td, vehicle, column.key, repaint);
       return;
     }
     // 정렬은 배지가 있는 둘째 줄에서만. 열 이름 줄은 눌러도 바뀌지 않는다.
@@ -595,9 +679,10 @@ function buildScreen(root, meta) {
         "div",
         { class: "card-h" },
         mk("h2", null, tx("Logistics 차량 마스터")),
-        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, reload, els.count)
+        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, editButton, reload, els.count)
       ),
       mismatch,
+      els.editbar,
       jumps,
       els.grid,
       els.pager
@@ -636,8 +721,11 @@ async function load(root, refresh) {
   }
 }
 
-// 다른 화면으로 옮겨 가면 열려 있던 열 필터를 닫는다.
-window.addEventListener("hashchange", closeColumnFilter);
+// 다른 화면으로 옮겨 가면 열려 있던 열 필터와 Note 입력창을 닫는다.
+window.addEventListener("hashchange", () => {
+  closeColumnFilter();
+  closeNoteEditor();
+});
 
 export const logisticsPage = {
   render(root, params) {

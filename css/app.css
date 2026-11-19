@@ -170,3 +170,9 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ---- Logistics 편집 모드: 셀 안 입력칸은 열 너비에 맞춘다 ---- */
+.grid.fixed td .cell-in {
+  width: 100%;
+  box-sizing: border-box;
+}

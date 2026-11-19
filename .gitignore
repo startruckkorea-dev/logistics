@@ -29,6 +29,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+*.zip
 
 # Claude Code 개인 설정 (.claude/settings.json 과 hooks 는 공유하므로 커밋)
 .claude/settings.local.json

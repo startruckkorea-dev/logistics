@@ -296,6 +296,11 @@ function iconNodes(kind) {
   return [];
 }
 
+// SVG 안에 넣는 그림 아이콘. (x, y) 위치에 k 배로 그린다
+function picIconSvg(kind, x, y, k) {
+  return mkSvg("g", { transform: `translate(${x},${y}) scale(${k})` }, iconNodes(kind));
+}
+
 export function picIconEl(kind) {
   return mkSvg("svg", { class: "loc-ic", viewBox: "0 0 24 24", "aria-hidden": "true" }, iconNodes(kind));
 }
@@ -331,4 +336,58 @@ export function vlinesEl(ports) {
 /** 같은 폭의 격자(열 cols 개, 간격 gap px)에서 i-1 열과 i 열 사이의 left 값 */
 export function gridBoundaryLeft(i, cols, gap) {
   return `calc(${((i / cols) * 100).toFixed(3)}% + ${(gap * (i / cols - 0.5)).toFixed(2)}px)`;
+}
+
+// ---- SVG 안에 그리는 장소 띠와 항구 표시(여정 지도용) ----
+
+// CSS 변수 색("var(--x)") → 실제 색 값
+function cssColor(color) {
+  const m = /var\((--[\w-]+)\)/.exec(color);
+  return m ? getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() : color;
+}
+
+/** 색에 투명도를 준 rgba 문자열. 히트맵 농도와 띠 배경에 쓴다 */
+export function rgbaOf(color, alpha) {
+  const hex = cssColor(color).replace("#", "");
+  const n = parseInt(hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+// SVG 글자 폭 추정(한글 11px, 그 외 6.3px)
+const textWidth = (text) => [...text].reduce((w, ch) => w + (/[가-힣]/.test(ch) ? 11 : 6.3), 0);
+
+/** SVG 장소 띠: x0~x1 구간에 배경 상자, 아이콘(폭이 충분할 때), 이름, 대수 */
+export function svgLocBand(svg, loc, n, x0, x1, y, h, tip) {
+  const color = cssColor(loc.color);
+  const width = x1 - x0;
+  const iconW = 26;
+  const name = tx(loc.name);
+  svg.append(
+    mkSvg("rect", {
+      x: x0, y, width, height: h, rx: 7, fill: rgbaOf(color, 0.08), stroke: rgbaOf(color, 0.45),
+      "data-tip": tip || locationTip(loc, "", n),
+    })
+  );
+  let textX = x0 + 10;
+  if (width >= iconW + 8 + textWidth(name) + 60) {
+    svg.append(picIconSvg(loc.icon, x0 + 10, y + (h - 26) / 2, 26 / 24));
+    textX = x0 + 10 + iconW + 8;
+  }
+  svg.append(
+    mkSvg("text", { class: "bn", x: textX, y: y + h / 2 + 5 }, name),
+    mkSvg("text", { class: "bc", x: x1 - 10, y: y + h / 2 + 5, "text-anchor": "end" }, units(num(n)))
+  );
+}
+
+/** SVG 항구 표시: 알약 모양 이름표와 세로 점선. ports: [{name, x}] */
+export function svgPorts(svg, ports, yTop, yBottom) {
+  for (const port of ports) {
+    const name = tx(port.name);
+    const width = textWidth(name) + 16;
+    svg.append(
+      mkSvg("line", { x1: port.x, x2: port.x, y1: yTop + 5, y2: yBottom, stroke: "var(--line-strong)", "stroke-dasharray": "3 3" }),
+      mkSvg("rect", { x: port.x - width / 2, y: yTop - 13, width, height: 18, rx: 9, fill: "#fff", stroke: "var(--line)" }),
+      mkSvg("text", { class: "bs", x: port.x, y: yTop, "text-anchor": "middle", style: "pointer-events:none" }, name)
+    );
+  }
 }

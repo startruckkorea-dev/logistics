@@ -1,8 +1,8 @@
 // 차량 목록에서 만드는 집계 — 화면 전용 계산값. List 에 저장하지 않는다.
 import { tx } from "../app/i18n.js";
-import { addMonths, diffDays } from "../domain/dates.js";
+import { addMonths, diffDays, monthEnd } from "../domain/dates.js";
 import { STATUS } from "../domain/status.js";
-import { MY_KEYS, MY_OTHER, MY_COLORS } from "./stages.js";
+import { MY_KEYS, MY_OTHER, MY_COLORS, STAGES } from "./stages.js";
 
 const isEmpty = (v) => v == null || v === "";
 
@@ -237,4 +237,51 @@ export function arrivalSchedule(vehicles, baseMonth, options = {}) {
       })),
   }));
   return { months: Object.keys(voyagesByMonth).sort(), voyagesByMonth, groups, grand, total: items.length };
+}
+
+// ---- 재고 ----
+
+/**
+ * 재고 대상 차량.
+ * @param {object[]} vehicles
+ * @param {string} month "current" 또는 "YYYY-MM"(그 달 말일 마감)
+ * @param {"stock"|"pipe"} scope stock = 센터 재고(Bonded + OH), pipe = Ordered(Fixed) ~ OH Stock(현재 기준만)
+ * @returns {Array<{v: object, cleared: boolean}>} cleared = 통관 완료 여부(월말 마감이면 그 달 말일까지)
+ */
+export function closingStock(vehicles, month, scope) {
+  const cleared = (v) => Boolean(v.customs_clearance_date);
+  if (month === "current") {
+    const stages = scope === "pipe" ? STAGES.slice(3, 9) : [STATUS.BONDED_STOCK, STATUS.OH_STOCK];
+    return vehicles.filter((v) => stages.includes(v.current_status)).map((v) => ({ v, cleared: cleared(v) }));
+  }
+  // 월말 마감: Cancelled 제외, 입고일(ATA)이 그 달 말일 이전이고 아직 팔리지 않은 차량
+  const end = monthEnd(month);
+  return vehicles
+    .filter((v) => v.current_status !== STATUS.CANCELLED && v.ata && v.ata <= end && (!v.sales_month || v.sales_month > month))
+    .map((v) => ({ v, cleared: cleared(v) && v.customs_clearance_date <= end }));
+}
+
+/**
+ * 입항 표와 같은 모델 묶음: 구분(Gen) > 차종 > 모델.
+ * @returns {Array<{gen, vehicles: Array<{vehicle, rows: Array<{label, vs: object[]}>}>}>}
+ */
+export function modelGroups(vehicles) {
+  const byModel = new Map();
+  for (const v of vehicles) {
+    const label = arrivalModelLabel(v);
+    const id = `${v.gen}|${v.vehicle}|${label}`;
+    if (!byModel.has(id)) byModel.set(id, { gen: v.gen, vehicle: v.vehicle, label, vs: [] });
+    byModel.get(id).vs.push(v);
+  }
+  const rows = [...byModel.values()];
+  const types = vehicleTypes(vehicles);
+  return [...new Set(rows.map((r) => r.gen))].sort().map((gen) => ({
+    gen,
+    vehicles: types
+      .filter((type) => rows.some((r) => r.gen === gen && r.vehicle === type))
+      .map((type) => ({
+        vehicle: type,
+        rows: rows.filter((r) => r.gen === gen && r.vehicle === type).sort((a, b) => (a.label < b.label ? -1 : 1)),
+      })),
+  }));
 }

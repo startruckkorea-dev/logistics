@@ -156,6 +156,28 @@ const DICTIONARY = {
   "운송 중이거나 선적 예정인 선박이 없습니다.": "No vessels in transit or scheduled.",
   "운송 중·선적 예정 차량을 선박별로 묶은 현황 · ATA = 실제 입항일": "Vehicles in transit or scheduled, grouped by vessel · ATA = actual arrival date",
   "행 클릭 → 해당 선박의 차량 Logistics 목록.": "Click a row → Logistics list for that vessel.",
+  // 화면 설계의 사전에서 가져온 문구
+  "여정 지도": "Journey Map",
+  "Ordered(Fixed) ~ OH Stock {n}대 · 원 면적 = 대수 · Factory Stock = In Production + Shipment scheduled": "Ordered(Fixed) ~ OH Stock {n} units · circle area = units · Factory Stock = In Production + Shipment scheduled",
+  "모델별 구역 현황": "Models by Zone",
+  "행 = 구분 > 차종 > 모델(Vehicle Model Type Axle Cab 비표준 옵션) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)": "Rows = Gen > Vehicle > Model (Vehicle Model Type Axle Cab non-standard options) · 5 equal zones · bar = stacked by MY, length = units (same scale within model rows and within group rows)",
+  "상태 × 연식 히트맵": "Status × Model Year Heatmap",
+  "행 = 구분 > 차종 > 모델 · 열 = 장소 > Current Status > 연식 + Total · 셀 색 농도 = 대수(상태 색) · 0은 공란 · 대수 0인 연식 열은 숨김": "Rows = Gen > Vehicle > Model · columns = location > Current Status > MY + Total · cell shade = units (status color) · 0 left blank · model-year columns with 0 units are hidden",
+  "보세(Bonded) {b} · 통관(OH) {c} · 보세/통관 = Customs Clearance DATE ≤ 월말": "Bonded {b} · OH {c} · Bonded/OH = Customs Clearance DATE ≤ month-end",
+  "연식(MY) 범례": "Model Year (MY) legend",
+  " (MY23 이하·판독 불가)": " (MY23 or older · unreadable)",
+  "차종별 · 막대 길이 = 대수 · 우측 대수·비율": "By vehicle type · bar length = units · units & share at right",
+  "차종 섹션 안 모델별 · 모델명 = Model · Type · Axle · Cab · 비표준 옵션": "Models within each vehicle section · name = Model · Type · Axle · Cab · non-standard options",
+  "{n}대": "{n} units",
+  "현재 ({d}, 상태 Ordered(Fixed) ~ OH Stock 기준)": "Current ({d}, status Ordered(Fixed) ~ OH Stock)",
+  "현재 ({d}, 상태 Bonded Stock·OH Stock 기준)": "Current ({d}, by status Bonded Stock·OH Stock)",
+  "{m} 월말 마감 ({d})": "{m} month-end closing ({d})",
+  "확장 뷰는 현재 기준만 지원 (월말 마감 없음)": "Extended view is current-basis only (no month-end closing)",
+  "월말 마감 판정 = Cancelled 제외 · 입고일(ATA) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)": "Month-end rule = excl. Cancelled · arrival (ATA) ≤ last day of month · Sales Month blank or later (unsold)",
+  "{m} 월말 마감": "{m} month-end",
+  "현재 ({d})": "Current ({d})",
+  "TSC 재고": "Overall OH Stock(TSC)",
+  "현재 및 미래 재고현황": "Current & Future Stock Status",
 };
 
 /**

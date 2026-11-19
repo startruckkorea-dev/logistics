@@ -48,6 +48,12 @@ export function addMonths(month, n) {
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
 }
 
+// 그 달의 마지막 날 "YYYY-MM-DD"
+export function monthEnd(month) {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
 export const monthOf = (isoDate) => (isoDate ? isoDate.slice(0, 7) : "");
 
 // 브라우저 현지 날짜 기준 오늘

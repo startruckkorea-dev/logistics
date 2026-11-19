@@ -2,9 +2,11 @@
 // 검색, 열 필터, 정렬, 50행 페이지, Commission No 열 고정, 바로가기.
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
-import { diffDays, todayIso } from "../domain/dates.js";
+import { diffDays } from "../domain/dates.js";
+import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
+import { changeabilityDday } from "../data/derive.js";
 import { openVehicle } from "./vehicle-drawer.js";
 import {
   COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, STAGE_ORDER,
@@ -14,6 +16,7 @@ import {
 const PAGE_SIZE = 50;
 const MEMO_WIDTH = 220; // 긴 글 열(Tires · Option Note · Order Note)의 고정 너비(px). 넘치면 말줄임
 const WIDTH_SAMPLES = 5; // 열 너비를 잴 때 열마다 쓰는 가장 긴 값의 수
+const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다
 const SEARCH_HINT = "Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note";
 
 const BLANK = "(빈 값)"; // 열 필터에서 빈 칸을 가리키는 값
@@ -50,7 +53,7 @@ function filterValue(v, key) {
 
 function filteredRows() {
   const terms = searchTerms();
-  const today = todayIso();
+  const today = baseDate();
   const filters = Object.entries(view.col);
   const rows = vehicles.filter(
     (v) =>
@@ -118,8 +121,10 @@ function cellContent(column, v, terms, today) {
     }
     case "changeability_date": {
       const dotClass = { J: "ok", N: "bad", B: "warn" }[v.afab_editable];
+      const dday = changeabilityDday(v, today);
       return [
         isEmpty(value) ? dim() : value,
+        dday != null && dday <= DDAY_WITHIN ? [" ", mk("span", { class: "pill warn" }, `D-${dday}`)] : null,
         dotClass ? mk("span", { class: `dot r ${dotClass}`, title: `AFAB 수정 가능(Ä): ${v.afab_editable}` }) : null,
       ];
     }
@@ -193,12 +198,18 @@ function headerRows(forMeasure = false) {
 // 열 너비를 정한다. 전체 차량에서 열마다 가장 긴 값 몇 개를 골라 보이지 않는 표에 실제 모양대로 그리고,
 // 브라우저가 잡은 너비를 읽는다. 머리글(열 이름·배지·정렬 표시·필터 버튼)도 같이 잰다.
 function measureColumnWidths() {
-  const today = todayIso();
+  const today = baseDate();
   const picks = COLUMNS.map((column) => {
+    // 배지가 붙는 열은 배지가 가장 긴 행으로 잰다.
     const score =
       column.key === "shipping_calc"
-        ? (v) => shipDelayDays(v, today) // 경과 배지가 가장 긴 행
-        : (v) => String(v[column.key] ?? "").length;
+        ? (v) => shipDelayDays(v, today)
+        : column.key === "changeability_date"
+          ? (v) => {
+              const dday = changeabilityDday(v, today);
+              return dday != null && dday <= DDAY_WITHIN ? 100 + dday : String(v.changeability_date ?? "").length;
+            }
+          : (v) => String(v[column.key] ?? "").length;
     return [...vehicles].sort((a, b) => score(b) - score(a)).slice(0, WIDTH_SAMPLES);
   });
   const sampleRows = Array.from({ length: Math.min(WIDTH_SAMPLES, vehicles.length) }, (_, r) =>
@@ -233,7 +244,7 @@ function columnGroup() {
 function renderGrid() {
   const rows = filteredRows();
   const terms = searchTerms();
-  const today = todayIso();
+  const today = baseDate();
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   view.page = Math.min(Math.max(1, view.page), totalPages);
   const from = (view.page - 1) * PAGE_SIZE;
@@ -320,7 +331,7 @@ function openColumnFilter(button, key) {
   closeColumnFilter();
   const column = COLUMNS.find((c) => c.key === key);
   if (!column) return;
-  const today = todayIso();
+  const today = baseDate();
 
   const counts = new Map();
   for (const v of vehicles) {
@@ -643,7 +654,8 @@ export const logisticsPage = {
       if (value != null) presets[key] = new Set(value.split(",").map((x) => (x === "" ? BLANK : x)));
     }
     if (Object.keys(presets).length || params.has("delayed")) {
-      Object.assign(view, { col: presets, delayed: params.get("delayed") === "1", page: 1 });
+      // 링크가 건 조건만 적용되도록, 주소에 없는 이전 검색어는 지운다
+      Object.assign(view, { q: q ?? "", col: presets, delayed: params.get("delayed") === "1", page: 1 });
     }
     // 이 화면만의 상자를 두어, 화면이 바뀌면(상자가 떨어져 나가면) 늦게 도착한 결과를 버린다.
     const box = mk("div");

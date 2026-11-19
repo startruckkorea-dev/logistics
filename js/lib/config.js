@@ -30,6 +30,9 @@ const ENVIRONMENTS = {
   // lists 는 SharePoint List 이름이다. 환경 접두어(UAT_/PRD_)를 반드시 붙인다.
   uat: {
     label: "UAT",
+    // 화면이 "오늘"로 삼는 날짜. 이관 데이터의 상태가 이 날짜 기준으로 판정되어 있어 맞춰 둔다.
+    // null 이면 실제 오늘을 쓴다.
+    baseDate: "2026-10-30",
     folders: {
       modify: "02._kufri_UAT/Internal/Modify",
       readDownload: "02._kufri_UAT/Internal/R-Download",
@@ -44,6 +47,7 @@ const ENVIRONMENTS = {
   },
   prod: {
     label: "운영",
+    baseDate: null,
     folders: {
       modify: "01._kufri/Internal/Modify",
       readDownload: "01._kufri/Internal/R-Download",

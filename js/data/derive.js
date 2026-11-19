@@ -1,6 +1,6 @@
 // 차량 목록에서 만드는 집계 — 화면 전용 계산값. List 에 저장하지 않는다.
 import { tx } from "../app/i18n.js";
-import { addMonths } from "../domain/dates.js";
+import { addMonths, diffDays } from "../domain/dates.js";
 import { STATUS } from "../domain/status.js";
 import { MY_KEYS, MY_OTHER, MY_COLORS } from "./stages.js";
 
@@ -72,6 +72,23 @@ export function vehicleTypes(vehicles) {
   return Object.keys(counts).sort((a, b) => counts[b] - counts[a] || (a < b ? -1 : 1));
 }
 
+// ---- Changeability Date ----
+
+// AFAB 수정 가능 값: J = 수정 가능, N = 불가, B = 그 외
+const AFAB_EDITABLE = "J";
+// Changeability Date 가 아직 남아 있을 수 있는 단계. Ordered(Fixed) 는 그 날짜가 지나서 넘어온 단계라 제외한다.
+const BEFORE_FIXED = [STATUS.ORDERED_DUMMY, STATUS.ORDERED_CHANGEABLE];
+
+/**
+ * Changeability Date 까지 남은 일수. Ordered(Dummy)·Ordered(Changeable) 이고 AFAB 수정 가능 값이 J 이며
+ * 날짜가 기준일 이후(당일 포함)일 때만 값이 있다. 그 외는 null
+ */
+export function changeabilityDday(v, baseDate) {
+  if (!BEFORE_FIXED.includes(v.current_status) || v.afab_editable !== AFAB_EDITABLE) return null;
+  const days = diffDays(v.changeability_date, baseDate);
+  return days == null || days < 0 ? null : days;
+}
+
 // ---- 입항 ----
 
 const DEFAULT_LEAD_MONTHS = 3;
@@ -95,8 +112,10 @@ const earliest = (dates) => dates.filter(Boolean).sort()[0] ?? "";
 
 /**
  * 운송 중·선적 예정 차량을 선박별로 묶은 항차 목록. 선박 단위 List 가 없어 차량에서 만든다.
- * @returns {Array<{vessel, kind: "transit"|"scheduled", count, shipping, pl, eta_carrier, eta_final, bl}>}
- *   pl = Planned Arrival, eta_carrier = ETA(선사), eta_final = ATA. 선박 안에서 가장 이른 날짜를 쓴다.
+ * @returns {Array<{vessel, kind: "transit"|"scheduled", count, shipping, pl, eta_carrier, eta_final,
+ *                   bl, tsc, vehicles}>}
+ *   pl = Planned Arrival, eta_carrier = ETA(선사), eta_final = ATA, tsc = TSC Arrival Date.
+ *   선박 안에서 가장 이른 날짜를 쓴다. vehicles = 그 선박의 차량
  */
 export function deriveVoyages(vehicles) {
   const byVessel = new Map();
@@ -114,7 +133,14 @@ export function deriveVoyages(vehicles) {
     eta_carrier: earliest(list.map((v) => v.eta_from_eukor_pirt)),
     eta_final: earliest(list.map((v) => v.ata)),
     bl: [...new Set(list.map((v) => v.bl_no).filter(Boolean))].join(", "),
+    tsc: earliest(list.map((v) => v.tsc_arrival_date)),
+    vehicles: list,
   }));
+}
+
+/** 선박 행의 링크: 그 선박의 운송 중·선적 예정 차량만. 같은 이름의 다른 상태 차량은 뺀다. */
+export function vesselLink(vessel) {
+  return `#/logistics?vessel=${encodeURIComponent(vessel)}&current_status=${encodeURIComponent(ON_VESSEL.join(","))}`;
 }
 
 /** 항차의 입항월: ATA → ETA(선사) → Planned Arrival. 날짜가 없으면 "" */

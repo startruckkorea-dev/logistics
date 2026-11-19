@@ -1,15 +1,16 @@
 // 대시보드 — 차량 주문·재고 흐름 카드, 입항 예정 선박, 당월 도착 예정, 월별 추이, 차종별 파이프라인, 연식별 재고.
-// 모든 수치는 차량 목록에서 계산한다. 기준일은 오늘이다.
+// 모든 수치는 차량 목록에서 계산한다. 날짜 계산은 기준일(app/base-date.js)을 오늘로 삼는다.
 import { mk, mkSvg } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
-import { addMonths, diffDays, monthOf, todayIso } from "../domain/dates.js";
+import { addMonths, diffDays, monthOf } from "../domain/dates.js";
+import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
 import { stageClass } from "../data/columns.js";
 import { STAGES, STAGE_COLOR, SERIES, LOCATIONS, PORTS } from "../data/stages.js";
 import {
   countBy, countByMonth, modelYearKey, myCountText, expectedArrivalMonth, deriveVoyages,
-  arrivalSchedule, vehicleTypes,
+  arrivalSchedule, vehicleTypes, vesselLink,
 } from "../data/derive.js";
 import {
   num, pct, monthEn, barChartEl, scrollChartTo, stackChartEl, hbarEl, miniStackEl, legendEl,
@@ -331,7 +332,7 @@ function modelYearCard(vehicles) {
 }
 
 function build(root, vehicles) {
-  const today = todayIso();
+  const today = baseDate();
   const baseMonth = monthOf(today);
   const schedule = arrivalSchedule(vehicles, baseMonth, { onlyMonth: baseMonth });
   const trend = trendCard(vehicles, baseMonth);
@@ -382,7 +383,7 @@ export const dashboardPage = {
         return;
       }
       const vessel = event.target.closest("tr[data-vessel]");
-      if (vessel) window.location.hash = `#/logistics?q=${encodeURIComponent(vessel.dataset.vessel)}`;
+      if (vessel) window.location.hash = vesselLink(vessel.dataset.vessel);
     });
     load(box, false);
   },

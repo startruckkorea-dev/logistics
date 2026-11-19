@@ -139,8 +139,9 @@ async function saveSlot(slot, def, jobs, onProgress) {
 
 /**
  * 여러 차량의 입력 열을 저장한다. 차량 행은 저장 결과에 맞게 이 함수가 고친다.
- * @param {Array<{vehicle: object, inputs: Record<string, string>}>} edits
- *   vehicle 은 loadVehicles 가 돌려준 차량 행, inputs 는 { 열 이름: 값 }(INPUT_FIELDS 밖의 열은 무시)
+ * @param {Array<{vehicle: object, inputs: Record<string, string>, source?: string}>} edits
+ *   vehicle 은 loadVehicles 가 돌려준 차량 행, inputs 는 { 열 이름: 값 }(INPUT_FIELDS 밖의 열은 무시),
+ *   source 는 그 차량만의 변경 경로(없으면 아래 source)
  * @param {string} [source] 변경 경로(이력에 남긴다)
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {Promise<{
@@ -158,12 +159,12 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
     saved: [], invalid: [], conflicts: [], denied: [], failed: [], historyFailed: 0, historyCodes: [],
   };
   const jobs = [];
-  for (const { vehicle, inputs } of edits) {
+  for (const { vehicle, inputs, source: own } of edits) {
     const changes = changedFields(vehicle, inputs);
     if (!changes.length) continue;
     const bad = changes.map((c) => [c, checkInput(c.field, c.new)]).find(([, reason]) => reason);
     if (bad) out.invalid.push({ vehicle, field: bad[0].field, reason: bad[1] });
-    else jobs.push({ vehicle, changes, applied: [], problem: null });
+    else jobs.push({ vehicle, changes, source: own ?? source, applied: [], problem: null });
   }
   if (!jobs.length) return out;
 
@@ -182,7 +183,7 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
         fields: {
           commission_no: job.vehicle.commission_no,
           batch_id: batchId,
-          source,
+          source: job.source,
           changes: JSON.stringify(job.applied),
         },
       }))

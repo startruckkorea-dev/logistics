@@ -4,9 +4,8 @@ import { tx } from "../app/i18n.js";
 import { openDrawer, closeDrawer, openModal, closeModal, toast } from "../app/ui.js";
 import { STATUS } from "../domain/status.js";
 import { COLUMNS, GROUPS, sourceBadge, stageClass } from "../data/columns.js";
-import {
-  INPUT_FIELDS, isDate, isMonth, changedFields, saveVehicleInputs, loadVehicleHistory,
-} from "../data/store.js";
+import { INPUT_FIELDS, changedFields, saveVehicleInputs, loadVehicleHistory } from "../data/store.js";
+import { createInput, labelOf, invalidMessage } from "./input-controls.js";
 
 const isEmpty = (v) => v == null || v === "";
 const dash = () => mk("span", { class: "muted" }, "—");
@@ -98,29 +97,9 @@ function groupColumns(group) {
   return columns;
 }
 
-// C/O 열에서 고르는 값
-const CO_VALUES = ["Requested", "Received", "N/A"];
-
-const labelOf = (key) => COLUMNS.find((c) => c.key === key)?.label ?? key;
-
 // 입력 열의 입력칸. data-field 로 열 이름을 달아 두고 저장할 때 모아 읽는다.
 function inputControl(column, value) {
-  const text = isEmpty(value) ? "" : String(value);
-  let node;
-  if (column.memo) {
-    node = mk("textarea", { rows: 3 });
-  } else if (column.key === "co") {
-    // 목록에 없는 기존 값은 선택지에 더해 그대로 둘 수 있게 한다
-    const values = CO_VALUES.includes(text) || text === "" ? CO_VALUES : [...CO_VALUES, text];
-    node = mk("select", null, mk("option", { value: "" }, tx("(빈칸)")), values.map((x) => mk("option", { value: x }, x)));
-  } else {
-    // 날짜·월 선택 칸은 형식이 맞는 값만 담을 수 있다. 형식이 다른 기존 값은 글자 칸으로 보여준다.
-    let type = "text";
-    if (column.key === "b1_factory_order" && (text === "" || isDate(text))) type = "date";
-    if (column.key === "sales_month" && (text === "" || isMonth(text))) type = "month";
-    node = mk("input", { type });
-  }
-  node.value = text;
+  const node = createInput(column.key, isEmpty(value) ? "" : String(value));
   node.dataset.field = column.key;
   if (node.type !== "date" && node.type !== "month") return node;
   // 날짜·월 선택 칸은 한 번에 지우는 버튼을 옆에 둔다
@@ -207,12 +186,6 @@ function historyCard(v) {
   return card(tx("변경 이력"), box);
 }
 
-const INVALID_MESSAGES = {
-  date: "YYYY-MM-DD 형식으로 입력하세요 (예: 2026-11-09).",
-  month: "YYYY-MM 형식으로 입력하세요 (예: 2026-11).",
-  too_long: "255자를 넘을 수 없습니다.",
-};
-
 // 드로어의 입력칸 값을 모은다
 function readInputs() {
   const inputs = {};
@@ -293,7 +266,8 @@ async function save(v, inputs, options, closeAfter = false) {
     if (result.status === "unchanged") {
       toast(tx("저장"), tx("변경된 입력 필드가 없습니다."));
     } else if (result.status === "invalid") {
-      toast(`${tx(labelOf(result.field))} ${tx("형식 오류")}`, tx(INVALID_MESSAGES[result.reason]));
+      const message = invalidMessage(result.field, result.reason);
+      toast(message.title, message.detail);
     } else if (result.status === "conflict") {
       showConflict(v, inputs, result.fields, options, closeAfter);
     } else if (result.status === "denied") {

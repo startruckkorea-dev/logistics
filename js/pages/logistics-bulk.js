@@ -1,0 +1,163 @@
+// Logistics 편집 모드의 일괄 입력 — 선택한 행의 입력 열에 같은 값을 넣는다.
+// 값을 고르고 → 미리보기에서 바뀌는 건수를 확인하고 → 저장 대기에 올린다. 이 단계에서는 List 에 쓰지 않는다.
+import { mk } from "../lib/dom.js";
+import { tx } from "../app/i18n.js";
+import { openModal, closeModal, toast } from "../app/ui.js";
+import { INPUT_FIELDS, checkInput, normalizeInput } from "../data/store.js";
+import { createInput, labelOf, invalidMessage } from "./input-controls.js";
+import { shownRow, stageValue } from "./logistics-edit.js";
+
+/** 한 번에 적용할 수 있는 차량 수 */
+export const BULK_MAX = 50;
+
+const OLD_VALUES_SHOWN = 5; // 미리보기에서 보여주는 기존 값의 종류 수
+const OLD_VALUE_LENGTH = 30; // 미리보기에서 기존 값을 자르는 길이
+
+const num = (n) => Number(n).toLocaleString("ko-KR");
+
+// 긴 글은 한 줄로 줄여 보여준다
+function short(value) {
+  const line = value.replace(/\s+/g, " ");
+  return line.length > OLD_VALUE_LENGTH ? `${line.slice(0, OLD_VALUE_LENGTH)}…` : line;
+}
+
+// 한 열에 대한 계획: 어떤 차량이 어떻게 바뀌는지 나눈다.
+function planField(targets, key, next, onlyEmpty) {
+  const plan = { key, next, fill: [], change: [], same: 0, skipped: 0, oldValues: new Map() };
+  for (const v of targets) {
+    const current = normalizeInput(shownRow(v)[key]);
+    if (current === next) plan.same++;
+    else if (current === "") plan.fill.push(v);
+    else {
+      plan.oldValues.set(current, (plan.oldValues.get(current) ?? 0) + 1);
+      // 지우기는 값이 있는 칸이 대상이므로 "빈 칸만 채우기"와 관계없이 적용한다
+      if (onlyEmpty && next !== "") plan.skipped++;
+      else plan.change.push(v);
+    }
+  }
+  return plan;
+}
+
+function previewBlock(plan) {
+  const old = [...plan.oldValues].sort((a, b) => b[1] - a[1]);
+  const oldText =
+    old.slice(0, OLD_VALUES_SHOWN).map(([value, n]) => `${short(value)} ${tx("{n}대", { n: num(n) })}`).join(" · ") +
+    (old.length > OLD_VALUES_SHOWN ? ` · ${tx("외 {n}종", { n: num(old.length - OLD_VALUES_SHOWN) })}` : "");
+  const line = (label, n, note) =>
+    mk("tr", null, mk("td", null, label), mk("td", { class: "num" }, tx("{n}대", { n: num(n) })), mk("td", { class: "muted small long-text" }, note ?? ""));
+  return [
+    mk(
+      "p",
+      null,
+      mk("b", null, tx(labelOf(plan.key))),
+      " → ",
+      plan.next === "" ? mk("span", { class: "pill danger" }, tx("지움")) : mk("b", { class: "long-text" }, short(plan.next))
+    ),
+    mk(
+      "table",
+      { class: "tbl bulk-preview" },
+      mk(
+        "tbody",
+        null,
+        plan.next === "" ? null : line(tx("빈 칸에 입력"), plan.fill.length),
+        line(plan.next === "" ? tx("값을 지움") : tx("기존 값을 바꿈"), plan.change.length, plan.change.length ? oldText : ""),
+        plan.skipped ? line(tx("값이 있어 건드리지 않음"), plan.skipped, oldText) : null,
+        line(tx("이미 같은 값"), plan.same)
+      )
+    ),
+  ];
+}
+
+/**
+ * 일괄 입력 창을 연다.
+ * @param {object[]} targets 선택한 차량 행
+ * @param {{render: () => void}} hooks render: 저장 대기에 올린 뒤 그리드를 다시 그린다
+ */
+export function openBulkInput(targets, hooks) {
+  if (!targets.length) return;
+  if (targets.length > BULK_MAX) {
+    toast(tx("일괄 입력"), tx("한 번에 {n}대까지 적용할 수 있습니다.", { n: num(BULK_MAX) }));
+    return;
+  }
+  const title = tx("일괄 입력 · 선택 {n}대", { n: num(targets.length) });
+
+  // ---- 1단계: 값 입력 ----
+  const rows = INPUT_FIELDS.map((key) => {
+    const input = createInput(key);
+    const clear = mk("input", { type: "checkbox" });
+    // 지우기를 켜면 값 칸은 쓰지 않는다
+    clear.addEventListener("change", () => {
+      input.disabled = clear.checked;
+    });
+    return { key, input, clear };
+  });
+  const onlyEmpty = mk("input", { type: "checkbox" });
+  const form = [
+    mk("p", { class: "muted small" }, tx("값을 넣은 열만 적용합니다. 빈 칸으로 둔 열은 건드리지 않습니다. 값을 지우려면 그 열의 '지우기'를 체크하세요.")),
+    mk(
+      "table",
+      { class: "tbl bulk-form" },
+      mk("thead", null, mk("tr", null, ["열", "넣을 값", "지우기"].map((h) => mk("th", null, tx(h))))),
+      mk(
+        "tbody",
+        null,
+        rows.map((r) => mk("tr", null, mk("td", null, tx(labelOf(r.key))), mk("td", null, r.input), mk("td", null, r.clear)))
+      )
+    ),
+    mk("label", { class: "bulk-option" }, onlyEmpty, " ", tx("빈 칸만 채우기 (값이 있는 칸은 건드리지 않음)")),
+  ];
+
+  const showForm = () =>
+    openModal(title, form, [
+      mk("button", { class: "btn", type: "button", onclick: closeModal }, tx("취소")),
+      mk("button", { class: "btn primary", type: "button", onclick: showPreview }, tx("미리보기")),
+    ]);
+
+  // ---- 2단계: 미리보기 ----
+  function showPreview() {
+    const plans = [];
+    for (const r of rows) {
+      const next = r.clear.checked ? "" : normalizeInput(r.input.value);
+      if (!r.clear.checked && next === "") continue; // 적용하지 않는 열
+      const reason = checkInput(r.key, next);
+      if (reason) {
+        const message = invalidMessage(r.key, reason);
+        toast(message.title, message.detail);
+        return;
+      }
+      plans.push(planField(targets, r.key, next, onlyEmpty.checked));
+    }
+    if (!plans.length) {
+      toast(tx("일괄 입력"), tx("넣을 값이 없습니다. 값을 입력하거나 '지우기'를 체크하세요."));
+      return;
+    }
+    const cells = plans.reduce((n, p) => n + p.fill.length + p.change.length, 0);
+    const apply = () => {
+      for (const p of plans) {
+        for (const v of [...p.fill, ...p.change]) stageValue(v, p.key, p.next, { bulk: true });
+      }
+      closeModal();
+      hooks.render();
+      toast(tx("일괄 입력 {n}칸 (저장 대기)", { n: num(cells) }), tx("'편집 종료'를 눌러야 저장됩니다."));
+    };
+    openModal(
+      title,
+      [
+        plans.map(previewBlock),
+        mk(
+          "p",
+          { class: cells ? "muted small" : "error small" },
+          cells
+            ? tx("모두 {n}칸을 저장 대기에 올립니다. 아직 저장되지 않으며 '편집 종료'에서 저장합니다.", { n: num(cells) })
+            : tx("바뀌는 칸이 없습니다.")
+        ),
+      ],
+      [
+        mk("button", { class: "btn", type: "button", onclick: showForm }, tx("뒤로")),
+        mk("button", { class: "btn primary", type: "button", disabled: !cells, onclick: apply }, tx("저장 대기에 올리기")),
+      ]
+    );
+  }
+
+  showForm();
+}

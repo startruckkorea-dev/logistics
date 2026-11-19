@@ -12,6 +12,7 @@ import {
   edit, isEditableCell, isPending, shownRow, pendingCount, startCellEdit, openNoteEditor, closeNoteEditor,
   finishEdit, cancelEdit,
 } from "./logistics-edit.js";
+import { openBulkInput } from "./logistics-bulk.js";
 import {
   COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, STAGE_ORDER,
   sourceBadge, stageClass,
@@ -20,7 +21,8 @@ import {
 const PAGE_SIZE = 50;
 const MEMO_WIDTH = 220; // 긴 글 열(Tires · Option Note · Order Note)의 고정 너비(px). 넘치면 말줄임
 const WIDTH_SAMPLES = 5; // 열 너비를 잴 때 열마다 쓰는 가장 긴 값의 수
-const KEYIN_MIN_WIDTH = 150; // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
+const KEYIN_MIN_WIDTH = 150;
+const CHECK_WIDTH = 24; // 편집 모드에서 Commission No 열에 더하는 너비(px). 행 선택 체크박스 자리 // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
 const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다
 const SEARCH_HINT = "Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note";
 
@@ -197,9 +199,14 @@ function headerRows(forMeasure = false) {
       { class: column.key === "commission_no" ? "sticky" : null, "data-sort": column.key, title: column.key },
       children
     );
+  // 편집 모드: 현재 페이지의 행을 모두 선택하는 체크박스
+  const selectAll = (column) =>
+    !forMeasure && edit.on && column.key === "commission_no"
+      ? mk("input", { type: "checkbox", id: "selAll", title: tx("현재 페이지 전체 선택") })
+      : null;
   return [
     mk("tr", { class: "fld" }, COLUMNS.map((c) => th(c, tx(c.label)))),
-    mk("tr", { class: "sub" }, COLUMNS.map((c) => th(c, [badge(c.src), sortMark(c.key), filterButton(c)]))),
+    mk("tr", { class: "sub" }, COLUMNS.map((c) => th(c, [selectAll(c), badge(c.src), sortMark(c.key), filterButton(c)]))),
   ];
 }
 
@@ -238,11 +245,14 @@ function measureColumnWidths() {
   return widths;
 }
 
+// 지금 쓰는 열 너비. 편집 모드에서는 첫 열에 체크박스 자리를 더한다.
+const currentWidths = () => columnWidths.map((width, i) => width + (edit.on && i === 0 ? CHECK_WIDTH : 0));
+
 function columnGroup() {
   return mk(
     "colgroup",
     null,
-    columnWidths.map((width) => {
+    currentWidths().map((width) => {
       const col = mk("col");
       col.style.width = `${width}px`;
       return col;
@@ -262,7 +272,23 @@ function fillCell(td, column, v, terms, today) {
       : "";
   if (!td.title) td.removeAttribute("title");
   td.replaceChildren(...cellContent(column, shown, terms, today).flat(Infinity).filter((n) => n != null));
+  // 편집 모드: 행 선택 체크박스
+  if (edit.on && column.key === "commission_no") {
+    const box = mk("input", { type: "checkbox", class: "rowsel" });
+    box.checked = edit.selected.has(v.commission_no);
+    td.prepend(box);
+  }
   return td;
+}
+
+// 머리글의 전체 선택 체크박스를 현재 선택 상태에 맞춘다
+function syncSelectAll() {
+  const all = els.grid.querySelector("#selAll");
+  if (!all) return;
+  const boxes = [...els.grid.querySelectorAll("tbody input.rowsel")];
+  const checked = boxes.filter((box) => box.checked).length;
+  all.checked = boxes.length > 0 && checked === boxes.length;
+  all.indeterminate = checked > 0 && checked < boxes.length;
 }
 
 // 편집 모드 표시줄과 편집 버튼
@@ -282,6 +308,19 @@ function renderEditState() {
       cols: COLUMNS.filter((c) => c.src === "입력").map((c) => tx(c.label)).join(" · "),
     })),
     mk("span", { class: "muted small" }, tx("· 저장 대기 {n}건 → '편집 종료' 시 저장·변경 이력 기록", { n: num(pendingCount()) })),
+    mk("span", null, tx("· 선택 {n}대", { n: num(edit.selected.size) })),
+    mk(
+      "button",
+      {
+        class: "btn sm primary",
+        type: "button",
+        disabled: edit.saving || edit.selected.size === 0,
+        title: tx("체크한 행의 입력 열에 같은 값을 넣습니다"),
+        onclick: () =>
+          openBulkInput(vehicles.filter((v) => edit.selected.has(v.commission_no)), { render: renderGrid }),
+      },
+      tx("일괄 입력")
+    ),
     mk(
       "button",
       {
@@ -297,7 +336,6 @@ function renderEditState() {
 }
 
 function renderGrid() {
-  renderEditState();
   const rows = filteredRows();
   const terms = searchTerms();
   const today = baseDate();
@@ -305,6 +343,10 @@ function renderGrid() {
   view.page = Math.min(Math.max(1, view.page), totalPages);
   const from = (view.page - 1) * PAGE_SIZE;
   const pageRows = rows.slice(from, from + PAGE_SIZE);
+  // 선택은 화면에 보이는 행에만 남긴다. 검색·필터·정렬·페이지가 바뀌어 사라진 행은 선택에서 뺀다.
+  const onPage = new Set(pageRows.map((v) => v.commission_no));
+  for (const comm of edit.selected) if (!onPage.has(comm)) edit.selected.delete(comm);
+  renderEditState();
 
   const filtered = Object.keys(view.col);
   if (view.delayed && !filtered.includes("shipping_calc")) filtered.push("shipping_calc");
@@ -327,14 +369,15 @@ function renderGrid() {
         pageRows.map((v) =>
           mk(
             "tr",
-            { "data-comm": v.commission_no },
+            { "data-comm": v.commission_no, class: edit.selected.has(v.commission_no) ? "sel" : null },
             COLUMNS.map((c) => fillCell(mk("td", { "data-key": c.key }), c, v, terms, today))
           )
         )
       )
     );
-    table.style.width = `${columnWidths.reduce((sum, w) => sum + w, 0)}px`;
+    table.style.width = `${currentWidths().reduce((sum, w) => sum + w, 0)}px`;
     els.grid.replaceChildren(table);
+    syncSelectAll();
   }
 
   els.pager.replaceChildren(
@@ -610,6 +653,25 @@ function buildScreen(root, meta) {
     const filter = event.target.closest("button.cf");
     if (filter) {
       openColumnFilter(filter, filter.dataset.filter);
+      return;
+    }
+    // 편집 모드의 행 선택. 머리글 체크박스는 현재 페이지 전체를 고르거나 푼다.
+    if (event.target.id === "selAll") {
+      for (const box of els.grid.querySelectorAll("tbody input.rowsel")) {
+        const comm = box.closest("tr").dataset.comm;
+        if (event.target.checked) edit.selected.add(comm);
+        else edit.selected.delete(comm);
+      }
+      renderGrid();
+      return;
+    }
+    if (event.target.classList.contains("rowsel")) {
+      const tr = event.target.closest("tr");
+      if (event.target.checked) edit.selected.add(tr.dataset.comm);
+      else edit.selected.delete(tr.dataset.comm);
+      tr.classList.toggle("sel", event.target.checked);
+      syncSelectAll();
+      renderEditState();
       return;
     }
     // 행 클릭: 차량 상세. 편집 모드에서는 입력 열의 칸만 반응한다.

@@ -215,3 +215,29 @@
   flex: 1;
   min-width: 0;
 }
+
+/* ---- Logistics 일괄 입력 창 ---- */
+.bulk-form input:not([type="checkbox"]),
+.bulk-form select,
+.bulk-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font: inherit;
+}
+.bulk-form td:first-child {
+  white-space: nowrap;
+}
+.bulk-option {
+  display: block;
+  margin-top: 10px;
+}
+.bulk-preview {
+  margin-bottom: 12px;
+}
+.bulk-preview td:first-child,
+.bulk-preview td.num {
+  white-space: nowrap;
+}

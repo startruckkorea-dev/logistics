@@ -4,19 +4,23 @@ import { mk } from "../lib/dom.js";
 import { ENV } from "../lib/config.js";
 import { tx } from "../app/i18n.js";
 import { openModal, closeModal, toast } from "../app/ui.js";
-import { COLUMNS } from "../data/columns.js";
 import {
-  INPUT_FIELDS, isDate, isMonth, checkInput, normalizeInput, changedFields, saveVehicles, targetListNames,
+  INPUT_FIELDS, checkInput, normalizeInput, changedFields, saveVehicles, targetListNames,
 } from "../data/store.js";
-
-// C/O 열에서 고르는 값
-const CO_VALUES = ["Requested", "Received", "N/A"];
+import { createInput, labelOf, invalidMessage } from "./input-controls.js";
 
 // 편집 상태. 다른 화면에 다녀와도 유지한다(저장 대기를 잃지 않게).
-//   pending : Commission No → { 열 이름: 새 값 }
-export const edit = { on: false, saving: false, pending: new Map() };
+//   pending  : Commission No → { 열 이름: 새 값 }
+//   selected : 일괄 입력 대상으로 고른 Commission No. 화면에 보이는 행만 담는다
+//   bulk     : 저장 대기에 일괄 입력으로 올린 값이 있는 Commission No(이력의 출처를 구분한다)
+export const edit = { on: false, saving: false, pending: new Map(), selected: new Set(), bulk: new Set() };
 
-const labelOf = (key) => COLUMNS.find((c) => c.key === key)?.label ?? key;
+// 편집 모드를 끝낸다
+function leaveEdit() {
+  edit.on = false;
+  edit.selected.clear();
+}
+
 const num = (n) => Number(n).toLocaleString("ko-KR");
 const isEmpty = (v) => v == null || v === "";
 
@@ -39,31 +43,34 @@ export function pendingCount() {
   return n;
 }
 
-// 값을 저장 대기에 올린다. 저장된 값과 같아지면 대기에서 뺀다.
-function stage(v, key, value) {
+/**
+ * 값을 저장 대기에 올린다. 저장된 값과 같아지면 대기에서 뺀다. 형식 검사는 부르는 쪽이 한다.
+ * @param {{bulk?: boolean}} [options] bulk: 일괄 입력으로 올린 값
+ */
+export function stageValue(v, key, value, options = {}) {
   const comm = v.commission_no;
   const next = normalizeInput(value);
   const p = edit.pending.get(comm) ?? {};
   if (next === normalizeInput(v[key])) delete p[key];
   else p[key] = next;
-  if (Object.keys(p).length) edit.pending.set(comm, p);
-  else edit.pending.delete(comm);
+  if (Object.keys(p).length) {
+    edit.pending.set(comm, p);
+    if (options.bulk) edit.bulk.add(comm);
+  } else {
+    edit.pending.delete(comm);
+    edit.bulk.delete(comm);
+  }
 }
-
-const INVALID_MESSAGES = {
-  date: "YYYY-MM-DD 형식으로 입력하세요 (예: 2026-11-09).",
-  month: "YYYY-MM 형식으로 입력하세요 (예: 2026-11).",
-  too_long: "255자를 넘을 수 없습니다.",
-};
 
 // 형식이 맞으면 저장 대기에 올리고 참을 돌려준다. 틀리면 알리고 거짓.
 function stageChecked(v, key, value) {
   const reason = checkInput(key, normalizeInput(value));
   if (reason) {
-    toast(`${tx(labelOf(key))} ${tx("형식 오류")}`, tx(INVALID_MESSAGES[reason]));
+    const message = invalidMessage(key, reason);
+    toast(message.title, message.detail);
     return false;
   }
-  stage(v, key, value);
+  stageValue(v, key, value);
   return true;
 }
 
@@ -77,24 +84,8 @@ function stageChecked(v, key, value) {
 export function startCellEdit(td, v, key, onDone) {
   if (td.querySelector("input, select")) return;
   const before = normalizeInput(shownRow(v)[key]);
-  let input;
-  if (key === "co") {
-    // 목록에 없는 기존 값은 선택지에 더해 그대로 둘 수 있게 한다
-    const values = CO_VALUES.includes(before) || before === "" ? CO_VALUES : [...CO_VALUES, before];
-    input = mk(
-      "select",
-      { class: "cell-in" },
-      mk("option", { value: "" }, tx("(빈칸)")),
-      values.map((x) => mk("option", { value: x }, x))
-    );
-  } else {
-    // 날짜·월 선택 칸은 형식이 맞는 값만 담을 수 있다. 형식이 다른 기존 값은 글자 칸으로 보여준다.
-    let type = "text";
-    if (key === "b1_factory_order" && (before === "" || isDate(before))) type = "date";
-    if (key === "sales_month" && (before === "" || isMonth(before))) type = "month";
-    input = mk("input", { class: "cell-in", type });
-  }
-  input.value = before;
+  const input = createInput(key, before);
+  input.classList.add("cell-in");
 
   let done = false;
   const finish = (save) => {
@@ -226,9 +217,12 @@ function showConflicts(conflicts, vehicles, hooks) {
   );
   const keep = () => closeModal();
   const discard = () => {
-    for (const { vehicle } of conflicts) edit.pending.delete(vehicle.commission_no);
+    for (const { vehicle } of conflicts) {
+      edit.pending.delete(vehicle.commission_no);
+      edit.bulk.delete(vehicle.commission_no);
+    }
     closeModal();
-    if (!pendingCount()) edit.on = false;
+    if (!pendingCount()) leaveEdit();
     hooks.render();
   };
   const overwrite = () => {
@@ -260,14 +254,22 @@ async function save(vehicles, hooks) {
   hooks.render();
   const byComm = new Map(vehicles.map((v) => [v.commission_no, v]));
   const edits = [...edit.pending]
-    .map(([comm, inputs]) => ({ vehicle: byComm.get(comm), inputs }))
+    .map(([comm, inputs]) => ({
+      vehicle: byComm.get(comm),
+      inputs,
+      source: edit.bulk.has(comm) ? "일괄 입력" : "입력",
+    }))
     .filter((e) => e.vehicle);
   try {
     const out = await saveVehicles(edits, "입력", hooks.progress);
-    for (const { vehicle } of out.saved) edit.pending.delete(vehicle.commission_no);
+    const settle = (comm) => {
+      edit.pending.delete(comm);
+      edit.bulk.delete(comm);
+    };
+    for (const { vehicle } of out.saved) settle(vehicle.commission_no);
     // 그사이 저장된 값과 같아진 것은 더 보낼 것이 없다
     for (const { vehicle, inputs } of edits) {
-      if (!changedFields(vehicle, inputs).length) edit.pending.delete(vehicle.commission_no);
+      if (!changedFields(vehicle, inputs).length) settle(vehicle.commission_no);
     }
 
     const fields = out.saved.reduce((n, s) => n + s.changes.length, 0);
@@ -289,7 +291,7 @@ async function save(vehicles, hooks) {
         `${tx("값은 저장되었습니다. 이력만 기록되지 않았습니다.")} (${out.historyCodes.join(", ")})`
       );
     }
-    if (!pendingCount()) edit.on = false;
+    if (!pendingCount()) leaveEdit();
     edit.saving = false;
     hooks.render();
     if (out.conflicts.length) showConflicts(out.conflicts, vehicles, hooks);
@@ -309,7 +311,7 @@ async function save(vehicles, hooks) {
 export function finishEdit(vehicles, hooks) {
   closeNoteEditor();
   if (!pendingCount()) {
-    edit.on = false;
+    leaveEdit();
     hooks.render();
     return;
   }
@@ -341,7 +343,8 @@ export function cancelEdit(hooks) {
   closeNoteEditor();
   const leave = () => {
     edit.pending.clear();
-    edit.on = false;
+    edit.bulk.clear();
+    leaveEdit();
     hooks.render();
   };
   if (!pendingCount()) {

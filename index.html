@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>STK Kufri Logistics</title>
+    <title>STK Logistics Hub</title>
 
     <!--
       웹 보안 헤더(개발 보안 체크리스트 7-03).
@@ -26,36 +26,44 @@
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
+    <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/app.css" />
   </head>
   <body>
-    <header>
-      <h1>STK Kufri Logistics</h1>
-      <span id="user"></span>
-      <button id="login" hidden>Microsoft 로그인</button>
-      <button id="logout" hidden>로그아웃</button>
+    <!-- 상단 메뉴 바 -->
+    <header class="topbar">
+      <div class="logo">STK Logistics Hub <span class="tag" id="envTag" hidden></span></div>
+      <nav id="nav"></nav>
+      <div class="langbox" id="langbox" title="언어 전환 / Language">
+        <button type="button" data-lang="ko" class="active">한</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+      <div class="userbox" id="userbox" hidden>
+        <b id="userName"></b>
+        <button id="logout" type="button">로그아웃</button>
+      </div>
     </header>
 
-    <p id="status">초기화 중...</p>
-    <p id="scopes"></p>
+    <main class="page" id="app"></main>
 
-    <table id="files" hidden>
-      <thead>
-        <tr>
-          <th>이름</th>
-          <th>크기</th>
-          <th>수정한 날짜</th>
-          <th>엑셀</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <p id="tools" hidden><button id="check-lists" type="button">List 점검</button></p>
-    <section id="lists" hidden></section>
-
-    <section id="preview" hidden></section>
-    <section id="result" hidden></section>
+    <!-- 드로어 · 모달 · 알림 · 툴팁 -->
+    <div class="drawer-bg" id="drawer-bg"></div>
+    <aside class="drawer" id="drawer">
+      <div class="drawer-head" id="drawer-head"></div>
+      <div class="drawer-body" id="drawer-body"></div>
+    </aside>
+    <div class="modal-bg" id="modal-bg">
+      <div class="modal">
+        <div class="modal-h">
+          <h2 id="modal-title"></h2>
+          <button class="x" id="modal-close" type="button">×</button>
+        </div>
+        <div class="modal-b" id="modal-body"></div>
+        <div class="modal-f" id="modal-foot"></div>
+      </div>
+    </div>
+    <div id="toast"></div>
+    <div class="tip" id="tip"></div>
 
     <script src="js/vendor/msal-browser.min.js"></script>
     <script type="module" src="js/main.js"></script>

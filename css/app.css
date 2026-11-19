@@ -1,117 +1,123 @@
-body {
-  font-family: "Segoe UI", "Malgun Gothic", sans-serif;
-  max-width: 960px;
-  margin: 40px auto;
-  padding: 0 16px;
-  color: #1f2328;
+/* 화면 틀 보완 — css/style.css(화면 설계 원본) 위에 얹는 규칙 */
+
+/* 로그인 전·준비 중 안내 */
+.notice-card {
+  max-width: 560px;
+  margin: 60px auto;
+  text-align: center;
 }
-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.notice-card p {
+  margin: 8px 0 14px;
+  color: var(--muted);
 }
-h1 {
-  font-size: 20px;
-  margin-right: auto;
+.userbox[hidden] {
+  display: none;
 }
-button {
+.topbar .userbox button {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  padding: 3px 9px;
+  font-size: 12px;
+}
+.topbar .userbox button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.error {
+  color: var(--danger);
+}
+
+/* ---- 관리 화면(폴더 목록 · 전처리 · List 점검). 다른 화면과 섞이지 않게 .admin 아래로 한정 ---- */
+.admin button {
   padding: 6px 14px;
-  cursor: pointer;
 }
-#status.error,
-p.error {
-  color: #b3261e;
-}
-#scopes {
-  color: #656d76;
+.admin #scopes {
+  color: var(--muted);
   font-size: 12px;
   word-break: break-all;
 }
-table {
+.admin table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
 }
-th,
-td {
+.admin th,
+.admin td {
   text-align: left;
   padding: 6px 8px;
-  border-bottom: 1px solid #d0d7de;
+  border-bottom: 1px solid var(--line);
 }
-
-/* 엑셀 미리보기 · 전처리 결과 */
-#preview,
-#result,
-#lists {
+.admin #preview,
+.admin #result,
+.admin #lists {
   margin-top: 28px;
 }
-#preview h2,
-#result h2,
-#lists h2 {
+.admin #preview h2,
+.admin #result h2,
+.admin #lists h2 {
   font-size: 17px;
 }
-#preview h3,
-#result h3 {
+.admin #preview h3,
+.admin #result h3 {
   font-size: 15px;
   margin: 24px 0 4px;
 }
-.hint {
-  color: #656d76;
+.admin #preview h4,
+.admin #result h4,
+.admin #lists h4 {
+  font-size: 13px;
+  margin: 14px 0 6px;
+  color: var(--muted);
+}
+.admin .hint {
+  color: var(--muted);
   font-size: 12px;
   margin: 4px 0 8px;
 }
-.summary {
+.admin .summary {
   display: block;
   width: 100%;
-  box-sizing: border-box;
   margin-bottom: 8px;
-  font-family: Consolas, "Malgun Gothic", monospace;
+  font-family: var(--mono);
   font-size: 12px;
 }
-.grid-wrap {
+.admin .grid-wrap {
   overflow: auto;
   max-height: 420px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--line);
 }
-table.grid {
+.admin table.grid {
   width: auto;
   margin-top: 0;
   font-size: 12px;
 }
-table.grid th,
-table.grid td {
+.admin table.grid th,
+.admin table.grid td {
   padding: 3px 8px;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--line);
   white-space: nowrap;
 }
-table.grid th {
+.admin table.grid th {
   position: sticky;
   top: 0;
-  background: #f6f8fa;
-  color: #57606a;
+  background: var(--soft);
+  color: var(--muted);
   font-weight: 600;
   text-align: center;
 }
-table.grid th.rownum {
+.admin table.grid th.rownum {
   left: 0;
   top: auto;
 }
-table.grid th.corner {
+.admin table.grid th.corner {
   left: 0;
   z-index: 1;
 }
-#preview h4,
-#result h4,
-#lists h4 {
-  font-size: 13px;
-  margin: 14px 0 6px;
-  color: #57606a;
-}
-
-.actions {
+.admin .actions {
   display: inline-flex;
   gap: 6px;
 }
-#tools {
+.admin #tools {
   margin: 12px 0 0;
 }

@@ -1,180 +1,68 @@
-import { SHAREPOINT, ENV, ENV_NAME } from "./lib/config.js";
-import { initAuth, login, logout, getToken } from "./lib/auth.js";
-import { listFolder, readTextFile } from "./lib/sharepoint.js";
+// 앱 시작 — 로그인 상태를 확인하고 화면 틀을 띄운다.
+import { ENV, ENV_NAME } from "./lib/config.js";
+import { initAuth, login, logout } from "./lib/auth.js";
 import { mk } from "./lib/dom.js";
-import { readWorkbook, isExcelFile } from "./etl/read.js";
-import { renderPreview } from "./etl/preview.js";
-import { validateRules } from "./etl/rules-validate.js";
-import { runRules, RuleError } from "./etl/transform.js";
-import { renderResult, renderRuleErrors, renderRunError } from "./etl/result.js";
-import { renderListCheck, loadSection } from "./etl/lists-ui.js";
+import { state } from "./app/state.js";
+import { tx } from "./app/i18n.js";
+import { initUi } from "./app/ui.js";
+import { registerPage, startRouter, route } from "./app/router.js";
+import { adminPage } from "./pages/admin.js";
 
 const $ = (id) => document.getElementById(id);
 
-function setStatus(text, isError = false) {
-  $("status").textContent = text;
-  $("status").classList.toggle("error", isError);
-}
-
-function formatSize(bytes) {
-  if (bytes == null) return "";
-  const units = ["B", "KB", "MB", "GB"];
-  let i = 0;
-  while (bytes >= 1024 && i < units.length - 1) {
-    bytes /= 1024;
-    i++;
-  }
-  return `${bytes.toFixed(i ? 1 : 0)} ${units[i]}`;
-}
-
-// 엑셀 파일을 읽어 시트 구조를 미리보기로 보여준다.
-async function showWorkbook(item, button) {
-  button.disabled = true;
-  setStatus(`${item.name} 을(를) 읽는 중...`);
-  try {
-    const workbook = await readWorkbook(item.id);
-    renderPreview($("preview"), item.name, workbook);
-    setStatus(`${item.name} — 시트 ${workbook.sheets.length}개를 읽었습니다.`);
-  } catch (err) {
-    console.error(err);
-    setStatus(`엑셀 읽기 실패: ${err.message}`, true);
-  } finally {
-    button.disabled = false;
-  }
-}
-
-function loadButton(item) {
-  const button = mk("button", { type: "button" }, "불러오기");
-  button.addEventListener("click", () => showWorkbook(item, button));
-  return button;
-}
-
-// 규칙 파일을 읽어 엑셀에 적용하고 결과를 보여준다. List 에는 쓰지 않는다.
-async function runPreprocess(item, button) {
-  button.disabled = true;
-  const container = $("result");
-  try {
-    setStatus(`규칙 파일(${SHAREPOINT.rulesFile})을 읽는 중...`);
-    const file = await readTextFile(SHAREPOINT.rulesFile);
-    const info = { ...file, envLabel: ENV.label };
-
-    let rules;
-    try {
-      rules = JSON.parse(file.text);
-    } catch {
-      // JSON.parse 의 오류 문구에는 파일 내용 일부가 섞일 수 있어 그대로 보여주지 않는다.
-      renderRuleErrors(container, info, [
-        { where: "파일", item: "전체", message: "JSON 형식이 아닙니다(쉼표·따옴표·괄호를 확인하세요)" },
-      ]);
-      setStatus("규칙 파일을 읽을 수 없습니다.", true);
-      return;
-    }
-
-    const errors = validateRules(rules, ENV_NAME);
-    if (errors.length) {
-      renderRuleErrors(container, info, errors);
-      setStatus(`규칙 파일 형식 오류 ${errors.length}건`, true);
-      return;
-    }
-
-    setStatus(`${item.name} 을(를) 읽는 중...`);
-    const workbook = await readWorkbook(item.id);
-
-    try {
-      const result = runRules(workbook, rules);
-      renderResult(container, info, item.name, result);
-      container.append(loadSection(result, setStatus));
-      setStatus(`${item.name} — 전처리 결과 표 ${result.tables.length}개를 만들었습니다.`);
-    } catch (err) {
-      if (!(err instanceof RuleError)) throw err;
-      renderRunError(container, info, err);
-      setStatus("전처리를 중단했습니다.", true);
-    }
-  } catch (err) {
-    console.error(err);
-    setStatus(`전처리 실패: ${err.message}`, true);
-  } finally {
-    button.disabled = false;
-  }
-}
-
-function preprocessButton(item) {
-  const button = mk("button", { type: "button" }, "전처리");
-  button.addEventListener("click", () => runPreprocess(item, button));
-  return button;
-}
-
-function excelCell(item) {
-  return mk("span", { class: "actions" }, loadButton(item), preprocessButton(item));
-}
-
-function renderItems(items) {
-  const tbody = $("files").querySelector("tbody");
-  tbody.replaceChildren(
-    ...items.map((item) => {
-      const tr = document.createElement("tr");
-      const name = document.createElement("a");
-      name.href = item.webUrl;
-      name.target = "_blank";
-      name.rel = "noopener";
-      name.textContent = item.folder ? `${item.name}/` : item.name;
-      const cells = [
-        name,
-        item.folder ? `항목 ${item.folder.childCount}개` : formatSize(item.size),
-        new Date(item.lastModifiedDateTime).toLocaleString("ko-KR"),
-        isExcelFile(item) ? excelCell(item) : "",
-      ];
-      for (const cell of cells) {
-        const td = document.createElement("td");
-        td.append(cell);
-        tr.append(td);
-      }
-      return tr;
-    })
+// 로그인 전이나 로그인 실패 때 화면 가운데에 보여주는 안내
+function showNotice(message, isError) {
+  $("app").replaceChildren(
+    mk(
+      "div",
+      { class: "card notice-card" },
+      mk("h2", null, "STK Logistics Hub"),
+      mk("p", { class: isError ? "error" : null }, message),
+      mk("button", { class: "btn primary", type: "button", onclick: login }, tx("Microsoft 로그인"))
+    )
   );
-  $("files").hidden = false;
 }
 
-async function showFolder() {
-  const folderPath = SHAREPOINT.folders.modify;
-  setStatus(`${folderPath} 폴더를 불러오는 중...`);
-  try {
-    const { scopes } = await getToken();
-    $("scopes").textContent = `부여된 권한: ${scopes.join(", ")}`;
-    const items = await listFolder(folderPath);
-    renderItems(items);
-    setStatus(`${SHAREPOINT.sitePath}/${folderPath} — 항목 ${items.length}개`);
-  } catch (err) {
-    console.error(err);
-    setStatus(`폴더 조회 실패: ${err.errorCode ?? ""} ${err.message}`, true);
+function setLanguage(lang) {
+  if (lang === state.lang) return;
+  state.lang = lang;
+  document.documentElement.lang = lang;
+  for (const button of document.querySelectorAll("#langbox button")) {
+    button.classList.toggle("active", button.dataset.lang === lang);
   }
+  if (state.account) route();
 }
 
 async function main() {
-  $("login").addEventListener("click", login);
+  initUi();
+  // 운영이 아닌 환경은 상단에 환경 이름을 표시해 헷갈리지 않게 한다.
+  if (ENV_NAME !== "prod") {
+    $("envTag").textContent = ENV.label;
+    $("envTag").hidden = false;
+  }
+  for (const button of document.querySelectorAll("#langbox button")) {
+    button.addEventListener("click", () => setLanguage(button.dataset.lang));
+  }
   $("logout").addEventListener("click", logout);
 
-  let account;
   try {
-    account = await initAuth();
+    state.account = await initAuth();
   } catch (err) {
     console.error(err);
-    setStatus(`로그인 실패: ${err.errorCode ?? ""} ${err.message}`, true);
-    $("login").hidden = false;
+    showNotice(`로그인 실패: ${err.errorCode ?? ""} ${err.message}`, true);
+    return;
+  }
+  if (!state.account) {
+    showNotice(tx("Microsoft 계정으로 로그인하세요."), false);
     return;
   }
 
-  if (!account) {
-    setStatus("Microsoft 계정으로 로그인하세요.");
-    $("login").hidden = false;
-    return;
-  }
+  $("userName").textContent = state.account.name ?? state.account.username;
+  $("userName").title = state.account.username;
+  $("userbox").hidden = false;
 
-  $("user").textContent = `${account.name ?? ""} (${account.username})`;
-  $("logout").hidden = false;
-  $("check-lists").addEventListener("click", () => renderListCheck($("lists"), setStatus));
-  $("tools").hidden = false;
-  await showFolder();
+  registerPage("admin", adminPage);
+  startRouter();
 }
 
 main();

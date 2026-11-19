@@ -267,9 +267,11 @@ function fillCell(td, column, v, terms, today) {
   td.className = cellClass(column, v) ?? "";
   td.title = isEditableCell(column.key)
     ? tx("클릭하여 입력 · 편집 종료 시 저장")
-    : column.memo && !isEmpty(value)
-      ? value
-      : "";
+    : edit.on && column.key === "commission_no"
+      ? tx("클릭하여 행 선택 (일괄 입력 대상)")
+      : column.memo && !isEmpty(value)
+        ? value
+        : "";
   if (!td.title) td.removeAttribute("title");
   td.replaceChildren(...cellContent(column, shown, terms, today).flat(Infinity).filter((n) => n != null));
   // 편집 모드: 행 선택 체크박스
@@ -665,11 +667,15 @@ function buildScreen(root, meta) {
       renderGrid();
       return;
     }
-    if (event.target.classList.contains("rowsel")) {
-      const tr = event.target.closest("tr");
-      if (event.target.checked) edit.selected.add(tr.dataset.comm);
+    // 체크박스를 누르거나, Commission No 칸의 다른 곳을 눌러도 그 행을 고르거나 푼다.
+    const selectCell = edit.on && event.target.closest('tbody td[data-key="commission_no"]');
+    if (selectCell) {
+      const box = selectCell.querySelector("input.rowsel");
+      if (event.target !== box) box.checked = !box.checked;
+      const tr = selectCell.closest("tr");
+      if (box.checked) edit.selected.add(tr.dataset.comm);
       else edit.selected.delete(tr.dataset.comm);
-      tr.classList.toggle("sel", event.target.checked);
+      tr.classList.toggle("sel", box.checked);
       syncSelectAll();
       renderEditState();
       return;

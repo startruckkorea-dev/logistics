@@ -276,6 +276,8 @@ const DICTIONARY = {
   "값을 넣은 열만 적용합니다. 빈 칸으로 둔 열은 건드리지 않습니다. 값을 지우려면 그 열의 '지우기'를 체크하세요.": "Only columns with a value are applied. Columns left blank are not touched. To clear a column, check its 'Clear' box.",
   "열": "Column",
   "넣을 값": "Value",
+  "현재 값": "Current value",
+  "클릭하여 행 선택 (일괄 입력 대상)": "Click to select this row (for bulk input)",
   "지우기": "Clear",
   "빈 칸만 채우기 (값이 있는 칸은 건드리지 않음)": "Fill empty cells only (cells with a value are not touched)",
   "미리보기": "Preview",

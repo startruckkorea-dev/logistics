@@ -230,6 +230,10 @@
 .bulk-form td:first-child {
   white-space: nowrap;
 }
+/* 현재 값과 넣을 값을 나란히 */
+.bulk-form td.current {
+  width: 38%;
+}
 .bulk-option {
   display: block;
   margin-top: 10px;

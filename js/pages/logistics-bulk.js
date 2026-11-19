@@ -21,6 +21,28 @@ function short(value) {
   return line.length > OLD_VALUE_LENGTH ? `${line.slice(0, OLD_VALUE_LENGTH)}…` : line;
 }
 
+// 값별 대수를 많은 순으로 적은 글. 종류가 많으면 앞의 몇 개만 적는다.
+function valueCounts(counts) {
+  const sorted = [...counts].sort((a, b) => b[1] - a[1]);
+  return (
+    sorted
+      .slice(0, OLD_VALUES_SHOWN)
+      .map(([value, n]) => `${value === "" ? tx("(빈칸)") : short(value)} ${tx("{n}대", { n: num(n) })}`)
+      .join(" · ") +
+    (sorted.length > OLD_VALUES_SHOWN ? ` · ${tx("외 {n}종", { n: num(sorted.length - OLD_VALUES_SHOWN) })}` : "")
+  );
+}
+
+// 선택한 차량들이 한 열에 지금 갖고 있는 값(저장 대기 포함)
+function currentValues(targets, key) {
+  const counts = new Map();
+  for (const v of targets) {
+    const value = normalizeInput(shownRow(v)[key]);
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return valueCounts(counts);
+}
+
 // 한 열에 대한 계획: 어떤 차량이 어떻게 바뀌는지 나눈다.
 function planField(targets, key, next, onlyEmpty) {
   const plan = { key, next, fill: [], change: [], same: 0, skipped: 0, oldValues: new Map() };
@@ -39,10 +61,7 @@ function planField(targets, key, next, onlyEmpty) {
 }
 
 function previewBlock(plan) {
-  const old = [...plan.oldValues].sort((a, b) => b[1] - a[1]);
-  const oldText =
-    old.slice(0, OLD_VALUES_SHOWN).map(([value, n]) => `${short(value)} ${tx("{n}대", { n: num(n) })}`).join(" · ") +
-    (old.length > OLD_VALUES_SHOWN ? ` · ${tx("외 {n}종", { n: num(old.length - OLD_VALUES_SHOWN) })}` : "");
+  const oldText = valueCounts(plan.oldValues);
   const line = (label, n, note) =>
     mk("tr", null, mk("td", null, label), mk("td", { class: "num" }, tx("{n}대", { n: num(n) })), mk("td", { class: "muted small long-text" }, note ?? ""));
   return [
@@ -97,11 +116,20 @@ export function openBulkInput(targets, hooks) {
     mk(
       "table",
       { class: "tbl bulk-form" },
-      mk("thead", null, mk("tr", null, ["열", "넣을 값", "지우기"].map((h) => mk("th", null, tx(h))))),
+      mk("thead", null, mk("tr", null, ["열", "현재 값", "넣을 값", "지우기"].map((h) => mk("th", null, tx(h))))),
       mk(
         "tbody",
         null,
-        rows.map((r) => mk("tr", null, mk("td", null, tx(labelOf(r.key))), mk("td", null, r.input), mk("td", null, r.clear)))
+        rows.map((r) =>
+          mk(
+            "tr",
+            null,
+            mk("td", null, tx(labelOf(r.key))),
+            mk("td", { class: "muted small long-text current" }, currentValues(targets, r.key)),
+            mk("td", null, r.input),
+            mk("td", null, r.clear)
+          )
+        )
       )
     ),
     mk("label", { class: "bulk-option" }, onlyEmpty, " ", tx("빈 칸만 채우기 (값이 있는 칸은 건드리지 않음)")),

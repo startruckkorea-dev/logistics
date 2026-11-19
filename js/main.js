@@ -7,6 +7,7 @@ import { tx } from "./app/i18n.js";
 import { initUi } from "./app/ui.js";
 import { registerPage, startRouter, route } from "./app/router.js";
 import { adminPage } from "./pages/admin.js";
+import { logisticsPage } from "./pages/logistics.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -61,6 +62,7 @@ async function main() {
   $("userName").title = state.account.username;
   $("userbox").hidden = false;
 
+  registerPage("logistics", logisticsPage);
   registerPage("admin", adminPage);
   startRouter();
 }

@@ -31,6 +31,16 @@ export function addDays(isoDate, days) {
   return out.toISOString().slice(0, 10);
 }
 
+// 두 날짜의 차이(일). a - b. 날짜가 아니면 null
+export function diffDays(a, b) {
+  if (!ISO_DATE.test(a ?? "") || !ISO_DATE.test(b ?? "")) return null;
+  const utc = (iso) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((utc(a) - utc(b)) / DAY_MS);
+}
+
 export const monthOf = (isoDate) => (isoDate ? isoDate.slice(0, 7) : "");
 
 // 브라우저 현지 날짜 기준 오늘

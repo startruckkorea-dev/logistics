@@ -23,6 +23,18 @@ export async function listLists() {
   return items;
 }
 
+// List 이름 → id. 한 번 조회한 목록을 화면이 떠 있는 동안 다시 쓴다.
+let listIdsPromise;
+export async function findListId(displayName) {
+  listIdsPromise ??= listLists().then((lists) => new Map(lists.map((l) => [l.displayName, l.id])));
+  const id = (await listIdsPromise).get(displayName);
+  if (!id) {
+    listIdsPromise = undefined; // 다음 호출에서 다시 조회한다(그사이 만들어졌을 수 있다)
+    throw new Error(`List 를 찾을 수 없습니다: ${displayName}`);
+  }
+  return id;
+}
+
 // Graph 가 돌려준 열 정의 → 우리 타입 이름
 function typeOf(column) {
   if (column.boolean) return "boolean";

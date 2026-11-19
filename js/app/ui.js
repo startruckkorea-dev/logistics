@@ -1,4 +1,4 @@
-// 공용 부품 — 알림(Toast), 모달, 드로어.
+// 공용 부품 — 알림(Toast), 모달, 드로어, 풍선 도움말.
 // 내용은 문자열 HTML 이 아니라 DOM 노드(또는 텍스트)로 받는다.
 import { mk } from "../lib/dom.js";
 import { tx } from "./i18n.js";
@@ -55,6 +55,18 @@ export function initUi() {
   $("drawer-bg").addEventListener("click", closeDrawer);
   $("modal-bg").addEventListener("click", (event) => {
     if (event.target === $("modal-bg")) closeModal();
+  });
+  const tip = $("tip");
+  document.addEventListener("mousemove", (event) => {
+    const target = event.target.closest?.("[data-tip]");
+    if (!target) {
+      tip.style.display = "none";
+      return;
+    }
+    tip.textContent = target.getAttribute("data-tip");
+    tip.style.display = "block";
+    tip.style.left = `${Math.min(event.clientX + 12, window.innerWidth - tip.offsetWidth - 8)}px`;
+    tip.style.top = `${event.clientY + 12}px`;
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {

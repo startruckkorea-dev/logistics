@@ -23,7 +23,7 @@ let cache;
 /**
  * @param {{refresh?: boolean}} [options] refresh: 다시 읽는다
  * @returns {Promise<{
- *   vehicles: object[],      // 차량 1대 = 1행. 두 List 의 열 + spec, lead_days
+ *   vehicles: object[],      // 차량 1대 = 1행. 두 List 의 열 + spec, lead_days, lead_months
  *   onlyAfab: number,        // AFAB List 에만 있는 건수
  *   onlyMain: number,        // Main List 에만 있는 건수
  *   loadedAt: Date,
@@ -58,6 +58,7 @@ async function read() {
       ...afabFields,
       spec: model?.spec ?? "",
       lead_days: model?.lead_days ?? "",
+      lead_months: model?.lead ?? "",
       // 저장할 때 어느 List 의 어느 항목인지 찾는 데 쓴다
       _items: { afab: afabItemId ?? null, main: mainItemId ?? null },
     };

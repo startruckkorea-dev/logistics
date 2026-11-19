@@ -8,6 +8,7 @@ import { initUi } from "./app/ui.js";
 import { registerPage, startRouter, route } from "./app/router.js";
 import { adminPage } from "./pages/admin.js";
 import { logisticsPage } from "./pages/logistics.js";
+import { dashboardPage } from "./pages/dashboard.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -62,6 +63,7 @@ async function main() {
   $("userName").title = state.account.username;
   $("userbox").hidden = false;
 
+  registerPage("dashboard", dashboardPage);
   registerPage("logistics", logisticsPage);
   registerPage("admin", adminPage);
   startRouter();

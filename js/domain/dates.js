@@ -41,6 +41,13 @@ export function diffDays(a, b) {
   return Math.round((utc(a) - utc(b)) / DAY_MS);
 }
 
+// 월("YYYY-MM")에 n 개월을 더한다
+export function addMonths(month, n) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
+}
+
 export const monthOf = (isoDate) => (isoDate ? isoDate.slice(0, 7) : "");
 
 // 브라우저 현지 날짜 기준 오늘

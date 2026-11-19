@@ -166,6 +166,11 @@ function monthlyCard(vehicles, baseMonth, rerender) {
     }
     const real = voyages.filter((y) => !y.unassigned);
     if (!real.length) return null;
+    // 선박분과 미배정이 섞이면 열 필터로는 한 번에 나타낼 수 없어(필터는 열끼리 AND) 차량 목록으로 넘긴다
+    if (real.length < voyages.length) {
+      const list = voyages.flatMap((y) => schedule.commissions[keyOf(y)] ?? []);
+      return list.length ? `#/logistics?comm=${list.map(encodeURIComponent).join(",")}` : null;
+    }
     const arrived = Boolean(real[0].arrived);
     const query = {
       vessel: [...new Set(real.map((y) => y.vessel))].join(","),
@@ -187,8 +192,7 @@ function monthlyCard(vehicles, baseMonth, rerender) {
       for (const y of shown(month)) cells.push(cell(by[keyOf(y)] ?? 0, link([y])));
       const total = voyagesByMonth[month].reduce((sum, y) => sum + (by[keyOf(y)] ?? 0), 0);
       grand += total;
-      const hasUnassigned = voyagesByMonth[month].some((y) => y.unassigned);
-      const totalCell = cell(total, link(voyagesByMonth[month]), hasUnassigned ? tx("클릭 → Logistics 목록 (미배정 제외)") : null);
+      const totalCell = cell(total, link(voyagesByMonth[month]));
       totalCell.classList.add("tot");
       if (current(month)) totalCell.classList.add("cur");
       cells.push(totalCell);
@@ -317,7 +321,7 @@ function monthlyCard(vehicles, baseMonth, rerender) {
       { class: "muted small", style: "margin-top:6px" },
       [
         tx("선박의 입항 월은 ATA → ETA 선사 → Pl. arrival(AFAB) 순으로 결정. Grand Total 행의 수량 셀·월 Total 클릭 → 해당 선박 Logistics 목록(같은 건수). 모델 행과 Grand Total 열은 표시 전용."),
-        tx("미배정 셀 클릭 → 해당 월 ETA From TDD · Vessel 빈 값 목록, 미배정이 있는 달의 월 Total 링크는 선박분만."),
+        tx("미배정 셀 클릭 → 해당 월 ETA From TDD · Vessel 빈 값 목록. 월 Total 은 미배정을 포함한 그 달 전체."),
         whole ? tx("올해 전체에서 당월 외 월은 Total만 표시 — 월 Total 머리글(▸) 클릭으로 선박 열 펼침.") : null,
       ]
         .filter(Boolean)

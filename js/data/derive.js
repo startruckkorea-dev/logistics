@@ -157,7 +157,7 @@ export const voyageMonth = (voyage) => (voyage.eta_final || voyage.eta_carrier |
  *   unassigned: 선박 없이 ETA From TDD 만 있는 오더를 그 달의 "미배정" 열로 집계
  * @returns {{months: string[], voyagesByMonth: Record<string, object[]>,
  *            groups: Array<{gen, vehicles: Array<{vehicle, rows: Array<{label, attrs, by, total}>}>}>,
- *            grand: Record<string, number>, total: number}}
+ *            grand: Record<string, number>, commissions: Record<string, string[]>, total: number}}
  *   열 key = 선박 이름. 실적 열은 "YYYY-MM|선박", 미배정 열은 "YYYY-MM|미배정"
  */
 export function arrivalSchedule(vehicles, baseMonth, options = {}) {
@@ -209,7 +209,9 @@ export function arrivalSchedule(vehicles, baseMonth, options = {}) {
 
   const byModel = new Map();
   const grand = {};
+  const commissions = {}; // 열 key → 그 열에 집계된 차량의 Commission No
   for (const { v, key } of items) {
+    (commissions[key] ??= []).push(v.commission_no);
     const label = arrivalModelLabel(v);
     const id = `${v.gen}|${v.vehicle}|${label}`;
     if (!byModel.has(id)) {
@@ -236,7 +238,7 @@ export function arrivalSchedule(vehicles, baseMonth, options = {}) {
         rows: rows.filter((r) => r.gen === gen && r.vehicle === type).sort((a, b) => (a.label < b.label ? -1 : 1)),
       })),
   }));
-  return { months: Object.keys(voyagesByMonth).sort(), voyagesByMonth, groups, grand, total: items.length };
+  return { months: Object.keys(voyagesByMonth).sort(), voyagesByMonth, groups, grand, commissions, total: items.length };
 }
 
 // ---- 재고 ----

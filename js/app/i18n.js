@@ -69,6 +69,8 @@ const DICTIONARY = {
   "선적": "Shipping",
   "사양": "Spec",
   "기준일": "Base date",
+  "미배정 셀 클릭 → 해당 월 ETA From TDD · Vessel 빈 값 목록. 월 Total 은 미배정을 포함한 그 달 전체.":
+    "Click an unassigned cell → that month's ETA From TDD list with blank Vessel. A month Total covers the whole month including unassigned.",
   // 출처 배지
   "입력": "Input",
   "자동": "Auto",

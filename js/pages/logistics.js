@@ -643,7 +643,7 @@ export const logisticsPage = {
   render(root, params) {
     closeColumnFilter();
     // 다른 화면의 링크가 넘겨주는 조건: ?q= 검색어, ?stage= 상태(쉼표로 여러 개),
-    // ?열이름= 열 필터 값(쉼표로 여러 개, 빈 문자열은 빈 칸), ?delayed=1 경과 배지 행만
+    // ?열이름= 열 필터 값(쉼표로 여러 개, 빈 문자열은 빈 칸), ?comm= Commission No 목록, ?delayed=1 경과 배지 행만
     const q = params.get("q");
     if (q != null) Object.assign(view, { q, page: 1 });
     const presets = {};
@@ -653,6 +653,9 @@ export const logisticsPage = {
       const value = params.get(key);
       if (value != null) presets[key] = new Set(value.split(",").map((x) => (x === "" ? BLANK : x)));
     }
+    // ?comm= Commission No 목록(쉼표 구분). 열 필터 조합으로 나타낼 수 없는 묶음을 그대로 넘길 때 쓴다
+    const commissions = params.get("comm");
+    if (commissions) presets.commission_no = new Set(commissions.split(","));
     if (Object.keys(presets).length || params.has("delayed")) {
       // 링크가 건 조건만 적용되도록, 주소에 없는 이전 검색어는 지운다
       Object.assign(view, { q: q ?? "", col: presets, delayed: params.get("delayed") === "1", page: 1 });

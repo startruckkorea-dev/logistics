@@ -43,6 +43,8 @@ const ENVIRONMENTS = {
       colorMaster: "UAT_ColorMaster",
       logisticsAfab: "UAT_Logistics_AFAB",
       logisticsMain: "UAT_Logistics_Main",
+      // 쓰기 점검 전용(관리 화면). 차량 데이터와 무관한 빈 List 다. 운영에는 두지 않는다.
+      writeCheck: "UAT_WriteCheck",
     },
   },
   prod: {

@@ -9,6 +9,7 @@ import { validateRules } from "../etl/rules-validate.js";
 import { runRules, RuleError } from "../etl/transform.js";
 import { renderResult, renderRuleErrors, renderRunError } from "../etl/result.js";
 import { renderListCheck, loadSection } from "../etl/lists-ui.js";
+import { renderWriteCheck, WRITE_CHECK_LIST } from "../etl/write-check.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -171,7 +172,10 @@ function layout() {
     mk(
       "p",
       { id: "tools" },
-      mk("button", { type: "button", onclick: () => renderListCheck($("lists"), setStatus) }, "List 점검")
+      mk("button", { type: "button", onclick: () => renderListCheck($("lists"), setStatus) }, "List 점검"),
+      WRITE_CHECK_LIST
+        ? mk("button", { type: "button", onclick: () => renderWriteCheck($("lists"), setStatus) }, "쓰기 점검")
+        : null
     ),
     mk("section", { id: "lists", hidden: true }),
     mk("section", { id: "preview", hidden: true }),

@@ -65,7 +65,7 @@ async function inspect() {
 
 function inspectionTable(inspection) {
   return grid(
-    ["List", "상태", "없는 열", "타입이 다른 열", "인덱스 없음", "고유값 없음"],
+    ["List", "상태", "없는 열", "타입이 다른 열", "인덱스 없음", "고유값 없음", "고유값 해제 필요"],
     inspection.map(({ def, listId, diff }) =>
       listId
         ? cells(
@@ -74,9 +74,10 @@ function inspectionTable(inspection) {
             diff.missing.map((c) => c.name).join(", ") || "-",
             diff.wrongType.join(", ") || "-",
             diff.notIndexed.join(", ") || "-",
-            diff.notUnique.join(", ") || "-"
+            diff.notUnique.join(", ") || "-",
+            diff.extraUnique.join(", ") || "-"
           )
-        : cells(def.listName, `없음 (열 ${def.columns.length}개)`, "-", "-", "-", "-")
+        : cells(def.listName, `없음 (열 ${def.columns.length}개)`, "-", "-", "-", "-", "-")
     )
   );
 }
@@ -100,7 +101,9 @@ export async function renderListCheck(container, setStatus) {
   const toCreate = inspection.filter((i) => !i.listId);
   const toExtend = inspection.filter((i) => i.listId && i.diff.missing.length);
   const manual = inspection.filter(
-    (i) => i.listId && (i.diff.wrongType.length || i.diff.notIndexed.length || i.diff.notUnique.length)
+    (i) =>
+      i.listId &&
+      (i.diff.wrongType.length || i.diff.notIndexed.length || i.diff.notUnique.length || i.diff.extraUnique.length)
   );
   if (manual.length) {
     container.append(

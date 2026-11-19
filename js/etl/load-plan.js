@@ -147,6 +147,7 @@ export function compareColumns(def, actual) {
   const wrongType = [];
   const notIndexed = [];
   const notUnique = [];
+  const extraUnique = []; // 키가 아닌데 고유값이 걸린 열. 같은 값을 여러 행에 쓸 수 없게 된다
   for (const column of def.columns) {
     const found = byName.get(column.name);
     if (!found) {
@@ -157,6 +158,7 @@ export function compareColumns(def, actual) {
     const isKey = column.name === def.key;
     if ((isKey || def.indexed.includes(column.name)) && !found.indexed) notIndexed.push(column.name);
     if (isKey && !found.unique) notUnique.push(column.name);
+    if (!isKey && found.unique) extraUnique.push(column.name);
   }
-  return { missing, wrongType, notIndexed, notUnique };
+  return { missing, wrongType, notIndexed, notUnique, extraUnique };
 }

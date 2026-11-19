@@ -150,10 +150,13 @@ async function saveSlot(slot, def, jobs, onProgress) {
  *   denied: object[],                                            // 권한 없음(403)인 차량
  *   failed: Array<{vehicle, code: string}>,
  *   historyFailed: number,                                       // 값은 저장했지만 이력을 남기지 못한 차량 수
+ *   historyCodes: string[],                                      // 이력 쓰기가 실패한 응답의 상태·오류 코드
  * }>}
  */
 export async function saveVehicles(edits, source = "입력", onProgress) {
-  const out = { saved: [], invalid: [], conflicts: [], denied: [], failed: [], historyFailed: 0 };
+  const out = {
+    saved: [], invalid: [], conflicts: [], denied: [], failed: [], historyFailed: 0, historyCodes: [],
+  };
   const jobs = [];
   for (const { vehicle, inputs } of edits) {
     const changes = changedFields(vehicle, inputs);
@@ -185,6 +188,7 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
       }))
     );
     out.historyFailed = outcome.failed.length;
+    out.historyCodes = [...new Set(outcome.failed.map((f) => `${f.status} ${f.code}`))];
   }
 
   for (const job of jobs) {
@@ -202,7 +206,7 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
  * @returns {Promise<
  *   | {status: "unchanged"}
  *   | {status: "invalid", field: string, reason: string}
- *   | {status: "saved", changes: Array<{field, old, new}>, historyOk: boolean}
+ *   | {status: "saved", changes: Array<{field, old, new}>, historyOk: boolean, historyCodes: string[]}
  *   | {status: "conflict", fields: Array<{field, mine, theirs}>}   // 차량 행은 서버 값으로 바뀌어 있다
  *   | {status: "denied"}
  *   | {status: "failed", code: string}
@@ -215,7 +219,12 @@ export async function saveVehicleInputs(vehicle, inputs, source = "입력") {
   if (out.denied.length) return { status: "denied" };
   if (out.failed.length) return { status: "failed", code: out.failed[0].code };
   if (out.saved.length) {
-    return { status: "saved", changes: out.saved[0].changes, historyOk: out.historyFailed === 0 };
+    return {
+      status: "saved",
+      changes: out.saved[0].changes,
+      historyOk: out.historyFailed === 0,
+      historyCodes: out.historyCodes,
+    };
   }
   return { status: "unchanged" };
 }

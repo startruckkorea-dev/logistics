@@ -122,7 +122,14 @@ function inputControl(column, value) {
   }
   node.value = text;
   node.dataset.field = column.key;
-  return node;
+  if (node.type !== "date" && node.type !== "month") return node;
+  // 날짜·월 선택 칸은 한 번에 지우는 버튼을 옆에 둔다
+  const clear = mk("button", { class: "btn sm", type: "button", title: tx("값 지우기") }, "×");
+  clear.addEventListener("click", () => {
+    node.value = "";
+    node.focus();
+  });
+  return mk("span", { class: "clearable" }, node, clear);
 }
 
 function field(column, v) {
@@ -296,7 +303,10 @@ async function save(v, inputs, options, closeAfter = false) {
     } else {
       toast(tx("저장"), `${v.commission_no} · ${result.changes.map((c) => tx(labelOf(c.field))).join(" · ")}`);
       if (!result.historyOk) {
-        toast(tx("변경 이력 기록 실패"), tx("값은 저장되었습니다. 이력만 기록되지 않았습니다."));
+        toast(
+          tx("변경 이력 기록 실패"),
+          `${tx("값은 저장되었습니다. 이력만 기록되지 않았습니다.")} (${result.historyCodes.join(", ")})`
+        );
       }
       options.onSaved?.();
       if (closeAfter) {

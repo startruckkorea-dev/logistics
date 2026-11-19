@@ -171,8 +171,47 @@
   word-break: break-word;
 }
 
-/* ---- Logistics 편집 모드: 셀 안 입력칸은 열 너비에 맞춘다 ---- */
-.grid.fixed td .cell-in {
-  width: 100%;
+/* ---- Logistics 편집 모드: 셀 안 입력칸 ----
+   원래 내용(.cell-hold)을 보이지 않게 남겨 칸 크기를 잡아 두고, 입력칸(.cell-edit)을 그 위에 겹친다.
+   입력을 시작해도 줄 높이와 열 너비가 변하지 않는다. */
+.grid.fixed td.editing {
+  position: relative;
+}
+.grid.fixed td.editing .cell-hold {
+  visibility: hidden;
+}
+.grid.fixed td .cell-edit {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 1px;
+  bottom: 1px;
+  display: flex;
+  gap: 2px;
+}
+.grid.fixed td .cell-edit .cell-in {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  padding: 0 4px;
   box-sizing: border-box;
+}
+.grid td .cell-clear {
+  flex: none;
+  padding: 0 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+}
+/* 차량 상세: 날짜·월 입력칸 옆의 지우기 버튼 */
+.fields .f .clearable {
+  display: flex;
+  gap: 4px;
+}
+.fields .f .clearable input {
+  flex: 1;
+  min-width: 0;
 }

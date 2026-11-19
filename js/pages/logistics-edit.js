@@ -111,7 +111,26 @@ export function startCellEdit(td, v, key, onDone) {
   input.addEventListener("blur", () => finish(true));
   input.addEventListener("click", (event) => event.stopPropagation());
   if (key === "co") input.addEventListener("change", () => finish(true));
-  td.replaceChildren(input);
+
+  // 날짜·월 선택 칸은 한 번에 지우는 버튼을 둔다(선택 칸은 연·월·일을 따로 지워야 해서)
+  let clear = null;
+  if (input.type === "date" || input.type === "month") {
+    clear = mk("button", { class: "cell-clear", type: "button", title: tx("값 지우기") }, "×");
+    // 누르는 동안 입력칸이 포커스를 잃지 않게 한다(잃으면 그 순간 입력이 끝난다)
+    clear.addEventListener("mousedown", (event) => event.preventDefault());
+    clear.addEventListener("click", (event) => {
+      event.stopPropagation();
+      input.value = "";
+      finish(true);
+    });
+  }
+
+  // 원래 내용은 보이지 않게 남겨 칸 크기를 잡아 두고, 입력칸은 그 위에 겹쳐 놓는다(줄 높이가 변하지 않게).
+  td.replaceChildren(
+    mk("span", { class: "cell-hold" }, [...td.childNodes]),
+    mk("span", { class: "cell-edit" }, input, clear)
+  );
+  td.classList.add("editing");
   input.focus();
   input.select?.();
 }
@@ -265,7 +284,10 @@ async function save(vehicles, hooks) {
       );
     }
     if (out.historyFailed) {
-      toast(tx("변경 이력 기록 실패"), tx("값은 저장되었습니다. 이력만 기록되지 않았습니다."));
+      toast(
+        tx("변경 이력 기록 실패 {n}건", { n: num(out.historyFailed) }),
+        `${tx("값은 저장되었습니다. 이력만 기록되지 않았습니다.")} (${out.historyCodes.join(", ")})`
+      );
     }
     if (!pendingCount()) edit.on = false;
     edit.saving = false;

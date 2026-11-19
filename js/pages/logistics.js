@@ -20,7 +20,7 @@ import {
 const PAGE_SIZE = 50;
 const MEMO_WIDTH = 220; // 긴 글 열(Tires · Option Note · Order Note)의 고정 너비(px). 넘치면 말줄임
 const WIDTH_SAMPLES = 5; // 열 너비를 잴 때 열마다 쓰는 가장 긴 값의 수
-const KEYIN_MIN_WIDTH = 130; // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
+const KEYIN_MIN_WIDTH = 150; // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
 const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다
 const SEARCH_HINT = "Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note";
 

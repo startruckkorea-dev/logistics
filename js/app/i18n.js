@@ -260,6 +260,8 @@ const DICTIONARY = {
   "클릭하여 입력 · 편집 종료 시 저장": "Click to edit · saved on End Edit",
   "저장 중...": "Saving...",
   "변경 취소": "Discard changes",
+  "값 지우기": "Clear value",
+  "변경 이력 기록 실패 {n}건": "Change history was not recorded for {n}",
   "저장하지 않고 편집을 끝냅니다": "Leave edit mode without saving",
   "저장 대기 {n}건을 버리고 편집을 끝냅니다. 저장된 값은 바뀌지 않습니다.":
     "Discards {n} pending changes and leaves edit mode. Saved values are not changed.",

@@ -5,6 +5,7 @@ import { tx } from "../app/i18n.js";
 import { diffDays, todayIso } from "../domain/dates.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
+import { openVehicle } from "./vehicle-drawer.js";
 import {
   COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, STAGE_ORDER,
   sourceBadge, stageClass,
@@ -528,6 +529,13 @@ function buildScreen(root, meta) {
     const filter = event.target.closest("button.cf");
     if (filter) {
       openColumnFilter(filter, filter.dataset.filter);
+      return;
+    }
+    // 행 클릭: 차량 상세
+    const row = event.target.closest("tbody tr[data-comm]");
+    if (row) {
+      const vehicle = vehicles.find((v) => v.commission_no === row.dataset.comm);
+      if (vehicle) openVehicle(vehicle);
       return;
     }
     // 정렬은 배지가 있는 둘째 줄에서만. 열 이름 줄은 눌러도 바뀌지 않는다.

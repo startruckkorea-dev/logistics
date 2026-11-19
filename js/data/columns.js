@@ -4,6 +4,7 @@
 //   group : 상세 화면에서 묶는 그룹
 //   src   : 출처 배지
 //   memo  : 긴 글 열(그리드에서 말줄임)
+//   drawerAfter : 상세 드로어에서만 지정한 열 바로 뒤에 둔다(그리드 순서는 그대로)
 export const COLUMNS = [
   { key: "commission_no", label: "Commission No", group: "기본", src: "AFAB" },
   { key: "current_status", label: "Current Status", group: "기본", src: "AFAB/입력" },
@@ -41,12 +42,12 @@ export const COLUMNS = [
   { key: "model_in_afab", label: "Model In AFAB", group: "사양", src: "AFAB" },
   { key: "engine_no", label: "Engine No", group: "기본", src: "AFAB" },
   { key: "import_license", label: "Import License", group: "통관", src: "통관" },
-  { key: "ref_commission_no", label: "Ref Commission No", group: "메모", src: "입력" },
+  { key: "ref_commission_no", label: "Ref Commission No", group: "메모", src: "입력", drawerAfter: "order_note" },
   { key: "option_note", label: "Option Note", group: "메모", src: "입력", memo: true },
   { key: "order_note", label: "Order Note", group: "메모", src: "입력", memo: true },
   { key: "order_update_date", label: "Order Update Date", group: "일정", src: "오더 생성" },
   { key: "b1_factory_order", label: "B1 Factory Order", group: "일정", src: "입력" },
-  { key: "co", label: "C/O", group: "메모", src: "입력" },
+  { key: "co", label: "C/O", group: "메모", src: "입력", drawerAfter: "ref_commission_no" },
   { key: "sales_month", label: "Sales Month", group: "일정", src: "입력" },
   { key: "model_classification", label: "Model Classification", group: "사양", src: "자동" },
   { key: "gen", label: "Gen", group: "사양", src: "AFAB" },
@@ -55,6 +56,9 @@ export const COLUMNS = [
   { key: "afab_editable", label: "AFAB 수정 가능", group: "사양", src: "AFAB" },
   { key: "baumuster", label: "Baumuster", group: "사양", src: "AFAB" },
 ];
+
+// 상세 드로어의 카드 순서
+export const GROUPS = ["기본", "메모", "일정", "선적", "통관", "사양"];
 
 // 그리드 위 바로가기 버튼이 이동하는 열
 export const GRID_JUMPS = ["current_status", "tdd_calc", "bl_no", "option_note"];

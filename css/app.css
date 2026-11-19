@@ -51,6 +51,12 @@
 .grid thead tr.fld th {
   cursor: default;
 }
+/* 차량 상세: 긴 글은 줄바꿈을 살려 여러 줄로 */
+.fields .f .v.long-text {
+  white-space: pre-wrap;
+  line-height: 1.45;
+  padding: 4px 0;
+}
 .empty-msg {
   padding: 30px;
   text-align: center;

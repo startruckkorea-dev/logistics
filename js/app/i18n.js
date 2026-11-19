@@ -60,6 +60,14 @@ const DICTIONARY = {
   "경과 배지 행만": "Overdue badge rows only",
   "Shipping Calc 경과 배지가 있는 행만 표시 (선적 전·후 모두) · 리드타임 재검토 후보":
     "Only rows with a Shipping Calc overdue badge (before and after shipping) · lead time review candidates",
+  // 차량 상세
+  "마일스톤 타임라인": "Milestone Timeline",
+  "미부여": "not assigned",
+  "기본": "Basic",
+  "메모": "Memo",
+  "일정": "Schedule",
+  "선적": "Shipping",
+  "사양": "Spec",
   // 출처 배지
   "입력": "Input",
   "자동": "Auto",

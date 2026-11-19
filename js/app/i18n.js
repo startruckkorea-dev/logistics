@@ -45,6 +45,21 @@ const DICTIONARY = {
     "No Shipping yet · {n} days past Shipping Calc (as of {d})",
   "Shipping {s} · 실적 PM~Shipping {m}일 (계획 {p}일, 초과 {n}일)":
     "Shipping {s} · actual PM~Shipping {m} days (plan {p}, over by {n})",
+  " · 열 필터: {cols}": " · Column filter: {cols}",
+  "{c} 열 필터": "{c} Column Filter",
+  "값 검색": "Search values",
+  "값 검색 (예: 2853)": "Search values (e.g. 2853)",
+  "연·월 검색 (예: 2026-11)": "Search year-month (e.g. 2026-11)",
+  "{y}년": "{y}",
+  "{m}월": "{mon}",
+  "(빈 값)": "(blank)",
+  "일치하는 값이 없습니다.": "No matching values.",
+  "표시된 값 전체 선택": "Select All Shown",
+  "표시된 값 해제": "Clear Shown",
+  "필터 해제": "Clear Filter",
+  "경과 배지 행만": "Overdue badge rows only",
+  "Shipping Calc 경과 배지가 있는 행만 표시 (선적 전·후 모두) · 리드타임 재검토 후보":
+    "Only rows with a Shipping Calc overdue badge (before and after shipping) · lead time review candidates",
   // 출처 배지
   "입력": "Input",
   "자동": "Auto",

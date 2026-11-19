@@ -33,6 +33,24 @@
   width: 520px;
   max-width: 60vw;
 }
+/* 열 너비 고정: 페이지·검색·필터가 바뀌어도 열이 움직이지 않는다 */
+.grid.fixed {
+  table-layout: fixed;
+}
+.grid.fixed td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 너비를 재는 데만 쓰는 보이지 않는 표 */
+.grid.measure {
+  position: absolute;
+  visibility: hidden;
+  min-width: 0;
+}
+/* 정렬은 배지 줄에서만 되므로 열 이름 줄에는 손 모양을 쓰지 않는다 */
+.grid thead tr.fld th {
+  cursor: default;
+}
 .empty-msg {
   padding: 30px;
   text-align: center;

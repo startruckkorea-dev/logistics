@@ -64,6 +64,23 @@ export const SEARCH_COLUMNS = [
   "commission_no", "vin_no", "bl_no", "vessel", "type", "engine_no", "order_note", "option_note",
 ];
 
+// 열 필터를 쓸 수 있는 열. 날짜 열은 연·월 단위로 고른다.
+export const DATE_FILTER_COLUMNS = [
+  "changeability_date", "pm", "original_pm", "tdd_calc", "dispatch", "shipping_calc", "shipping",
+  "invoice", "planned_arrival", "eta_from_tdd", "eta_from_eukor_pirt", "ata", "tsc_arrival_date",
+  "customs_clearance_date", "order_update_date",
+];
+export const FILTER_COLUMNS = [
+  "current_status", "gen", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto",
+  "emission", ...DATE_FILTER_COLUMNS, "vessel",
+];
+
+// Current Status 열 필터에서 값을 나열하는 순서(단계 순)
+export const STAGE_ORDER = [
+  "Ordered(Dummy)", "Ordered(Changeable)", "Ordered(Fixed)", "Rejected", "In Production",
+  "Shipment scheduled", "In Transit", "Bonded Stock", "OH Stock", "Sold", "Cancelled",
+];
+
 // 출처 배지: 배지 색(cls)과 설명(tip)
 const SOURCE_BADGES = {
   AFAB: { cls: "afab", tip: "AFAB 업로드로만 갱신(잠금)" },

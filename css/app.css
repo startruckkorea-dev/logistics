@@ -277,3 +277,23 @@
 .fields .f .order-comm input.order-start {
   width: 160px;
 }
+
+/* ---- 선적·입항 선박별 현황 편집 ---- */
+.pill.gap {
+  margin-right: 4px;
+}
+.tbl td.tscst .pill {
+  margin-left: 6px;
+}
+.pill-btn {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.tsc-in.pend {
+  background: #fff8e1;
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+.tsc-in.gw-in {
+  width: 110px;
+}

@@ -80,6 +80,15 @@ const APP_DEFINITIONS = [
     indexed: ["commission_no", "batch_id"],
     columns: [...text("commission_no", "batch_id", "source"), ...note("changes")],
   },
+  {
+    // 선박(항차) 단위 값: 차량 행에 두지 않는 값만 둔다.
+    //   voyage_key : 선박 이름 + "|" + Shipping 날짜
+    //   gw         : 총중량(kg)
+    //   tsc_planned: TSC 입고일 예정("YYYY-MM-DD"). 확정하면 차량의 tsc_arrival_date 에 들어간다
+    id: "voyages",
+    key: "voyage_key",
+    columns: [...text("voyage_key", "vessel", "shipping"), ...number("gw"), ...text("tsc_planned")],
+  },
 ];
 
 const withListName = (def) => ({

@@ -3,7 +3,7 @@
 //   - 읽은 뒤 다른 사람이 같은 필드를 바꿨으면 쓰지 않고 충돌로 돌려준다.
 //   - 저장에 성공하면 변경 이력을 차량당 1행 남긴다(데이터 → 이력 순).
 import {
-  findListId, readListItem, readListItemsBy, addListItems, updateListItems, writeListItems,
+  findListId, readListItem, readListItems, readListItemsBy, addListItems, updateListItems, writeListItems,
 } from "../lib/splist.js";
 import { LISTS, appList } from "../etl/lists.js";
 import { STATUS } from "../domain/status.js";
@@ -38,6 +38,10 @@ const MODEL_FIELDS = [
 const ORDER_FIELDS = [...MODEL_FIELDS, "model_classification", "original_pm", "current_status", "order_update_date"];
 // 오더 생성·변경이 이력에 남기는 열. 여기에 Spec(모델 정보)을 더해 남긴다.
 const ORDER_HISTORY_FIELDS = ["original_pm", "model_year", "bm"];
+
+// 선적·입항에서 선박 단위로 넣어 그 선박의 차량 전체에 반영하는 열. TSC 확정은 상태도 같이 바꾼다.
+const VOYAGE_FIELDS = ["bl_no", "eta_from_eukor_pirt", "ata", "tsc_arrival_date", "current_status"];
+const DATE_FIELDS = ["b1_factory_order", "eta_from_eukor_pirt", "ata", "tsc_arrival_date"];
 
 /** 편집 모드에서 저장 대기에 오를 수 있는 열 전체(입력 열 + 오더 변경 열) */
 export const EDIT_FIELDS = [...INPUT_FIELDS, ...ORDER_FIELDS];
@@ -87,7 +91,7 @@ export const isMonth = (value) => MONTH.test(value);
  */
 export function checkInput(field, value) {
   if (value === "") return null;
-  if (field === "b1_factory_order" && !isDate(value)) return "date";
+  if (DATE_FIELDS.includes(field) && !isDate(value)) return "date";
   if ((field === "sales_month" || field === "original_pm") && !isMonth(value)) return "month";
   const type = SLOTS.flatMap(([, def]) => def.columns).find((c) => c.name === field)?.type;
   if (type === "text" && value.length > TEXT_MAX) return "too_long";
@@ -214,7 +218,8 @@ async function saveSlot(slot, def, jobs, onProgress) {
  * @param {Array<{vehicle: object, inputs: Record<string, string>, source?: string, order?: boolean}>} edits
  *   vehicle 은 loadVehicles 가 돌려준 차량 행, inputs 는 { 열 이름: 값 }(INPUT_FIELDS 밖의 열은 무시),
  *   source 는 그 차량만의 변경 경로(없으면 아래 source),
- *   order 가 참이면 오더 변경이다: 모델·Original PM·상태 열도 받고, 이력에는 Original PM·Spec·MY·BM 만 남긴다
+ *   order 가 참이면 오더 변경이다: 모델·Original PM·상태 열도 받고, 이력에는 Original PM·Spec·MY·BM 만 남긴다.
+ *   voyage 가 참이면 선적·입항의 선박 단위 입력이다: B/L·ETA 선사·ATA·TSC 입고일·상태 열을 받는다
  * @param {string} [source] 변경 경로(이력에 남긴다)
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {Promise<{
@@ -232,8 +237,8 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
     saved: [], invalid: [], conflicts: [], denied: [], failed: [], historyFailed: 0, historyCodes: [],
   };
   const jobs = [];
-  for (const { vehicle, inputs, source: own, order = false } of edits) {
-    const changes = changedFields(vehicle, inputs, order ? EDIT_FIELDS : INPUT_FIELDS);
+  for (const { vehicle, inputs, source: own, order = false, voyage = false } of edits) {
+    const changes = changedFields(vehicle, inputs, order ? EDIT_FIELDS : voyage ? VOYAGE_FIELDS : INPUT_FIELDS);
     if (!changes.length) continue;
     const bad = changes.map((c) => [c, checkInput(c.field, c.new)]).find(([, reason]) => reason);
     if (bad) out.invalid.push({ vehicle, field: bad[0].field, reason: bad[1] });
@@ -389,6 +394,85 @@ export async function createOrders({ model, originalPm, status, commissionNos, s
     out.historyCodes = [...new Set(outcome.failed.map((f) => `${f.status} ${f.code}`))];
   }
   return out;
+}
+
+// ---- 선박 단위 List: 총중량, TSC 입고일 예정 ----
+
+const voyageDef = () => appList("voyages");
+const VOYAGE_NOTE_FIELDS = ["gw", "tsc_planned"];
+
+/** 선박 단위 List 의 이름(저장 전 확인 창과 오류 알림에 보여준다) */
+export const voyageListName = () => voyageDef().listName;
+
+let voyageNotes;
+
+/**
+ * 선박 단위 값. 선박 key(선박 이름 + Shipping 날짜)로 찾는다.
+ * @returns {Promise<Map<string, {gw: number|string, tsc_planned: string, _itemId: string, _etag: string}>>}
+ */
+export function loadVoyageNotes(options = {}) {
+  if (options.refresh) voyageNotes = undefined;
+  voyageNotes ??= (async () => {
+    const def = voyageDef();
+    const items = await readListItems(await findListId(def.listName), def.columns.map((c) => c.name));
+    return new Map(
+      items
+        .filter((item) => item.fields.voyage_key)
+        .map((item) => [
+          item.fields.voyage_key,
+          { gw: item.fields.gw ?? "", tsc_planned: item.fields.tsc_planned ?? "", _itemId: item.id, _etag: item.etag },
+        ])
+    );
+  })().catch((err) => {
+    voyageNotes = undefined; // 실패한 결과는 남기지 않는다
+    throw err;
+  });
+  return voyageNotes;
+}
+
+/**
+ * 선박 단위 값을 저장한다. 그 선박의 행이 없으면 만든다.
+ * @param {{key: string, vessel: string, shipping: string}} voyage
+ * @param {{gw?: string, tsc_planned?: string}} patch 바꿀 값만. 빈 글은 값을 지운다
+ * @returns {Promise<{ok: boolean, code: string}>}
+ */
+export async function saveVoyageNote(voyage, patch) {
+  const notes = await loadVoyageNotes();
+  const def = voyageDef();
+  const listId = await findListId(def.listName);
+  const fields = Object.fromEntries(
+    VOYAGE_NOTE_FIELDS.filter((name) => patch[name] !== undefined).map((name) => [
+      name,
+      patch[name] === "" ? null : name === "gw" ? Number(patch[name]) : patch[name],
+    ])
+  );
+  const apply = (note) => {
+    for (const [name, value] of Object.entries(fields)) note[name] = value ?? "";
+  };
+  const existing = notes.get(voyage.key);
+
+  if (!existing) {
+    const row = { voyage_key: voyage.key, vessel: voyage.vessel, shipping: voyage.shipping };
+    for (const [name, value] of Object.entries(fields)) if (value != null) row[name] = value;
+    const [res] = await addListItems(listId, [Object.fromEntries(Object.entries(row).filter(([, v]) => v !== ""))]);
+    if (!isOk(res.status)) return { ok: false, code: `${res.status} ${res.code}` };
+    const note = { gw: "", tsc_planned: "", _itemId: res.id, _etag: res.etag };
+    apply(note);
+    notes.set(voyage.key, note);
+    return { ok: true, code: "" };
+  }
+
+  const send = async () => (await updateListItems(listId, [{ id: existing._itemId, etag: existing._etag, fields }]))[0];
+  let res = existing._etag ? await send() : { status: 412 };
+  if (res.status === 412) {
+    // 그사이 다른 사람이 바꿨다. 선박 단위 값은 칸이 둘뿐이라 최신 값 위에 내 값을 쓴다.
+    existing._etag = (await readListItem(listId, existing._itemId, [def.key])).etag;
+    res = await send();
+  }
+  if (!isOk(res.status)) return { ok: false, code: `${res.status} ${res.code}` };
+  apply(existing);
+  existing._etag = res.etag ?? (await readListItem(listId, existing._itemId, [def.key])).etag;
+  return { ok: true, code: "" };
 }
 
 function parseChanges(text) {

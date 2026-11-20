@@ -2,15 +2,15 @@
 // 모든 수치는 차량 목록에서 계산한다. 날짜 계산은 기준일(app/base-date.js)을 오늘로 삼는다.
 import { mk, mkSvg } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
-import { addMonths, diffDays, monthOf } from "../domain/dates.js";
+import { addMonths, monthOf } from "../domain/dates.js";
 import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
 import { stageClass } from "../data/columns.js";
 import { STAGES, STAGE_COLOR, SERIES, LOCATIONS, PORTS } from "../data/stages.js";
 import {
-  countBy, countByMonth, modelYearKey, myCountText, expectedArrivalMonth, deriveVoyages,
-  arrivalSchedule, vehicleTypes, vesselLink,
+  countBy, countByMonth, modelYearKey, myCountText, expectedArrivalMonth, listVoyages, voyageLink, TSC_KEEP_DAYS,
+  arrivalSchedule, vehicleTypes,
 } from "../data/derive.js";
 import {
   num, pct, monthEn, barChartEl, scrollChartTo, stackChartEl, hbarEl, miniStackEl, legendEl,
@@ -178,10 +178,10 @@ function trendCard(vehicles, baseMonth) {
   );
 }
 
-// ---- 입항 예정 선박: 입항 예정일은 Planned Arrival → ETA(선사) → ATA 순으로 바뀌고, ATA 뒤 2일까지 보여준다 ----
+// ---- 입항 예정 선박: 입항 예정일은 Planned Arrival → ETA(선사) → ATA 순으로 바뀐다.
+// 선적·입항과 같은 선박 목록을 쓴다(TSC 입고일을 확정한 뒤 TSC_KEEP_DAYS 일까지 보여준다) ----
 function shipsCard(vehicles, today) {
-  const voyages = deriveVoyages(vehicles)
-    .filter((y) => !y.eta_final || (diffDays(today, y.eta_final) ?? 0) <= 2)
+  const voyages = listVoyages(vehicles, today)
     .sort((a, b) => ((a.eta_final || a.eta_carrier || a.pl || "9") < (b.eta_final || b.eta_carrier || b.pl || "9") ? -1 : 1));
   const arrivalCell = (y) => {
     const [date, tag] = y.eta_final ? [y.eta_final, "ATA"] : y.eta_carrier ? [y.eta_carrier, "ETA"] : [y.pl, "Pl."];
@@ -193,7 +193,7 @@ function shipsCard(vehicles, today) {
     null,
     cardHead(
       tx("입항 예정 선박"),
-      tx("Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환 · ATA 후 2일까지 표시"),
+      tx("Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환 · TSC 입고일 후 {n}일까지 표시", { n: TSC_KEEP_DAYS }),
       mk("span", { class: "spacer" }),
       mk("a", { href: "#/shipping" }, tx("선적·입항 →"))
     ),
@@ -212,9 +212,15 @@ function shipsCard(vehicles, today) {
           ? voyages.map((y) =>
               mk(
                 "tr",
-                { "data-vessel": y.vessel },
+                { "data-href": voyageLink(y) },
                 mk("td", null, mk("b", null, y.vessel)),
-                mk("td", null, stagePill(y.kind === "transit" ? STATUS.IN_TRANSIT : STATUS.SHIPMENT_SCHEDULED)),
+                mk(
+                  "td",
+                  null,
+                  stagePill(
+                    y.kind === "transit" ? STATUS.IN_TRANSIT : y.kind === "scheduled" ? STATUS.SHIPMENT_SCHEDULED : STATUS.BONDED_STOCK
+                  )
+                ),
                 mk("td", { class: "mono" }, y.shipping || "—", y.kind === "scheduled" ? [" ", mk("span", { class: "muted small" }, tx("(예정)"))] : null),
                 arrivalCell(y),
                 mk("td", { class: "num" }, mk("b", null, y.count))
@@ -378,12 +384,7 @@ export const dashboardPage = {
     // 카드 → 관련 목록, 선박 행 → 그 선박의 차량
     box.addEventListener("click", (event) => {
       const linked = event.target.closest("[data-href]");
-      if (linked) {
-        window.location.hash = linked.dataset.href;
-        return;
-      }
-      const vessel = event.target.closest("tr[data-vessel]");
-      if (vessel) window.location.hash = vesselLink(vessel.dataset.vessel);
+      if (linked) window.location.hash = linked.dataset.href;
     });
     load(box, false);
   },

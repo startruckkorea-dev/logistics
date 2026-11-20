@@ -266,6 +266,22 @@ const DICTIONARY = {
   "저장 대기 {n}건을 버리고 편집을 끝냅니다. 저장된 값은 바뀌지 않습니다.":
     "Discards {n} pending changes and leaves edit mode. Saved values are not changed.",
   "변경 버리기": "Discard",
+  // 선적·입항 선박별 현황 편집
+  "Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환 · TSC 입고일 후 {n}일까지 표시": "Pl. arrival (AFAB) → ETA (EUKOR, Pyeongtaek) → ATA · shown until {n} days after TSC arrival",
+  "저장 대기 {n}건 → '편집 종료' 시 저장": "{n} pending → saved on 'End Edit'",
+  "ATA 입력 불가": "ATA not accepted",
+  "ATA 는 실제 입항일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다. 입항 예정일은 ETA 선사에 넣으세요.": "ATA is the actual arrival date, so a date after the base date ({d}) cannot be entered. Put the expected arrival in ETA (carrier).",
+  "TSC 입고일 확정": "Confirm TSC arrival",
+  "날짜를 입력하세요.": "Enter a date.",
+  "TSC 입고일 확정 · {v}": "TSC arrival confirmed · {v}",
+  "확정하면 이 선박 차량 {n}대의 TSC Arrival Date 에 날짜가 들어가고, In Transit {m}대가 Bonded Stock 으로 바뀝니다. 바로 저장됩니다.": "Confirming writes the date to TSC Arrival Date on this vessel's {n} vehicles and moves {m} In Transit vehicles to Bonded Stock. It is saved immediately.",
+  "TSC 입고일": "TSC arrival date",
+  "차량 {n}대에 반영": "Applied to {n} vehicles",
+  "선적·입항 저장": "Save shipping & arrival",
+  "선박 {n}척의 입력 {m}건을 저장합니다. 차량에 반영하는 값은 그 선박의 차량 전체에 들어갑니다(해당 차량 {c}대).": "Saving {m} entries for {n} vessels. Values applied to vehicles go to every vehicle on that vessel ({c} vehicles).",
+  "선박 = 선박 이름 + Shipping 날짜 · ATA = 실제 입항일 · TSC 입고일은 예정으로 두었다가 확정하면 차량에 반영되고 In Transit 이 Bonded Stock 으로 바뀝니다 · 확정 후 {n}일까지 표시": "Vessel = vessel name + shipping date · ATA = actual arrival · TSC arrival is kept as planned until confirmed, then applied to vehicles and In Transit becomes Bonded Stock · shown for {n} days after confirmation",
+  "행 클릭 → 해당 선박의 차량 Logistics 목록. 입력은 편집 모드에서.": "Click a row → Logistics list for that vessel. Enter values in edit mode.",
+  "선적·입항 (TSC 확정)": "Shipping & Arrival (TSC confirmed)",
   // Logistics 일괄 입력
   "일괄 입력": "Bulk input",
   "· 선택 {n}대": "· {n} selected",
@@ -348,6 +364,11 @@ const DICTIONARY = {
   "선택한 오더 {n}건의 모델 속성을 Model Master 에서 고른 모델로 바꿉니다. Original PM 을 비워 두면 모델만 바뀝니다. Current Status 는 Ordered(Changeable) 가 되고 Order Update Date 에 변경일이 기록됩니다. 변경 이력은 Original PM·Spec·MY·BM 만 남습니다.": "Changes the model attributes of the {n} selected orders to the model chosen from Model Master. Leave Original PM blank to change the model only. Current Status becomes Ordered(Changeable) and Order Update Date records the change date. Change history keeps Original PM, Spec, MY and BM only.",
   "선택 {n}건 중 {m}건은 Ordered(Dummy)·Ordered(Changeable) 가 아니라 제외됩니다": "{m} of the {n} selected are excluded because they are not Ordered(Dummy) or Ordered(Changeable)",
   "체크한 오더의 모델·Original PM 을 바꿉니다 (Ordered(Dummy)·Ordered(Changeable) 만)": "Change the model and Original PM of the checked orders (Ordered(Dummy) and Ordered(Changeable) only)",
+  // 화면 설계의 사전에서 가져온 문구
+  "확정": "Confirmed",
+  "클릭 → TSC 입고일 확정": "Click → confirm TSC Arrival Date",
+  "TSC 입고일 확정 — {v}": "Confirm TSC Arrival Date — {v}",
+  "총중량 (kg)": "Gross Weight (kg)",
 };
 
 /**

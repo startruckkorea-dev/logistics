@@ -138,9 +138,59 @@ export function deriveVoyages(vehicles) {
   }));
 }
 
-/** 선박 행의 링크: 그 선박의 운송 중·선적 예정 차량만. 같은 이름의 다른 상태 차량은 뺀다. */
-export function vesselLink(vessel) {
-  return `#/logistics?vessel=${encodeURIComponent(vessel)}&current_status=${encodeURIComponent(ON_VESSEL.join(","))}`;
+/** TSC 입고일을 확정한 선박을 목록에 남겨 두는 일수(대시보드와 선적·입항이 같이 쓴다) */
+export const TSC_KEEP_DAYS = 5;
+
+/** 선박(항차)을 가리키는 값: 선박 이름 + Shipping 날짜 */
+export const voyageKey = (vessel, shipping) => `${vessel}|${shipping ?? ""}`;
+
+/**
+ * 선박(항차) 목록 — 선박 이름과 Shipping 날짜가 같은 차량을 한 척으로 묶는다(취소된 차량은 뺀다).
+ * 보여주는 선박: 운송 중·선적 예정 차량이 있는 선박, 그리고 TSC 입고일이 기준일에서 TSC_KEEP_DAYS 일 안인 선박.
+ * @param {object[]} vehicles
+ * @param {string} today 기준일 "YYYY-MM-DD"
+ * @returns {Array<{key, vessel, shipping, kind: "transit"|"scheduled"|"arrived", count, pl, eta_carrier, eta_final,
+ *                   bl, bls: string[], tsc, confirmed: boolean, vehicles}>}
+ *   날짜는 선박 안에서 가장 이른 값. bls = 차량들에 들어 있는 B/L(보통 하나), bl = 그것을 이은 글.
+ *   confirmed = TSC 입고일이 차량에 들어가 있다(확정). vehicles = 그 선박의 차량
+ */
+export function listVoyages(vehicles, today) {
+  const groups = new Map();
+  for (const v of vehicles) {
+    if (!v.vessel || v.current_status === STATUS.CANCELLED) continue;
+    const key = voyageKey(v.vessel, v.shipping);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(v);
+  }
+  const out = [];
+  for (const [key, list] of groups) {
+    const onVessel = list.some((v) => ON_VESSEL.includes(v.current_status));
+    const tsc = earliest(list.map((v) => v.tsc_arrival_date));
+    const recent = Boolean(tsc) && (diffDays(today, tsc) ?? Infinity) <= TSC_KEEP_DAYS;
+    if (!onVessel && !recent) continue;
+    const bls = [...new Set(list.map((v) => v.bl_no).filter(Boolean))];
+    out.push({
+      key,
+      vessel: list[0].vessel,
+      shipping: list[0].shipping ?? "",
+      kind: list.some((v) => v.current_status === STATUS.IN_TRANSIT) ? "transit" : onVessel ? "scheduled" : "arrived",
+      count: list.length,
+      pl: earliest(list.map((v) => v.planned_arrival)),
+      eta_carrier: earliest(list.map((v) => v.eta_from_eukor_pirt)),
+      eta_final: earliest(list.map((v) => v.ata)),
+      bl: bls.join(", "),
+      bls,
+      tsc,
+      confirmed: Boolean(tsc),
+      vehicles: list,
+    });
+  }
+  return out;
+}
+
+/** 선박 행의 링크: 그 선박 이름과 Shipping 월의 차량 목록 */
+export function voyageLink(voyage) {
+  return `#/logistics?vessel=${encodeURIComponent(voyage.vessel)}&shipping=${encodeURIComponent(voyage.shipping.slice(0, 7))}`;
 }
 
 /** 항차의 입항월: ATA → ETA(선사) → Planned Arrival. 날짜가 없으면 "" */

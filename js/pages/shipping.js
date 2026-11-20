@@ -1,14 +1,14 @@
-// 선적 · 입항 — 운송 중·입항 예정 지표, 선박별 현황, 월별 입항 예정·실적 표(읽기 전용).
+// 선적 · 입항 — 운송 중·입항 예정 지표, 선박별 현황(편집은 shipping-vessels.js), 월별 입항 예정·실적 표.
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { addMonths, monthOf } from "../domain/dates.js";
 import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
-import { stageClass } from "../data/columns.js";
-import { STAGES } from "../data/stages.js";
-import { countBy, expectedArrivalMonth, deriveVoyages, arrivalSchedule, vesselLink } from "../data/derive.js";
+import { loadVoyageNotes } from "../data/store.js";
+import { expectedArrivalMonth, arrivalSchedule } from "../data/derive.js";
 import { num, monthEn } from "../app/charts.js";
+import { vesselsCard } from "./shipping-vessels.js";
 
 // 화면 상태
 //   range: 월별 표의 기간. "rest" = 이번 달~연말, "year" = 올해 전체
@@ -69,80 +69,6 @@ function evenColumns(table) {
   });
   table.style.tableLayout = "fixed";
   table.style.width = "100%";
-}
-
-function vesselsCard(vehicles) {
-  const voyages = deriveVoyages(vehicles).sort((a, b) =>
-    (a.shipping || "9") !== (b.shipping || "9") ? ((a.shipping || "9") < (b.shipping || "9") ? -1 : 1) : a.vessel < b.vessel ? -1 : 1
-  );
-  // 단계 칸: 그 선박 차량의 Current Status. 여러 단계면 단계별 대수를 같이 적는다.
-  const stageCell = (list) => {
-    const counts = countBy(list, (v) => v.current_status);
-    const stages = Object.keys(counts).sort((a, b) => STAGES.indexOf(a) - STAGES.indexOf(b));
-    return mk(
-      "td",
-      null,
-      stages.map((s) =>
-        mk("span", { class: `pill ${stageClass(s)}`, style: "margin-right:4px" }, stages.length > 1 ? `${s} ${num(counts[s])}` : s)
-      )
-    );
-  };
-  const date = (value, empty) => mk("td", { class: "mono" }, value || empty);
-  const table = mk(
-    "table",
-    { class: "tbl compact even clickable" },
-    mk(
-      "thead",
-      null,
-      mk(
-        "tr",
-        null,
-        mk("th", null, tx("Vessel")),
-        mk("th", null, tx("단계")),
-        mk("th", { class: "num" }, tx("대수")),
-        mk("th", null, tx("B/L No")),
-        mk("th", null, tx("Shipping")),
-        mk("th", null, tx("Planned Arrival")),
-        mk("th", null, tx("ETA 선사 (EUKOR/MOL)")),
-        mk("th", null, tx("ATA")),
-        mk("th", null, tx("TSC 입고일 (TSC Arrival Date)"))
-      )
-    ),
-    mk(
-      "tbody",
-      null,
-      voyages.length
-        ? voyages.map((y) =>
-            mk(
-              "tr",
-              { "data-vessel": y.vessel },
-              mk("td", null, mk("b", null, y.vessel)),
-              stageCell(y.vehicles),
-              mk("td", { class: "num" }, mk("b", null, y.count)),
-              date(y.bl, mk("span", { class: "muted" }, tx("미확정"))),
-              mk("td", { class: "mono" }, y.shipping || dash(), y.kind === "scheduled" ? mk("div", { class: "muted small" }, tx("예정")) : null),
-              date(y.pl, dash()),
-              date(y.eta_carrier, dash()),
-              date(y.eta_final, mk("span", { class: "muted" }, tx("미입력"))),
-              date(y.tsc, dash())
-            )
-          )
-        : mk("tr", null, mk("td", { colspan: 9, class: "muted", style: "text-align:center" }, tx("운송 중이거나 선적 예정인 선박이 없습니다.")))
-    )
-  );
-  const cardEl = mk(
-    "div",
-    { class: "card" },
-    mk(
-      "div",
-      { class: "card-h" },
-      mk("h2", null, tx("선박별 현황")),
-      mk("span", { class: "desc" }, tx("운송 중·선적 예정 차량을 선박별로 묶은 현황 · ATA = 실제 입항일"))
-    ),
-    mk("div", { class: "tbl-wrap" }, table),
-    mk("div", { class: "muted small", style: "margin-top:6px" }, tx("행 클릭 → 해당 선박의 차량 Logistics 목록."))
-  );
-  return { cardEl, table };
 }
 
 // ---- 월별 입항 예정·실적: 행 = 구분 > 차종 > 모델, 열 = 입항 월 > 선박 ----
@@ -330,20 +256,20 @@ function monthlyCard(vehicles, baseMonth, rerender) {
   );
 }
 
-function build(root, vehicles) {
+function build(root, vehicles, notes) {
   const baseMonth = monthOf(baseDate());
   const rerender = (options = {}) => {
     // 표를 다시 그린 뒤 세로(창)·가로(표) 스크롤 위치를 되돌린다.
     const top = window.scrollY;
     const left = root.querySelector(".pivot")?.closest(".tbl-wrap")?.scrollLeft ?? 0;
-    build(root, vehicles);
+    build(root, vehicles, notes);
     if (options.keepScroll) {
       window.scrollTo(0, top);
       const wrap = root.querySelector(".pivot")?.closest(".tbl-wrap");
       if (wrap) wrap.scrollLeft = left;
     }
   };
-  const vessels = vesselsCard(vehicles);
+  const vessels = vesselsCard(vehicles, notes, { rerender: () => rerender({ keepScroll: true }) });
   root.replaceChildren(kpiCards(vehicles, baseMonth), vessels.cardEl, monthlyCard(vehicles, baseMonth, rerender));
   evenColumns(vessels.table); // 화면에 붙은 뒤에 잰다
 }
@@ -363,8 +289,13 @@ async function load(root, refresh) {
   message(root, tx("차량 데이터를 불러오는 중..."));
   try {
     const data = await loadVehicles({ refresh });
+    // 선박 단위 값(총중량, TSC 예정일)은 읽지 못해도 화면은 보여준다
+    const notes = await loadVoyageNotes({ refresh }).catch((err) => {
+      console.error(err);
+      return new Map();
+    });
     if (!root.isConnected) return; // 불러오는 동안 다른 화면으로 옮겨 갔다
-    build(root, data.vehicles);
+    build(root, data.vehicles, notes);
   } catch (err) {
     console.error(err);
     if (!root.isConnected) return;
@@ -386,8 +317,8 @@ export const shippingPage = {
         window.location.hash = linked.dataset.href;
         return;
       }
-      const vessel = event.target.closest("tr[data-vessel]");
-      if (vessel) window.location.hash = vesselLink(vessel.dataset.vessel);
+      const row = event.target.closest("tr[data-href]");
+      if (row) window.location.hash = row.dataset.href;
     });
     load(box, false);
   },

@@ -1,6 +1,6 @@
 // Logistics 그리드의 편집 모드 — 셀 입력, Note 팝업, 저장 대기, "편집 종료" 때 저장.
 // 편집 중 바꾼 값은 저장 대기(pending)에만 쌓고, 편집 종료 때 한꺼번에 저장한다.
-import { mk } from "../lib/dom.js";
+import { cssZoom, mk } from "../lib/dom.js";
 import { ENV } from "../lib/config.js";
 import { tx } from "../app/i18n.js";
 import { openModal, closeModal, toast } from "../app/ui.js";
@@ -185,12 +185,13 @@ export function openNoteEditor(td, v, key, onDone) {
   notePop = { node, finish };
 
   const rect = td.getBoundingClientRect();
-  node.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 436))}px`;
   document.body.append(node);
+  const zoom = cssZoom(node);
+  node.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 436 * zoom)) / zoom}px`;
   // 아래 공간이 없으면 셀 위에 띄운다
-  const height = node.offsetHeight;
+  const height = node.offsetHeight * zoom;
   const below = rect.bottom + 4 + height <= window.innerHeight - 8;
-  node.style.top = `${below ? rect.bottom + 4 : Math.max(8, rect.top - 4 - height)}px`;
+  node.style.top = `${(below ? rect.bottom + 4 : Math.max(8, rect.top - 4 - height)) / zoom}px`;
   textarea.focus();
   textarea.setSelectionRange(textarea.value.length, textarea.value.length);
   setTimeout(() => document.addEventListener("mousedown", noteOutside), 0);

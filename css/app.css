@@ -33,6 +33,27 @@
   width: 520px;
   max-width: 60vw;
 }
+/* 그리드 화면만 80% 배율로 줄이고, 양쪽 여백 없이 창 너비를 다 쓴다 */
+.page:has(.lg-screen) {
+  max-width: none;
+}
+.lg-screen {
+  zoom: 0.8;
+}
+/* 그리드 화면에서 뜨는 열 필터·Note 입력창·차량 상세·창도 같은 배율로 */
+body:has(.lg-screen) .colfilter,
+body:has(.lg-screen) .drawer,
+body:has(.lg-screen) .modal {
+  zoom: 0.8;
+}
+/* 창의 최대 높이는 전과 같이 창 높이의 90% (112.5vh × 0.8) */
+body:has(.lg-screen) .modal {
+  max-height: 112.5vh;
+}
+/* 배율 안에서는 vh 도 같이 줄어든다. 125vh × 0.8 = 창 높이 */
+.lg-screen .grid-wrap {
+  max-height: calc(125vh - 280px);
+}
 /* 열 너비 고정: 페이지·검색·필터가 바뀌어도 열이 움직이지 않는다 */
 .grid.fixed {
   table-layout: fixed;

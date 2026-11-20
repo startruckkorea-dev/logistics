@@ -1,6 +1,6 @@
 // Logistics 차량 마스터 — Commission No 기준 1행, 전체 열을 보여주는 그리드.
 // 검색, 열 필터, 정렬, 50행 페이지, Commission No 열 고정, 바로가기, 편집 모드(입력 열).
-import { mk } from "../lib/dom.js";
+import { cssZoom, mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { diffDays } from "../domain/dates.js";
 import { baseDate } from "../app/base-date.js";
@@ -237,8 +237,10 @@ function measureColumnWidths() {
   );
   const table = mk("table", { class: "grid measure" }, mk("thead", null, headerRows(true)), mk("tbody", null, sampleRows));
   els.grid.append(table);
+  // 화면 배율(CSS zoom)이 걸려 있으면 잰 값이 배율만큼 줄어서 나온다. 열 너비는 배율 전 크기로 넣어야 하므로 되돌린다.
+  const scale = table.offsetWidth ? table.getBoundingClientRect().width / table.offsetWidth : 1;
   const widths = [...table.querySelectorAll("thead tr.fld th")].map((th, i) => {
-    const width = Math.ceil(th.getBoundingClientRect().width) + 1;
+    const width = Math.ceil(th.getBoundingClientRect().width / scale) + 1;
     if (COLUMNS[i].memo) return MEMO_WIDTH;
     return COLUMNS[i].src === "입력" ? Math.max(width, KEYIN_MIN_WIDTH) : width;
   });
@@ -597,9 +599,10 @@ function openColumnFilter(button, key) {
   );
   // 버튼 바로 아래에 띄운다. 화면 오른쪽을 넘지 않게 한다.
   const rect = button.getBoundingClientRect();
-  pop.style.top = `${rect.bottom + 4}px`;
-  pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 296))}px`;
   document.body.append(pop);
+  const zoom = cssZoom(pop);
+  pop.style.top = `${(rect.bottom + 4) / zoom}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 296 * zoom)) / zoom}px`;
   search.focus();
   setTimeout(() => document.addEventListener("mousedown", closeOnOutside), 0);
 }
@@ -757,7 +760,7 @@ function buildScreen(root, meta) {
   root.replaceChildren(
     mk(
       "div",
-      { class: "card" },
+      { class: "card lg-screen" },
       mk(
         "div",
         { class: "card-h" },

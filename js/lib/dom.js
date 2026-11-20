@@ -28,6 +28,14 @@ export function mk(tag, attrs, ...children) {
   return build(document.createElement(tag), attrs, children);
 }
 
+/**
+ * 화면에 붙어 있는 요소에 걸린 배율(CSS zoom). 없으면 1.
+ * 배율이 걸린 요소의 left·top 은 배율만큼 줄어서 놓이므로, 창 좌표를 넣을 때는 이 값으로 나눈다.
+ */
+export function cssZoom(node) {
+  return Number(getComputedStyle(node).zoom) || 1;
+}
+
 /** SVG 요소. 사용법은 mk 와 같다. */
 export function mkSvg(tag, attrs, ...children) {
   return build(document.createElementNS(SVG_NS, tag), attrs, children);

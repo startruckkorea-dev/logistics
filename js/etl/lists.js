@@ -40,7 +40,7 @@ const DEFINITIONS = [
     table: "logistics_afab",
     key: "commission_no",
     columns: text(
-      "commission_no", "current_status", "vin_no", "changeability_date", "pm", "tdd_calc",
+      "commission_no", "vin_no", "changeability_date", "pm", "tdd_calc",
       "dispatch", "shipping", "invoice", "planned_arrival", "vessel", "color_code",
       "model_in_afab", "engine_no", "gen", "sub_cat", "afab_editable", "baumuster"
     ),
@@ -52,7 +52,7 @@ const DEFINITIONS = [
     indexed: ["moma_no"],
     columns: [
       ...text(
-        "commission_no", "moma_no", "model_year", "bm", "vehicle", "model", "type", "axle",
+        "commission_no", "current_status", "moma_no", "model_year", "bm", "vehicle", "model", "type", "axle",
         "cab", "cab_gen"
       ),
       ...number("wheelbase"),

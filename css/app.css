@@ -300,3 +300,23 @@
 .notice-ta.pend {
   background: #fff8e1;
 }
+/* 마스터 편집 */
+.mst-in {
+  width: 100%;
+  min-width: 56px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 2px 5px;
+  background: #fff;
+  font: inherit;
+}
+.mst-in.num {
+  text-align: right;
+  min-width: 48px;
+}
+.mst-in.pend {
+  background: #fff8e1;
+}
+input[type="checkbox"].pend {
+  outline: 2px solid var(--warn);
+}

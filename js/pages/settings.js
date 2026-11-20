@@ -1,4 +1,4 @@
-// 마스터 · 설정 — 모델 마스터, 색상 마스터, 상태 규칙(읽기 전용).
+// 마스터 · 설정 — 모델 마스터, 색상 마스터(편집은 settings-edit.js), 상태 규칙(읽기 전용).
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { loadVehicles } from "../data/vehicles.js";
@@ -6,6 +6,8 @@ import { loadModelMaster, loadColorMaster } from "../data/masters.js";
 import { stageClass } from "../data/columns.js";
 import { countBy } from "../data/derive.js";
 import { num } from "../app/charts.js";
+import { specOf } from "../data/master-store.js";
+import { edit, editControl, editToolbar } from "./settings-edit.js";
 
 const TABS = [
   ["model", "모델 마스터"],
@@ -39,9 +41,10 @@ const isEmpty = (v) => v == null || v === "";
 const dash = () => mk("span", { class: "muted" }, "—");
 const yesNo = (value) => mk("span", { class: `pill ${value ? "ok" : "neutral"}` }, value ? "Y" : "N");
 
-// 머리글을 눌러 정렬하는 표. columns: [{key, label, sub?, num?, render?}]
+// 머리글을 눌러 정렬하는 표. columns: [{key, label, sub?, num?, render?, edit?}]
 // state: {sort, dir}. onSort 는 다시 그리는 함수
-function sortableTable(columns, rows, state, onSort) {
+// control(column, row): 편집 모드에서 그 칸에 놓을 것. null 을 돌려주면 보통대로 그린다
+function sortableTable(columns, rows, state, onSort, control) {
   const th = (column) =>
     mk(
       "th",
@@ -87,6 +90,8 @@ function sortableTable(columns, rows, state, onSort) {
                 null,
                 columns.map((column) => {
                   const value = row[column.key];
+                  const custom = control?.(column, row);
+                  if (custom != null) return mk("td", { class: column.num ? "num" : null }, custom);
                   const content = column.render ? column.render(value, row) : isEmpty(value) ? dash() : String(value);
                   return mk("td", { class: column.num ? "num" : null }, content);
                 })
@@ -99,32 +104,48 @@ function sortableTable(columns, rows, state, onSort) {
 }
 
 // ---- 모델 마스터 ----
-function modelTab(body, models, vehicles) {
+function modelTab(body, data, rebuild) {
+  const { models, vehicles } = data;
   const state = view.model;
+  // 모델을 추가한 뒤에는 새 행이 가려지지 않게 검색과 필터를 푼다
+  const redraw = (options) => {
+    if (options?.added) {
+      state.q = "";
+      for (const key of Object.keys(state.filters)) state.filters[key] = "";
+    }
+    rebuild();
+  };
   const usage = countBy(vehicles, (v) => v.moma_no);
-  const rows = models.map((m) => ({ ...m, n: usage[m.moma_no] ?? 0 }));
+  // 화면용 행. 편집은 원래 행(_row)에 대해 한다
+  const rows = models.map((m) => ({ ...m, n: usage[m.moma_no] ?? 0, _row: m }));
   const distinct = (key) => [...new Set(rows.map((r) => r[key]).filter((x) => !isEmpty(x)))].sort();
 
   const columns = [
     { key: "moma_no", label: "moma_no" },
-    { key: "my", label: "MY" },
-    { key: "bm", label: "BM" },
-    { key: "vehicle", label: "Vehicle" },
-    { key: "model", label: "Model" },
-    { key: "type", label: "Type" },
-    { key: "axle", label: "Axle" },
-    { key: "cab", label: "Cab" },
-    { key: "cab_gen", label: "Cab Gen" },
-    { key: "wheelbase", label: "Wheelbase", num: true },
-    { key: "pto", label: "PTO" },
-    { key: "emission", label: "Emission" },
-    { key: "lead_days", label: tx("리드타임(일)"), sub: "PM ~ Shipping", num: true },
-    { key: "lead", label: tx("리드타임(월)"), sub: "PM ~ ETA", num: true },
-    { key: "spec", label: "Spec" },
-    { key: "is_rep", label: tx("대표"), render: (value) => (value ? yesNo(true) : "") },
+    { key: "my", label: "MY", edit: "text" },
+    { key: "bm", label: "BM", edit: "text" },
+    { key: "vehicle", label: "Vehicle", edit: "text" },
+    { key: "model", label: "Model", edit: "text" },
+    { key: "type", label: "Type", edit: "text" },
+    { key: "axle", label: "Axle", edit: "text" },
+    { key: "cab", label: "Cab", edit: "text" },
+    { key: "cab_gen", label: "Cab Gen", edit: "text" },
+    { key: "wheelbase", label: "Wheelbase", num: true, edit: "number" },
+    { key: "pto", label: "PTO", edit: "text" },
+    { key: "emission", label: "Emission", edit: "text" },
+    { key: "lead_days", label: tx("리드타임(일)"), sub: "PM ~ Shipping", num: true, edit: "number" },
+    { key: "lead", label: tx("리드타임(월)"), sub: "PM ~ ETA", num: true, edit: "number" },
+    // Spec 은 속성에서 만드는 값이라 표에는 두지 않는다(검색에는 쓴다)
+    { key: "is_rep", label: tx("대표"), render: (value) => (value ? yesNo(true) : ""), edit: "check" },
     { key: "n", label: tx("차량 수"), num: true, render: (value) => num(value) },
-    { key: "active", label: "Active", render: (value) => yesNo(value) },
+    { key: "active", label: "Active", render: (value) => yesNo(value), edit: "check" },
   ];
+  const toolbar = editToolbar(data, "model", redraw);
+  // 편집 모드의 칸은 입력칸으로 바꾼다
+  const control = (column, row) =>
+    edit.on && column.edit ? editControl("model", row._row, column, toolbar.drawBar) : null;
+  // 속성 조합과 Spec 이 다른 모델 수(Spec 은 속성에서 만드는 값이라 같아야 한다)
+  const specMismatch = models.filter((m) => String(m.spec ?? "") !== specOf(m)).length;
 
   const count = mk("span", { class: "muted small" });
   const tableBox = mk("div");
@@ -140,7 +161,7 @@ function modelTab(body, models, vehicles) {
         (!state.filters.active || (state.filters.active === "Y") === Boolean(r.active))
     );
     count.textContent = tx("{n}건 / 전체 {m}", { n: num(shown.length), m: num(rows.length) });
-    tableBox.replaceChildren(sortableTable(columns, shown, state, draw));
+    tableBox.replaceChildren(sortableTable(columns, shown, state, draw, control));
   };
 
   const search = mk("input", { class: "st-search", placeholder: tx("moma_no · BM · Type · Model · Spec 검색"), value: state.q });
@@ -161,7 +182,7 @@ function modelTab(body, models, vehicles) {
   reset.addEventListener("click", () => {
     Object.assign(state, { q: "", sort: null, dir: 1 });
     for (const key of Object.keys(state.filters)) state.filters[key] = "";
-    modelTab(body, models, vehicles);
+    redraw();
   });
 
   body.replaceChildren(
@@ -180,26 +201,37 @@ function modelTab(body, models, vehicles) {
         mk("label", null, "Active ", select("active", ["Y", "N"])),
         reset,
         count
-      )
+      ),
+      toolbar.nodes
     ),
     tableBox,
-    mk("div", { class: "muted small", style: "margin-top:6px" }, tx("차량 수 = 이 모델(moma_no)로 연결된 Logistics 차량 수. 머리글을 누르면 정렬됩니다."))
+    mk("div", { class: "muted small", style: "margin-top:6px" }, tx("차량 수 = 이 모델(moma_no)로 연결된 Logistics 차량 수. 머리글을 누르면 정렬됩니다.")),
+    mk(
+      "div",
+      { class: "muted small", style: "margin-top:4px" },
+      tx("편집: 고친 칸은 '편집 종료'에서 저장하고 그 모델의 차량에도 반영합니다. Spec 은 속성 9개를 이어 자동으로 만듭니다. 리드타임(일)을 고치면 선적 전 차량의 Shipping Calc 를 다시 계산합니다."),
+      specMismatch ? ` ${tx("Spec 이 속성 조합과 다른 모델 {n}건.", { n: num(specMismatch) })}` : ""
+    )
   );
   draw();
 }
 
 // ---- 색상 마스터 ----
-function colorTab(body, colors, vehicles) {
+function colorTab(body, data, redraw) {
+  const { colors, vehicles } = data;
   const state = view.color;
   const usage = countBy(vehicles, (v) => v.color_code);
-  const rows = colors.map((c) => ({ ...c, n: usage[c.color_code] ?? 0 }));
+  const rows = colors.map((c) => ({ ...c, n: usage[c.color_code] ?? 0, _row: c }));
   const columns = [
     { key: "no", label: "No", num: true },
     { key: "color_code", label: "Color Code" },
-    { key: "color_name_mb", label: "Color Name (MB)" },
-    { key: "color_name_molit", label: tx("Color Name (국토부)") },
+    { key: "color_name_mb", label: "Color Name (MB)", edit: "text" },
+    { key: "color_name_molit", label: tx("Color Name (국토부)"), edit: "text" },
     { key: "n", label: tx("차량 수"), num: true, render: (value) => num(value) },
   ];
+  const toolbar = editToolbar(data, "color", redraw);
+  const control = (column, row) =>
+    edit.on && column.edit ? editControl("color", row._row, column, toolbar.drawBar) : null;
   const count = mk("span", { class: "muted small" });
   const tableBox = mk("div");
   const draw = () => {
@@ -208,7 +240,7 @@ function colorTab(body, colors, vehicles) {
       (r) => !term || ["color_code", "color_name_mb", "color_name_molit"].some((key) => String(r[key] ?? "").toLowerCase().includes(term))
     );
     count.textContent = tx("{n}건 / 전체 {m}", { n: num(shown.length), m: num(rows.length) });
-    tableBox.replaceChildren(sortableTable(columns, shown, state, draw));
+    tableBox.replaceChildren(sortableTable(columns, shown, state, draw, control));
   };
   const search = mk("input", { class: "st-search", placeholder: tx("Color Code · Color Name 검색"), value: state.q });
   search.addEventListener("input", () => {
@@ -224,13 +256,15 @@ function colorTab(body, colors, vehicles) {
       "div",
       { class: "card-h" },
       mk("h2", null, tx("색상 마스터 (Color_Master)")),
-      mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), count)
+      mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), count),
+      toolbar.nodes
     ),
     tableBox,
     mk(
       "div",
       { class: "muted small", style: "margin-top:6px" },
       tx("차량 수 = 이 Color Code 를 가진 Logistics 차량 수."),
+      ` ${tx("편집: Color Name (MB) 을 고치면 그 Color Code 차량의 Color Name 에도 반영합니다.")}`,
       unknown ? ` ${tx("색상 마스터에 없는 Color Code 를 가진 차량 {n}대.", { n: num(unknown) })}` : ""
     )
   );
@@ -279,9 +313,9 @@ function build(root, data) {
   const body = mk("div", { class: "body" });
   const draw = () => {
     for (const button of side.children) button.classList.toggle("active", button.dataset.tab === view.tab);
-    if (view.tab === "color") colorTab(body, data.colors, data.vehicles);
+    if (view.tab === "color") colorTab(body, data, draw);
     else if (view.tab === "rules") rulesTab(body, data.vehicles);
-    else modelTab(body, data.models, data.vehicles);
+    else modelTab(body, data, draw);
   };
   const side = mk(
     "div",

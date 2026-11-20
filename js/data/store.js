@@ -43,6 +43,8 @@ const ORDER_HISTORY_FIELDS = ["original_pm", "model_year", "bm"];
 
 // 선적·입항에서 선박 단위로 넣어 그 선박의 차량 전체에 반영하는 열. TSC 확정은 상태도 같이 바꾼다.
 const VOYAGE_FIELDS = ["bl_no", "eta_from_eukor_pirt", "ata", "tsc_arrival_date", "current_status"];
+// 마스터를 고칠 때 그 모델·색상의 차량에 반영하는 열(모델 속성, Shipping Calc, Color Name)
+const MASTER_FIELDS = [...MODEL_FIELDS.filter((name) => name !== "moma_no"), "shipping_calc", "color_name"];
 const DATE_FIELDS = ["b1_factory_order", "eta_from_eukor_pirt", "ata", "tsc_arrival_date"];
 
 /** 편집 모드에서 저장 대기에 오를 수 있는 열 전체(입력 열 + 오더 변경 열) */
@@ -222,6 +224,7 @@ async function saveSlot(slot, def, jobs, onProgress) {
  *   source 는 그 차량만의 변경 경로(없으면 아래 source),
  *   order 가 참이면 오더 변경이다: 모델·Original PM·상태 열도 받고, 이력에는 Original PM·Spec·MY·BM 만 남긴다.
  *   voyage 가 참이면 선적·입항의 선박 단위 입력이다: B/L·ETA 선사·ATA·TSC 입고일·상태 열을 받는다
+ *   master 가 참이면 마스터 수정의 반영이다: 모델 속성·Shipping Calc·Color Name 열을 받는다
  * @param {string} [source] 변경 경로(이력에 남긴다)
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {Promise<{
@@ -239,8 +242,9 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
     saved: [], invalid: [], conflicts: [], denied: [], failed: [], historyFailed: 0, historyCodes: [],
   };
   const jobs = [];
-  for (const { vehicle, inputs, source: own, order = false, voyage = false } of edits) {
-    const changes = changedFields(vehicle, inputs, order ? EDIT_FIELDS : voyage ? VOYAGE_FIELDS : INPUT_FIELDS);
+  for (const { vehicle, inputs, source: own, order = false, voyage = false, master = false } of edits) {
+    const allowed = order ? EDIT_FIELDS : voyage ? VOYAGE_FIELDS : master ? MASTER_FIELDS : INPUT_FIELDS;
+    const changes = changedFields(vehicle, inputs, allowed);
     if (!changes.length) continue;
     const bad = changes.map((c) => [c, checkInput(c.field, c.new)]).find(([, reason]) => reason);
     if (bad) out.invalid.push({ vehicle, field: bad[0].field, reason: bad[1] });

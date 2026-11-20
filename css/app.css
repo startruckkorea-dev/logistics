@@ -245,3 +245,18 @@
 .bulk-preview td.num {
   white-space: nowrap;
 }
+/* Note 열의 넣는 방식 선택, 이어 쓰기 예시 */
+.bulk-form select.bulk-mode {
+  width: auto;
+  margin-bottom: 4px;
+}
+.bulk-sample {
+  margin: -4px 0 12px;
+  padding: 6px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+}
+.bulk-sample .long-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

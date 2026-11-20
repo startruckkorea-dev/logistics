@@ -3,6 +3,7 @@
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { openModal, closeModal, toast } from "../app/ui.js";
+import { COLUMNS } from "../data/columns.js";
 import { INPUT_FIELDS, checkInput, normalizeInput } from "../data/store.js";
 import { createInput, labelOf, invalidMessage } from "./input-controls.js";
 import { shownRow, stageValue } from "./logistics-edit.js";
@@ -43,18 +44,28 @@ function currentValues(targets, key) {
   return valueCounts(counts);
 }
 
-// 한 열에 대한 계획: 어떤 차량이 어떻게 바뀌는지 나눈다.
-function planField(targets, key, next, onlyEmpty) {
-  const plan = { key, next, fill: [], change: [], same: 0, skipped: 0, oldValues: new Map() };
+// 긴 글 열(Note)은 기존 글 뒤에 이어 쓸 수 있다
+const canAppend = (key) => Boolean(COLUMNS.find((c) => c.key === key)?.memo);
+
+// 기존 글이 이미 이 글로 끝나는가(같은 일괄 입력을 두 번 해도 글이 겹치지 않게)
+const endsWithText = (current, text) => current === text || current.endsWith(`\n${text}`);
+
+/**
+ * 한 열에 대한 계획: 어떤 차량이 어떻게 바뀌는지 나눈다.
+ * @param {"replace" | "append"} mode replace: 넣을 값으로 바꾼다. append: 기존 글 뒤에 줄을 바꿔 이어 쓴다
+ * @returns fill·change 는 { v, value }(그 차량에 들어갈 값)의 목록
+ */
+function planField(targets, key, next, mode, onlyEmpty) {
+  const plan = { key, next, mode, fill: [], change: [], same: 0, skipped: 0, oldValues: new Map() };
   for (const v of targets) {
     const current = normalizeInput(shownRow(v)[key]);
-    if (current === next) plan.same++;
-    else if (current === "") plan.fill.push(v);
+    if (mode === "append" ? current !== "" && endsWithText(current, next) : current === next) plan.same++;
+    else if (current === "") plan.fill.push({ v, value: next });
     else {
       plan.oldValues.set(current, (plan.oldValues.get(current) ?? 0) + 1);
       // 지우기는 값이 있는 칸이 대상이므로 "빈 칸만 채우기"와 관계없이 적용한다
       if (onlyEmpty && next !== "") plan.skipped++;
-      else plan.change.push(v);
+      else plan.change.push({ v, value: mode === "append" ? `${current}\n${next}` : next });
     }
   }
   return plan;
@@ -62,14 +73,17 @@ function planField(targets, key, next, onlyEmpty) {
 
 function previewBlock(plan) {
   const oldText = valueCounts(plan.oldValues);
+  const append = plan.mode === "append";
   const line = (label, n, note) =>
     mk("tr", null, mk("td", null, label), mk("td", { class: "num" }, tx("{n}대", { n: num(n) })), mk("td", { class: "muted small long-text" }, note ?? ""));
+  // 이어 쓰기: 한 대를 골라 저장될 글을 그대로 보여준다
+  const sample = append ? plan.change[0] : null;
   return [
     mk(
       "p",
       null,
       mk("b", null, tx(labelOf(plan.key))),
-      " → ",
+      append ? ` ← ${tx("뒤에 이어 쓰기")}: ` : " → ",
       plan.next === "" ? mk("span", { class: "pill danger" }, tx("지움")) : mk("b", { class: "long-text" }, short(plan.next))
     ),
     mk(
@@ -79,11 +93,23 @@ function previewBlock(plan) {
         "tbody",
         null,
         plan.next === "" ? null : line(tx("빈 칸에 입력"), plan.fill.length),
-        line(plan.next === "" ? tx("값을 지움") : tx("기존 값을 바꿈"), plan.change.length, plan.change.length ? oldText : ""),
+        line(
+          plan.next === "" ? tx("값을 지움") : append ? tx("기존 글 뒤에 이어 씀") : tx("기존 값을 바꿈"),
+          plan.change.length,
+          plan.change.length ? oldText : ""
+        ),
         plan.skipped ? line(tx("값이 있어 건드리지 않음"), plan.skipped, oldText) : null,
-        line(tx("이미 같은 값"), plan.same)
+        line(append ? tx("이미 같은 글로 끝남") : tx("이미 같은 값"), plan.same)
       )
     ),
+    sample
+      ? mk(
+          "div",
+          { class: "bulk-sample" },
+          mk("div", { class: "muted small" }, tx("예시 {c} — 저장될 글", { c: sample.v.commission_no })),
+          mk("div", { class: "long-text" }, sample.value)
+        )
+      : null,
   ];
 }
 
@@ -104,15 +130,25 @@ export function openBulkInput(targets, hooks) {
   const rows = INPUT_FIELDS.map((key) => {
     const input = createInput(key);
     const clear = mk("input", { type: "checkbox" });
+    // Note 열: 넣는 방식. 기본은 기존 글 뒤에 이어 쓰기
+    const mode = canAppend(key)
+      ? mk(
+          "select",
+          { class: "bulk-mode", title: tx("넣는 방식") },
+          mk("option", { value: "append" }, tx("뒤에 이어 쓰기")),
+          mk("option", { value: "replace" }, tx("바꾸기"))
+        )
+      : null;
     // 지우기를 켜면 값 칸은 쓰지 않는다
     clear.addEventListener("change", () => {
       input.disabled = clear.checked;
+      if (mode) mode.disabled = clear.checked;
     });
-    return { key, input, clear };
+    return { key, input, clear, mode };
   });
   const onlyEmpty = mk("input", { type: "checkbox" });
   const form = [
-    mk("p", { class: "muted small" }, tx("값을 넣은 열만 적용합니다. 빈 칸으로 둔 열은 건드리지 않습니다. 값을 지우려면 그 열의 '지우기'를 체크하세요.")),
+    mk("p", { class: "muted small" }, tx("값을 넣은 열만 적용합니다. 빈 칸으로 둔 열은 건드리지 않습니다. 값을 지우려면 그 열의 '지우기'를 체크하세요. Note 열은 기존 글 뒤에 줄을 바꿔 이어 씁니다(방식에서 '바꾸기'를 고를 수 있습니다).")),
     mk(
       "table",
       { class: "tbl bulk-form" },
@@ -126,7 +162,7 @@ export function openBulkInput(targets, hooks) {
             null,
             mk("td", null, tx(labelOf(r.key))),
             mk("td", { class: "muted small long-text current" }, currentValues(targets, r.key)),
-            mk("td", null, r.input),
+            mk("td", null, r.mode, r.input),
             mk("td", null, r.clear)
           )
         )
@@ -153,7 +189,8 @@ export function openBulkInput(targets, hooks) {
         toast(message.title, message.detail);
         return;
       }
-      plans.push(planField(targets, r.key, next, onlyEmpty.checked));
+      const mode = !r.clear.checked && r.mode?.value === "append" ? "append" : "replace";
+      plans.push(planField(targets, r.key, next, mode, onlyEmpty.checked));
     }
     if (!plans.length) {
       toast(tx("일괄 입력"), tx("넣을 값이 없습니다. 값을 입력하거나 '지우기'를 체크하세요."));
@@ -162,7 +199,7 @@ export function openBulkInput(targets, hooks) {
     const cells = plans.reduce((n, p) => n + p.fill.length + p.change.length, 0);
     const apply = () => {
       for (const p of plans) {
-        for (const v of [...p.fill, ...p.change]) stageValue(v, p.key, p.next, { bulk: true });
+        for (const { v, value } of [...p.fill, ...p.change]) stageValue(v, p.key, value, { bulk: true });
       }
       closeModal();
       hooks.render();

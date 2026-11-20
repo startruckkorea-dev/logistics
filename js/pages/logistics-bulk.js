@@ -199,7 +199,7 @@ export function openBulkInput(targets, hooks) {
     const cells = plans.reduce((n, p) => n + p.fill.length + p.change.length, 0);
     const apply = () => {
       for (const p of plans) {
-        for (const { v, value } of [...p.fill, ...p.change]) stageValue(v, p.key, value, { bulk: true });
+        for (const { v, value } of [...p.fill, ...p.change]) stageValue(v, p.key, value, { source: "일괄 입력" });
       }
       closeModal();
       hooks.render();

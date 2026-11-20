@@ -260,3 +260,20 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ---- 오더 생성·변경 창 ---- */
+.order-attrs {
+  grid-template-columns: 140px 1fr;
+}
+.order-comm {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.fields .f .order-comm input[type="radio"] {
+  width: auto;
+}
+.fields .f .order-comm input.order-start {
+  width: 160px;
+}

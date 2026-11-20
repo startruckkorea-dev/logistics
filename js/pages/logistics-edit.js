@@ -5,15 +5,15 @@ import { ENV } from "../lib/config.js";
 import { tx } from "../app/i18n.js";
 import { openModal, closeModal, toast } from "../app/ui.js";
 import {
-  INPUT_FIELDS, checkInput, normalizeInput, changedFields, saveVehicles, targetListNames,
+  INPUT_FIELDS, EDIT_FIELDS, checkInput, normalizeInput, changedFields, saveVehicles, targetListNames,
 } from "../data/store.js";
 import { createInput, labelOf, invalidMessage } from "./input-controls.js";
 
 // 편집 상태. 다른 화면에 다녀와도 유지한다(저장 대기를 잃지 않게).
 //   pending  : Commission No → { 열 이름: 새 값 }
 //   selected : 일괄 입력 대상으로 고른 Commission No. 화면에 보이는 행만 담는다
-//   bulk     : 저장 대기에 일괄 입력으로 올린 값이 있는 Commission No(이력의 출처를 구분한다)
-export const edit = { on: false, saving: false, pending: new Map(), selected: new Set(), bulk: new Set() };
+//   sources  : Commission No → 이력에 남길 출처(일괄 입력, 오더 변경 등). 없으면 "입력"
+export const edit = { on: false, saving: false, pending: new Map(), selected: new Set(), sources: new Map() };
 
 // 편집 모드를 끝낸다
 function leaveEdit() {
@@ -45,7 +45,7 @@ export function pendingCount() {
 
 /**
  * 값을 저장 대기에 올린다. 저장된 값과 같아지면 대기에서 뺀다. 형식 검사는 부르는 쪽이 한다.
- * @param {{bulk?: boolean}} [options] bulk: 일괄 입력으로 올린 값
+ * @param {{source?: string}} [options] source: 이 차량의 이력에 남길 출처(일괄 입력, 오더 변경 등)
  */
 export function stageValue(v, key, value, options = {}) {
   const comm = v.commission_no;
@@ -55,10 +55,10 @@ export function stageValue(v, key, value, options = {}) {
   else p[key] = next;
   if (Object.keys(p).length) {
     edit.pending.set(comm, p);
-    if (options.bulk) edit.bulk.add(comm);
+    if (options.source) edit.sources.set(comm, options.source);
   } else {
     edit.pending.delete(comm);
-    edit.bulk.delete(comm);
+    edit.sources.delete(comm);
   }
 }
 
@@ -219,7 +219,7 @@ function showConflicts(conflicts, vehicles, hooks) {
   const discard = () => {
     for (const { vehicle } of conflicts) {
       edit.pending.delete(vehicle.commission_no);
-      edit.bulk.delete(vehicle.commission_no);
+      edit.sources.delete(vehicle.commission_no);
     }
     closeModal();
     if (!pendingCount()) leaveEdit();
@@ -257,19 +257,21 @@ async function save(vehicles, hooks) {
     .map(([comm, inputs]) => ({
       vehicle: byComm.get(comm),
       inputs,
-      source: edit.bulk.has(comm) ? "일괄 입력" : "입력",
+      source: edit.sources.get(comm) ?? "입력",
+      // 입력 열 밖의 값이 대기에 있으면 오더 변경이다
+      order: Object.keys(inputs).some((key) => !INPUT_FIELDS.includes(key)),
     }))
     .filter((e) => e.vehicle);
   try {
     const out = await saveVehicles(edits, "입력", hooks.progress);
     const settle = (comm) => {
       edit.pending.delete(comm);
-      edit.bulk.delete(comm);
+      edit.sources.delete(comm);
     };
     for (const { vehicle } of out.saved) settle(vehicle.commission_no);
     // 그사이 저장된 값과 같아진 것은 더 보낼 것이 없다
     for (const { vehicle, inputs } of edits) {
-      if (!changedFields(vehicle, inputs).length) settle(vehicle.commission_no);
+      if (!changedFields(vehicle, inputs, EDIT_FIELDS).length) settle(vehicle.commission_no);
     }
 
     const fields = out.saved.reduce((n, s) => n + s.changes.length, 0);
@@ -325,7 +327,8 @@ export function finishEdit(vehicles, hooks) {
     [
       mk("p", null, tx("{n}대 · 필드 {m}개를 저장합니다.", { n: num(edit.pending.size), m: num(pendingCount()) })),
       mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${targetListNames(fields).join(", ")}`),
-      mk("p", { class: "muted small" }, fields.map((key) => tx(labelOf(key))).join(" · ")),
+      // 화면에 열 이름이 있는 것만 적는다(모델 연결 값 같은 안쪽 열은 뺀다)
+      mk("p", { class: "muted small" }, fields.filter((key) => labelOf(key) !== key).map((key) => tx(labelOf(key))).join(" · ")),
     ],
     [
       mk("button", { class: "btn", type: "button", onclick: closeModal }, tx("취소")),
@@ -343,7 +346,7 @@ export function cancelEdit(hooks) {
   closeNoteEditor();
   const leave = () => {
     edit.pending.clear();
-    edit.bulk.clear();
+    edit.sources.clear();
     leaveEdit();
     hooks.render();
   };

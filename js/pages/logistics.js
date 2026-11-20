@@ -13,6 +13,7 @@ import {
   finishEdit, cancelEdit,
 } from "./logistics-edit.js";
 import { openBulkInput } from "./logistics-bulk.js";
+import { openOrderCreate, openOrderChange } from "./logistics-order.js";
 import {
   COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, STAGE_ORDER,
   sourceBadge, stageClass,
@@ -295,7 +296,9 @@ function syncSelectAll() {
 
 // 편집 모드 표시줄과 편집 버튼
 function renderEditState() {
-  const { editButton, reloadButton, editbar } = els;
+  const { editButton, createButton, reloadButton, editbar } = els;
+  // 오더 생성은 편집 모드 밖에서 한다(편집 중에는 저장 대기와 섞이지 않게)
+  createButton.disabled = edit.on;
   editButton.textContent = edit.saving ? tx("저장 중...") : edit.on ? tx("편집 종료") : tx("편집");
   editButton.classList.toggle("primary", edit.on);
   editButton.disabled = edit.saving;
@@ -322,6 +325,18 @@ function renderEditState() {
           openBulkInput(vehicles.filter((v) => edit.selected.has(v.commission_no)), { render: renderGrid }),
       },
       tx("일괄 입력")
+    ),
+    mk(
+      "button",
+      {
+        class: "btn sm",
+        type: "button",
+        disabled: edit.saving || edit.selected.size === 0,
+        title: tx("체크한 오더의 모델·Original PM 을 바꿉니다 (Ordered(Dummy)·Ordered(Changeable) 만)"),
+        onclick: () =>
+          openOrderChange(vehicles.filter((v) => edit.selected.has(v.commission_no)), { render: renderGrid }),
+      },
+      tx("오더 변경")
     ),
     mk(
       "button",
@@ -641,8 +656,12 @@ function buildScreen(root, meta) {
     });
   });
 
+  const createButton = mk("button", { class: "btn sm", type: "button" }, tx("오더 생성"));
+  createButton.addEventListener("click", () => openOrderCreate(vehicles, { render: renderGrid }));
+
   els = {
     editButton,
+    createButton,
     reloadButton: reload,
     editbar: mk("div", { class: "editbar", hidden: true }),
     count: mk("span", { class: "muted small" }),
@@ -730,14 +749,10 @@ function buildScreen(root, meta) {
     mk("span", { class: "muted" }, tx("· 열 {n}개 · 가로 스크롤 · Comm No. 고정", { n: COLUMNS.length }))
   );
 
-  const mismatch =
-    meta.onlyAfab || meta.onlyMain
-      ? mk(
-          "p",
-          { class: "error small" },
-          `두 List 의 차량이 맞지 않습니다 — AFAB 에만 ${meta.onlyAfab}건, Main 에만 ${meta.onlyMain}건`
-        )
-      : null;
+  // Main 에만 있는 차량은 AFAB 에 아직 없는 오더(오더 생성)라 정상이다. AFAB 에만 있는 경우만 알린다.
+  const mismatch = meta.onlyAfab
+    ? mk("p", { class: "error small" }, `두 List 의 차량이 맞지 않습니다 — AFAB 에만 ${meta.onlyAfab}건`)
+    : null;
 
   root.replaceChildren(
     mk(
@@ -747,7 +762,7 @@ function buildScreen(root, meta) {
         "div",
         { class: "card-h" },
         mk("h2", null, tx("Logistics 차량 마스터")),
-        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, editButton, reload, els.count)
+        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, editButton, createButton, reload, els.count)
       ),
       mismatch,
       els.editbar,

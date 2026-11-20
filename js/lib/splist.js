@@ -220,6 +220,26 @@ export async function writeListItems(listId, ops, onProgress) {
 }
 
 /**
+ * 항목을 추가하고, 만든 항목의 id 와 버전 표시를 돌려준다.
+ * @param {string} listId
+ * @param {object[]} rows 항목마다의 필드
+ * @returns {Promise<Array<{status: number, code: string, id: string|null, etag: string|null}>>} rows 와 같은 순서
+ */
+export async function addListItems(listId, rows, onProgress) {
+  const base = `${await sitePath()}/lists/${listId}/items`;
+  const responses = await sendBatched(
+    rows.map((fields) => ({ method: "POST", url: base, body: { fields } })),
+    onProgress
+  );
+  return responses.map((r) => ({
+    status: r.status,
+    code: r.code,
+    id: isOk(r.status) ? r.body?.id ?? null : null,
+    etag: isOk(r.status) ? etagOf(r.body) : null,
+  }));
+}
+
+/**
  * 항목을 변경한다. 읽은 뒤 다른 사람이 바꾼 항목은 쓰지 않고 412 로 돌려준다.
  * @param {string} listId
  * @param {Array<{id: string, etag: string, fields: object}>} updates fields 는 바뀐 필드만

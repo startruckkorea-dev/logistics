@@ -23,6 +23,28 @@ export function loadVehicles(options = {}) {
   return cache;
 }
 
+/**
+ * 두 List 의 행과 Model Master 행으로 차량 행 하나를 만든다.
+ * @param {object|null} afabRow AFAB List 의 행(없으면 null — AFAB 에 아직 없는 오더)
+ * @param {object|null} mainRow Main List 의 행
+ * @param {object} [model] Model Master 행
+ */
+export function mergeVehicle(afabRow, mainRow, model) {
+  const { _itemId: afabItemId, _etag: afabEtag, ...afabFields } = afabRow ?? {};
+  const { _itemId: mainItemId, _etag: mainEtag, ...mainFields } = mainRow ?? {};
+  return {
+    ...mainFields,
+    ...afabFields,
+    spec: model?.spec ?? "",
+    lead_days: model?.lead_days ?? "",
+    lead_months: model?.lead ?? "",
+    // 저장할 때 어느 List 의 어느 항목인지 찾는 데 쓴다
+    _items: { afab: afabItemId ?? null, main: mainItemId ?? null },
+    // 읽은 시점의 버전 표시. 저장할 때 그사이 다른 사람이 바꿨는지 확인한다
+    _etags: { afab: afabEtag ?? null, main: mainEtag ?? null },
+  };
+}
+
 async function read() {
   const [afab, main, models] = await Promise.all([
     readList("logisticsAfab"),
@@ -34,22 +56,7 @@ async function read() {
   const mainByKey = new Map(main.map((row) => [row.commission_no, row]));
   const afabKeys = new Set();
 
-  const merge = (afabRow, mainRow) => {
-    const { _itemId: afabItemId, _etag: afabEtag, ...afabFields } = afabRow ?? {};
-    const { _itemId: mainItemId, _etag: mainEtag, ...mainFields } = mainRow ?? {};
-    const model = modelByKey.get(mainFields.moma_no);
-    return {
-      ...mainFields,
-      ...afabFields,
-      spec: model?.spec ?? "",
-      lead_days: model?.lead_days ?? "",
-      lead_months: model?.lead ?? "",
-      // 저장할 때 어느 List 의 어느 항목인지 찾는 데 쓴다
-      _items: { afab: afabItemId ?? null, main: mainItemId ?? null },
-      // 읽은 시점의 버전 표시. 저장할 때 그사이 다른 사람이 바꿨는지 확인한다
-      _etags: { afab: afabEtag ?? null, main: mainEtag ?? null },
-    };
-  };
+  const merge = (afabRow, mainRow) => mergeVehicle(afabRow, mainRow, modelByKey.get(mainRow?.moma_no));
 
   const vehicles = afab.map((row) => {
     afabKeys.add(row.commission_no);

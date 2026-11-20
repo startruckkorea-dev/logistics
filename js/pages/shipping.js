@@ -5,7 +5,7 @@ import { addMonths, monthOf } from "../domain/dates.js";
 import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
-import { loadVoyageNotes } from "../data/store.js";
+import { loadVoyageNotes, loadShippingNotice } from "../data/store.js";
 import { expectedArrivalMonth, arrivalSchedule } from "../data/derive.js";
 import { num, monthEn } from "../app/charts.js";
 import { vesselsCard } from "./shipping-vessels.js";
@@ -79,7 +79,7 @@ function monthlyCard(vehicles, baseMonth, rerender) {
   const schedule = arrivalSchedule(vehicles, baseMonth, { range, unassigned: true });
   const { months, voyagesByMonth } = schedule;
 
-  const keyOf = (y) => y.key ?? y.vessel; // 항차 = 선박 이름, 입항 실적·미배정 = "YYYY-MM|이름"
+  const keyOf = (y) => y.key; // 선박 = 선박 이름 + Shipping 날짜, 입항 실적·미배정 = "YYYY-MM|…"
   const current = (month) => (whole && month === baseMonth ? " cur" : ""); // 당월 열 강조는 올해 전체 보기에서만
   // 올해 전체 보기에서 당월이 아닌 달은 Total 만 보이고, 머리글을 누르면 선박 열이 펼쳐진다.
   const shown = (month) => (!whole || month === baseMonth || view.open.has(month) ? voyagesByMonth[month] : []);
@@ -98,11 +98,17 @@ function monthlyCard(vehicles, baseMonth, rerender) {
       return list.length ? `#/logistics?comm=${list.map(encodeURIComponent).join(",")}` : null;
     }
     const arrived = Boolean(real[0].arrived);
-    const query = {
-      vessel: [...new Set(real.map((y) => y.vessel))].join(","),
-      current_status: (arrived ? ARRIVED : ON_VESSEL).join(","),
-    };
-    if (arrived) query.ata = real[0].key.slice(0, 7);
+    const names = new Set(real.map((y) => y.vessel));
+    const statuses = arrived ? ARRIVED : ON_VESSEL;
+    const month = real[0].key.slice(0, 7);
+    const list = real.flatMap((y) => schedule.commissions[keyOf(y)] ?? []);
+    // 이름이 같은 다른 선박(Shipping 날짜가 다름)이 있으면 열 필터가 그 차량까지 잡는다. 그때는 차량 목록으로 넘긴다
+    const byFilter = vehicles.filter(
+      (v) => names.has(v.vessel) && statuses.includes(v.current_status) && (!arrived || (v.ata ?? "").slice(0, 7) === month)
+    ).length;
+    if (byFilter !== list.length) return list.length ? `#/logistics?comm=${list.map(encodeURIComponent).join(",")}` : null;
+    const query = { vessel: [...names].join(","), current_status: statuses.join(",") };
+    if (arrived) query.ata = month;
     return `#/logistics?${Object.entries(query).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&")}`;
   };
   // 0 은 빈 칸으로 둔다
@@ -256,20 +262,20 @@ function monthlyCard(vehicles, baseMonth, rerender) {
   );
 }
 
-function build(root, vehicles, notes) {
+function build(root, vehicles, notes, notice) {
   const baseMonth = monthOf(baseDate());
   const rerender = (options = {}) => {
     // 표를 다시 그린 뒤 세로(창)·가로(표) 스크롤 위치를 되돌린다.
     const top = window.scrollY;
     const left = root.querySelector(".pivot")?.closest(".tbl-wrap")?.scrollLeft ?? 0;
-    build(root, vehicles, notes);
+    build(root, vehicles, notes, notice);
     if (options.keepScroll) {
       window.scrollTo(0, top);
       const wrap = root.querySelector(".pivot")?.closest(".tbl-wrap");
       if (wrap) wrap.scrollLeft = left;
     }
   };
-  const vessels = vesselsCard(vehicles, notes, { rerender: () => rerender({ keepScroll: true }) });
+  const vessels = vesselsCard(vehicles, notes, notice, { rerender: () => rerender({ keepScroll: true }) });
   root.replaceChildren(kpiCards(vehicles, baseMonth), vessels.cardEl, monthlyCard(vehicles, baseMonth, rerender));
   evenColumns(vessels.table); // 화면에 붙은 뒤에 잰다
 }
@@ -294,8 +300,13 @@ async function load(root, refresh) {
       console.error(err);
       return new Map();
     });
+    // 공지를 읽지 못하면 그 칸만 안내하고 고치지 못하게 한다
+    const notice = await loadShippingNotice({ refresh }).catch((err) => {
+      console.error(err);
+      return null;
+    });
     if (!root.isConnected) return; // 불러오는 동안 다른 화면으로 옮겨 갔다
-    build(root, data.vehicles, notes);
+    build(root, data.vehicles, notes, notice);
   } catch (err) {
     console.error(err);
     if (!root.isConnected) return;

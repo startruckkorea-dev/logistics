@@ -5,6 +5,8 @@
 import {
   findListId, readListItem, readListItems, readListItemsBy, addListItems, updateListItems, writeListItems,
 } from "../lib/splist.js";
+import { readJsonFile, writeJsonFile } from "../lib/sharepoint.js";
+import { SHAREPOINT } from "../lib/config.js";
 import { LISTS, appList } from "../etl/lists.js";
 import { STATUS } from "../domain/status.js";
 import { COLUMNS } from "./columns.js";
@@ -473,6 +475,52 @@ export async function saveVoyageNote(voyage, patch) {
   apply(existing);
   existing._etag = res.etag ?? (await readListItem(listId, existing._itemId, [def.key])).etag;
   return { ok: true, code: "" };
+}
+
+// ---- 선적·입항 공지: 자유 입력 한 칸. List 가 아니라 JSON 파일에 둔다 ----
+
+/** 공지 파일 이름(저장 전 확인 창과 오류 알림에 보여준다) */
+export const noticeFileName = () => SHAREPOINT.noticeFile.split("/").pop();
+
+let shippingNotice;
+
+/**
+ * 공지를 읽는다. 파일이 아직 없으면 빈 글이다.
+ * @returns {Promise<{text: string, etag: string}>} 저장하면 이 객체의 값이 바뀐다
+ */
+export function loadShippingNotice(options = {}) {
+  if (options.refresh) shippingNotice = undefined;
+  shippingNotice ??= (async () => {
+    const file = await readJsonFile(SHAREPOINT.noticeFile);
+    return { text: typeof file?.data?.text === "string" ? file.data.text : "", etag: file?.etag ?? "" };
+  })().catch((err) => {
+    shippingNotice = undefined; // 실패한 결과는 남기지 않는다
+    throw err;
+  });
+  return shippingNotice;
+}
+
+/**
+ * 공지를 저장한다. 읽은 뒤 다른 사람이 고쳤으면 쓰지 않고 충돌로 돌려준다(그때 최신 글을 다시 읽어 둔다).
+ * @param {string} text
+ * @returns {Promise<{ok: boolean, conflict: boolean, code: string}>}
+ */
+export async function saveShippingNotice(text) {
+  const notice = await loadShippingNotice();
+  try {
+    const res = await writeJsonFile(SHAREPOINT.noticeFile, { text }, notice.etag);
+    notice.text = text;
+    notice.etag = res.etag;
+    // 응답에 ETag 가 없으면 다음 저장을 위해 다시 읽는다
+    if (!notice.etag) notice.etag = (await readJsonFile(SHAREPOINT.noticeFile))?.etag ?? "";
+    return { ok: true, conflict: false, code: "" };
+  } catch (err) {
+    if (err.status !== 412 && err.status !== 409) return { ok: false, conflict: false, code: `${err.status ?? ""} ${err.code ?? err.message ?? ""}`.trim() };
+    const file = await readJsonFile(SHAREPOINT.noticeFile);
+    notice.text = typeof file?.data?.text === "string" ? file.data.text : "";
+    notice.etag = file?.etag ?? "";
+    return { ok: false, conflict: true, code: "" };
+  }
 }
 
 function parseChanges(text) {

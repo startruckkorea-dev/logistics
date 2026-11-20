@@ -38,6 +38,8 @@ const ENVIRONMENTS = {
       readDownload: "02._kufri_UAT/Internal/R-Download",
     },
     rulesFile: "02._kufri_UAT/Internal/Modify/preprocess-rules.uat.json",
+    // 선적·입항 공지(자유 입력 한 칸). 처음 저장할 때 만들어진다.
+    noticeFile: "02._kufri_UAT/Internal/Modify/shipping-notice.uat.json",
     lists: {
       modelMaster: "UAT_ModelMaster",
       colorMaster: "UAT_ColorMaster",
@@ -57,6 +59,7 @@ const ENVIRONMENTS = {
       readDownload: "01._kufri/Internal/R-Download",
     },
     rulesFile: "01._kufri/Internal/Modify/preprocess-rules.prod.json",
+    noticeFile: "01._kufri/Internal/Modify/shipping-notice.prod.json",
     lists: {
       modelMaster: "PRD_ModelMaster",
       colorMaster: "PRD_ColorMaster",
@@ -81,6 +84,7 @@ export const SHAREPOINT = {
   sitePath: "/sites/STK-Kufri",
   folders: ENV.folders,
   rulesFile: ENV.rulesFile,
+  noticeFile: ENV.noticeFile,
   // 같은 사이트를 UAT 와 운영이 같이 쓰므로 List 는 이름의 접두어로 구분한다.
   lists: ENV.lists,
 };

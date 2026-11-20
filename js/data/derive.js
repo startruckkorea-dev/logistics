@@ -110,34 +110,6 @@ export const UNASSIGNED = "미배정";
 // 가장 이른 날짜
 const earliest = (dates) => dates.filter(Boolean).sort()[0] ?? "";
 
-/**
- * 운송 중·선적 예정 차량을 선박별로 묶은 항차 목록. 선박 단위 List 가 없어 차량에서 만든다.
- * @returns {Array<{vessel, kind: "transit"|"scheduled", count, shipping, pl, eta_carrier, eta_final,
- *                   bl, tsc, vehicles}>}
- *   pl = Planned Arrival, eta_carrier = ETA(선사), eta_final = ATA, tsc = TSC Arrival Date.
- *   선박 안에서 가장 이른 날짜를 쓴다. vehicles = 그 선박의 차량
- */
-export function deriveVoyages(vehicles) {
-  const byVessel = new Map();
-  for (const v of vehicles) {
-    if (!v.vessel || !ON_VESSEL.includes(v.current_status)) continue;
-    if (!byVessel.has(v.vessel)) byVessel.set(v.vessel, []);
-    byVessel.get(v.vessel).push(v);
-  }
-  return [...byVessel.entries()].map(([vessel, list]) => ({
-    vessel,
-    kind: list.some((v) => v.current_status === STATUS.IN_TRANSIT) ? "transit" : "scheduled",
-    count: list.length,
-    shipping: earliest(list.map((v) => v.shipping)),
-    pl: earliest(list.map((v) => v.planned_arrival)),
-    eta_carrier: earliest(list.map((v) => v.eta_from_eukor_pirt)),
-    eta_final: earliest(list.map((v) => v.ata)),
-    bl: [...new Set(list.map((v) => v.bl_no).filter(Boolean))].join(", "),
-    tsc: earliest(list.map((v) => v.tsc_arrival_date)),
-    vehicles: list,
-  }));
-}
-
 /** TSC 입고일을 확정한 선박을 목록에 남겨 두는 일수(대시보드와 선적·입항이 같이 쓴다) */
 export const TSC_KEEP_DAYS = 5;
 
@@ -188,6 +160,28 @@ export function listVoyages(vehicles, today) {
   return out;
 }
 
+/**
+ * 운송 중·선적 예정 차량만 선박(이름 + Shipping 날짜)별로 묶는다. 월별 입항 집계의 선박 열이 된다.
+ * 날짜는 선박 안에서 가장 이른 값.
+ */
+function voyagesOnVessel(vehicles) {
+  const groups = new Map();
+  for (const v of vehicles) {
+    if (!v.vessel || !ON_VESSEL.includes(v.current_status)) continue;
+    const key = voyageKey(v.vessel, v.shipping);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(v);
+  }
+  return [...groups.entries()].map(([key, list]) => ({
+    key,
+    vessel: list[0].vessel,
+    shipping: list[0].shipping ?? "",
+    pl: earliest(list.map((v) => v.planned_arrival)),
+    eta_carrier: earliest(list.map((v) => v.eta_from_eukor_pirt)),
+    eta_final: earliest(list.map((v) => v.ata)),
+  }));
+}
+
 /** 선박 행의 링크: 그 선박 이름과 Shipping 월의 차량 목록 */
 export function voyageLink(voyage) {
   return `#/logistics?vessel=${encodeURIComponent(voyage.vessel)}&shipping=${encodeURIComponent(voyage.shipping.slice(0, 7))}`;
@@ -208,7 +202,7 @@ export const voyageMonth = (voyage) => (voyage.eta_final || voyage.eta_carrier |
  * @returns {{months: string[], voyagesByMonth: Record<string, object[]>,
  *            groups: Array<{gen, vehicles: Array<{vehicle, rows: Array<{label, attrs, by, total}>}>}>,
  *            grand: Record<string, number>, commissions: Record<string, string[]>, total: number}}
- *   열 key = 선박 이름. 실적 열은 "YYYY-MM|선박", 미배정 열은 "YYYY-MM|미배정"
+ *   열 key = 선박 key(선박 이름 + Shipping 날짜). 실적 열은 "YYYY-MM|선박 key", 미배정 열은 "YYYY-MM|미배정"
  */
 export function arrivalSchedule(vehicles, baseMonth, options = {}) {
   const { onlyMonth, range, unassigned } = options;
@@ -216,24 +210,24 @@ export function arrivalSchedule(vehicles, baseMonth, options = {}) {
   const voyagesByMonth = {};
   if (range) for (let m = range.from; m <= range.to; m = addMonths(m, 1)) voyagesByMonth[m] = [];
 
-  for (const voyage of deriveVoyages(vehicles)) {
+  for (const voyage of voyagesOnVessel(vehicles)) {
     const month = voyageMonth(voyage);
     if (!month || (onlyMonth && month !== onlyMonth) || !inRange(month)) continue;
     (voyagesByMonth[month] ??= []).push(voyage);
   }
-  const vessels = new Set(Object.values(voyagesByMonth).flat().map((voyage) => voyage.vessel));
+  const listed = new Set(Object.values(voyagesByMonth).flat().map((voyage) => voyage.key));
   const items = vehicles
-    .filter((v) => ON_VESSEL.includes(v.current_status) && vessels.has(v.vessel))
-    .map((v) => ({ v, key: v.vessel }));
+    .filter((v) => v.vessel && ON_VESSEL.includes(v.current_status) && listed.has(voyageKey(v.vessel, v.shipping)))
+    .map((v) => ({ v, key: voyageKey(v.vessel, v.shipping) }));
 
   if (range) {
     for (const v of vehicles) {
       if (!v.ata || !v.vessel || !ARRIVED.includes(v.current_status)) continue;
       const month = v.ata.slice(0, 7);
       if (month >= baseMonth || !inRange(month)) continue;
-      const key = `${month}|${v.vessel}`;
+      const key = `${month}|${voyageKey(v.vessel, v.shipping)}`;
       if (!voyagesByMonth[month].some((voyage) => voyage.key === key)) {
-        voyagesByMonth[month].push({ vessel: v.vessel, key, shipping: "", arrived: true });
+        voyagesByMonth[month].push({ vessel: v.vessel, key, shipping: v.shipping ?? "", arrived: true });
       }
       items.push({ v, key });
     }

@@ -69,3 +69,49 @@ export async function listFolder(folderPath) {
   );
   return items;
 }
+
+// ---- JSON 파일 읽기·쓰기 (공지처럼 List 로 두지 않는 작은 값) ----
+
+const filePathOf = async (filePath) =>
+  `/drives/${await getDriveId()}/root:/${filePath.split("/").map(encodeURIComponent).join("/")}`;
+
+/**
+ * 문서 라이브러리의 JSON 파일을 읽는다.
+ * @param {string} filePath 기본 문서 라이브러리 기준 경로
+ * @returns {Promise<{data: any, etag: string}|null>} 파일이 없으면 null. etag 는 저장할 때 충돌 확인에 쓴다
+ */
+export async function readJsonFile(filePath) {
+  const itemPath = await filePathOf(filePath);
+  const urlOf = (it) => it["@microsoft.graph.downloadUrl"] ?? it["@content.downloadUrl"];
+  let item;
+  try {
+    item = await gfetch(`${itemPath}?$select=id,eTag,content.downloadUrl`, { name: "readJsonFile.item" });
+    if (!urlOf(item)) item = await gfetch(itemPath, { name: "readJsonFile.itemFull" });
+  } catch (err) {
+    if (err.status === 404) return null;
+    throw err;
+  }
+  const downloadUrl = urlOf(item);
+  if (!downloadUrl) throw new Error("파일을 내려받을 주소를 받지 못했습니다.");
+  // 사전 인증 주소라 Authorization 헤더를 붙이지 않는다.
+  const res = await fetch(downloadUrl);
+  if (!res.ok) throw new Error(`파일 내려받기 실패 (${res.status})`);
+  return { data: await res.json(), etag: item.eTag ?? "" };
+}
+
+/**
+ * JSON 파일을 쓴다(없으면 만든다).
+ * @param {string} filePath 기본 문서 라이브러리 기준 경로
+ * @param {object} data
+ * @param {string} [etag] 읽을 때 받은 값. 주면 그사이 파일이 바뀌었을 때 쓰지 않고 412 오류가 난다
+ * @returns {Promise<{etag: string}>}
+ */
+export async function writeJsonFile(filePath, data, etag) {
+  const item = await gfetch(`${await filePathOf(filePath)}:/content`, {
+    method: "PUT",
+    body: data,
+    headers: etag ? { "If-Match": etag } : {},
+    name: "writeJsonFile",
+  });
+  return { etag: item?.eTag ?? "" };
+}

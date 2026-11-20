@@ -1,6 +1,7 @@
 // 선적·입항의 "선박별 현황" — 선박(항차) 단위 값 보기와 편집.
 //   차량에 반영하는 값: B/L No, ETA 선사, ATA, TSC 입고일(확정)  → 그 선박의 차량 전체(Main List)
 //   선박에만 두는 값  : 총중량, TSC 입고일(예정)                 → 선박 단위 List
+//   공지(자유 입력 한 칸)                                        → JSON 파일
 // 편집 중 바꾼 값은 저장 대기에 쌓고 "편집 종료"에서 한꺼번에 저장한다. TSC 확정만 확인 창에서 바로 저장한다.
 import { mk } from "../lib/dom.js";
 import { ENV } from "../lib/config.js";
@@ -11,7 +12,9 @@ import { STATUS } from "../domain/status.js";
 import { stageClass } from "../data/columns.js";
 import { STAGES } from "../data/stages.js";
 import { countBy, listVoyages, voyageLink } from "../data/derive.js";
-import { isDate, saveVehicles, saveVoyageNote, targetListNames, voyageListName } from "../data/store.js";
+import {
+  isDate, saveVehicles, saveVoyageNote, targetListNames, voyageListName, saveShippingNotice, noticeFileName,
+} from "../data/store.js";
 import { num } from "../app/charts.js";
 
 const SOURCE = "선적·입항";
@@ -19,7 +22,8 @@ const SOURCE_TSC = "선적·입항 (TSC 확정)";
 
 // 편집 상태. 다른 화면에 다녀와도 유지한다.
 //   pending : 선박 key → { bl?, eta?, ata?, tsc?, gw? } (바꾼 칸만)
-const edit = { on: false, saving: false, pending: new Map() };
+//   notice  : 고친 공지 글. 고치지 않았으면 undefined
+const edit = { on: false, saving: false, pending: new Map(), notice: undefined };
 
 // 입력 칸 → 차량 행의 열
 const VEHICLE_FIELD = { bl: "bl_no", eta: "eta_from_eukor_pirt", ata: "ata" };
@@ -29,16 +33,17 @@ const dash = () => mk("span", { class: "muted" }, "—");
 function pendingCount() {
   let n = 0;
   for (const p of edit.pending.values()) n += Object.keys(p).length;
-  return n;
+  return n + (edit.notice === undefined ? 0 : 1);
 }
 
 /**
  * @param {object[]} vehicles 차량 행 전체
  * @param {Map<string, {gw: any, tsc_planned: string}>} notes 선박 단위 List 의 값(선박 key 로 찾는다)
+ * @param {{text: string}|null} notice 공지. 읽지 못했으면 null(그때는 고칠 수 없다)
  * @param {{rerender: () => void}} hooks rerender: 화면을 다시 그린다(저장 뒤 지표와 표를 맞춘다)
  * @returns {{cardEl: HTMLElement, table: HTMLTableElement}}
  */
-export function vesselsCard(vehicles, notes, hooks) {
+export function vesselsCard(vehicles, notes, notice, hooks) {
   const today = baseDate();
   const voyages = listVoyages(vehicles, today).sort((a, b) =>
     (a.shipping || "9") !== (b.shipping || "9") ? ((a.shipping || "9") < (b.shipping || "9") ? -1 : 1) : a.vessel < b.vessel ? -1 : 1
@@ -86,6 +91,12 @@ export function vesselsCard(vehicles, notes, hooks) {
       // ATA 는 실제 입항일이라 기준일 이후 날짜는 받지 않는다
       if (name === "ata" && value > today) {
         toast(tx("ATA 입력 불가"), tx("ATA 는 실제 입항일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다. 입항 예정일은 ETA 선사에 넣으세요.", { d: today }));
+        node.value = shown(y, name);
+        return;
+      }
+      // 확정된 TSC 입고일도 실제 입고일이다. 예정일은 앞날이어도 된다.
+      if (name === "tsc" && y.confirmed && value > today) {
+        toast(tx("TSC 입고일 확정"), tx("확정하는 TSC 입고일은 실제 입고일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다.", { d: today }));
         node.value = shown(y, name);
         return;
       }
@@ -147,13 +158,17 @@ export function vesselsCard(vehicles, notes, hooks) {
   // ---- TSC 입고일 확정: 차량에 날짜를 넣고 In Transit 을 Bonded Stock 으로 바꾼다 ----
   function openTscConfirm(y) {
     const transit = y.vehicles.filter((v) => v.current_status === STATUS.IN_TRANSIT).length;
-    const dateInput = mk("input", { type: "date", class: "tsc-in" });
+    const dateInput = mk("input", { type: "date", class: "tsc-in", max: today });
     dateInput.value = shown(y, "tsc");
     const confirm = mk("button", { class: "btn primary", type: "button" }, tx("확정"));
     confirm.addEventListener("click", async () => {
       const date = dateInput.value.trim();
       if (!isDate(date)) {
         toast(tx("TSC 입고일 확정"), tx("날짜를 입력하세요."));
+        return;
+      }
+      if (date > today) {
+        toast(tx("TSC 입고일 확정"), tx("확정하는 TSC 입고일은 실제 입고일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다.", { d: today }));
         return;
       }
       confirm.disabled = true;
@@ -199,6 +214,79 @@ export function vesselsCard(vehicles, notes, hooks) {
         mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${targetListNames(["tsc_arrival_date"]).join(", ")}`),
       ],
       [mk("button", { class: "btn", type: "button", onclick: closeModal }, tx("취소")), confirm]
+    );
+  }
+
+  // ---- 공지: 보기 모드는 3줄 상자, 편집 모드는 입력칸 ----
+  const noticeBox = (text) => mk("div", { class: "notice-box clamp" }, text || mk("span", { class: "muted" }, tx("공지 없음")));
+  const noticeArea = () => {
+    if (!notice) return mk("div", { class: "notice-box" }, mk("span", { class: "muted" }, tx("공지를 불러오지 못했습니다.")));
+    if (!edit.on) return noticeBox(notice.text);
+    const area = mk("textarea", {
+      class: `notice-ta${edit.notice === undefined ? "" : " pend"}`,
+      rows: 4,
+      placeholder: tx("접안·하역 안내 · 첫 주문·인증 필요차 · AFAB 미반영 변동 등"),
+    });
+    area.value = edit.notice ?? notice.text;
+    area.addEventListener("change", () => {
+      const text = area.value.trim();
+      edit.notice = text === notice.text ? undefined : text;
+      area.classList.toggle("pend", edit.notice !== undefined);
+      drawBar();
+    });
+    return area;
+  };
+
+  // 공지 저장. 그사이 다른 사람이 고쳤으면 두 글을 보여주고 고르게 한다.
+  async function saveNotice() {
+    const res = await saveShippingNotice(edit.notice);
+    if (res.ok) {
+      edit.notice = undefined;
+      return;
+    }
+    if (!res.conflict) {
+      toast(tx("저장 실패"), `${noticeFileName()}: ${res.code}`);
+      return;
+    }
+    openModal(
+      tx("공지 충돌"),
+      [
+        mk("p", null, tx("그사이 다른 사람이 공지를 고쳤습니다. 지금 저장되어 있는 글:")),
+        noticeBox(notice.text),
+        mk("p", null, tx("내가 쓴 글:")),
+        noticeBox(edit.notice),
+      ],
+      [
+        mk(
+          "button",
+          {
+            class: "btn",
+            type: "button",
+            onclick: () => {
+              edit.notice = undefined;
+              if (!pendingCount()) edit.on = false;
+              closeModal();
+              hooks.rerender();
+            },
+          },
+          tx("저장된 글 사용")
+        ),
+        mk(
+          "button",
+          {
+            class: "btn primary",
+            type: "button",
+            onclick: async () => {
+              closeModal();
+              await saveNotice();
+              if (edit.notice === undefined) toast(tx("공지 저장"), noticeFileName());
+              if (!pendingCount()) edit.on = false;
+              hooks.rerender();
+            },
+          },
+          tx("내 글로 저장")
+        ),
+      ]
     );
   }
 
@@ -262,9 +350,13 @@ export function vesselsCard(vehicles, notes, hooks) {
         if (!y) continue;
         if (!failedKeys.has(key) && !y.vehicles.some((v) => troubled.has(v.commission_no))) edit.pending.delete(key);
       }
-      report(out, tx("선적·입항 저장"));
+      if (edits.length || noteJobs.length) report(out, tx("선적·입항 저장"));
       if (noteFailures.length) {
         toast(tx("저장 실패"), `${voyageListName()}: ${[...new Set(noteFailures)].join(", ")}`);
+      }
+      if (edit.notice !== undefined) {
+        await saveNotice();
+        if (edit.notice === undefined) toast(tx("공지 저장"), noticeFileName());
       }
       if (!pendingCount()) edit.on = false;
     } catch (err) {
@@ -284,15 +376,20 @@ export function vesselsCard(vehicles, notes, hooks) {
     }
     const keys = [...edit.pending.keys()].filter((key) => byKey.has(key));
     const cars = keys.reduce((n, key) => n + byKey.get(key).vehicles.length, 0);
+    const hasNotice = edit.notice !== undefined;
+    const targets = [...(keys.length ? [...targetListNames(["bl_no"]), voyageListName()] : []), ...(hasNotice ? [noticeFileName()] : [])];
     openModal(
       tx("선적·입항 저장"),
       [
-        mk("p", null, tx("선박 {n}척의 입력 {m}건을 저장합니다. 차량에 반영하는 값은 그 선박의 차량 전체에 들어갑니다(해당 차량 {c}대).", {
-          n: num(keys.length),
-          m: num(pendingCount()),
-          c: num(cars),
-        })),
-        mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${[...targetListNames(["bl_no"]), voyageListName()].join(", ")}`),
+        keys.length
+          ? mk("p", null, tx("선박 {n}척의 입력 {m}건을 저장합니다. 차량에 반영하는 값은 그 선박의 차량 전체에 들어갑니다(해당 차량 {c}대).", {
+              n: num(keys.length),
+              m: num(pendingCount() - (hasNotice ? 1 : 0)),
+              c: num(cars),
+            }))
+          : null,
+        hasNotice ? mk("p", null, tx("공지를 저장합니다.")) : null,
+        mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${targets.join(", ")}`),
       ],
       [
         mk("button", { class: "btn", type: "button", onclick: closeModal }, tx("취소")),
@@ -315,6 +412,7 @@ export function vesselsCard(vehicles, notes, hooks) {
   function cancel() {
     const leave = () => {
       edit.pending.clear();
+      edit.notice = undefined;
       edit.on = false;
       hooks.rerender();
     };
@@ -389,7 +487,7 @@ export function vesselsCard(vehicles, notes, hooks) {
               mk("td", { class: "num" }, mk("b", null, y.count)),
               gwCell(y),
               blCell(y),
-              mk("td", { class: "mono" }, y.shipping || dash(), y.kind === "scheduled" ? mk("div", { class: "muted small" }, tx("예정")) : null),
+              mk("td", { class: "mono" }, y.shipping || dash(), y.kind === "scheduled" ? [" ", mk("span", { class: "muted small" }, tx("예정"))] : null),
               mk("td", { class: "mono" }, y.pl || dash()),
               cell(y, "eta", "date", dash()),
               cell(y, "ata", "date", mk("span", { class: "muted" }, tx("미입력")), { max: today }),
@@ -414,8 +512,9 @@ export function vesselsCard(vehicles, notes, hooks) {
       editButton,
       cancelButton
     ),
+    mk("div", { class: "notice-wrap" }, noticeArea()),
     mk("div", { class: "tbl-wrap" }, table),
-    mk("div", { class: "muted small", style: "margin-top:6px" }, tx("행 클릭 → 해당 선박의 차량 Logistics 목록. 입력은 편집 모드에서."))
+    mk("div", { class: "muted small", style: "margin-top:6px" }, `${tx("행 클릭 → 해당 선박의 차량 Logistics 목록. 입력은 편집 모드에서.")} ${tx("공지는 편집 모드에서 입력.")}`)
   );
   return { cardEl, table };
 }

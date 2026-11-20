@@ -237,8 +237,8 @@ function arrivalCard(schedule, baseMonth) {
   const voyages = schedule.voyagesByMonth[baseMonth] ?? [];
   const cell = (n, isTotal) => mk("td", { class: isTotal ? "num tot" : "num" }, n ? num(n) : null);
   const cells = (by) => [
-    ...voyages.map((y) => cell(by[y.vessel] ?? 0)),
-    cell(voyages.reduce((sum, y) => sum + (by[y.vessel] ?? 0), 0), true),
+    ...voyages.map((y) => cell(by[y.key] ?? 0)),
+    cell(voyages.reduce((sum, y) => sum + (by[y.key] ?? 0), 0), true),
   ];
   const sumBy = (rows) => {
     const by = {};

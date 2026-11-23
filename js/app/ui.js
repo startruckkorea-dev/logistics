@@ -1,6 +1,6 @@
 // 공용 부품 — 알림(Toast), 모달, 드로어, 풍선 도움말.
 // 내용은 문자열 HTML 이 아니라 DOM 노드(또는 텍스트)로 받는다.
-import { mk } from "../lib/dom.js";
+import { cssZoom, mk } from "../lib/dom.js";
 import { tx } from "./i18n.js";
 
 const $ = (id) => document.getElementById(id);
@@ -75,8 +75,10 @@ export function initUi() {
     }
     tip.textContent = target.getAttribute("data-tip");
     tip.style.display = "block";
-    tip.style.left = `${Math.min(event.clientX + 12, window.innerWidth - tip.offsetWidth - 8)}px`;
-    tip.style.top = `${event.clientY + 12}px`;
+    // 마우스 좌표는 창 좌표이고 풍선은 화면 배율 안에 있으므로 배율로 나눠 넣는다
+    const zoom = cssZoom(tip);
+    tip.style.left = `${Math.min(event.clientX + 12, window.innerWidth - tip.offsetWidth * zoom - 8) / zoom}px`;
+    tip.style.top = `${(event.clientY + 12) / zoom}px`;
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;

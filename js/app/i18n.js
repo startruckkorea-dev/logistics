@@ -47,6 +47,8 @@ const DICTIONARY = {
     "Shipping {s} · actual PM~Shipping {m} days (plan {p}, over by {n})",
   " · 열 필터: {cols}": " · Column filter: {cols}",
   "{c} 열 필터": "{c} Column Filter",
+  "{c} 열 정렬": "Sort by {c}",
+  "출처": "Source",
   "값 검색": "Search values",
   "값 검색 (예: 2853)": "Search values (e.g. 2853)",
   "연·월 검색 (예: 2026-11)": "Search year-month (e.g. 2026-11)",

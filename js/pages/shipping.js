@@ -1,5 +1,5 @@
 // 선적 · 입항 — 운송 중·입항 예정 지표, 선박별 현황(편집은 shipping-vessels.js), 월별 입항 예정·실적 표.
-import { mk } from "../lib/dom.js";
+import { cssZoom, mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { addMonths, monthOf } from "../domain/dates.js";
 import { baseDate } from "../app/base-date.js";
@@ -60,7 +60,9 @@ function evenColumns(table) {
   table.style.tableLayout = "auto";
   table.style.width = "auto";
   for (const th of heads) th.style.width = "";
-  const widths = heads.map((th) => th.getBoundingClientRect().width);
+  // 잰 값은 화면 배율이 걸린 뒤의 크기라, 스타일에 넣을 크기로 되돌린다
+  const zoom = cssZoom(table);
+  const widths = heads.map((th) => th.getBoundingClientRect().width / zoom);
   const total = widths.reduce((a, b) => a + b, 0);
   if (!total) return; // 아직 화면에 없으면 기본 배치를 둔다
   const extra = Math.max(0, (table.parentElement.clientWidth - total) / heads.length);

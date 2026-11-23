@@ -29,11 +29,15 @@ export function mk(tag, attrs, ...children) {
 }
 
 /**
- * 화면에 붙어 있는 요소에 걸린 배율(CSS zoom). 없으면 1.
- * 배율이 걸린 요소의 left·top 은 배율만큼 줄어서 놓이므로, 창 좌표를 넣을 때는 이 값으로 나눈다.
+ * 화면에 붙어 있는 요소가 실제로 그려지는 배율(자신과 조상의 CSS zoom 을 곱한 값). 없으면 1.
+ * 배율 안에서는 left·top·width 에 넣은 px 이 배율만큼 줄어서 그려지고, getBoundingClientRect 와
+ * 마우스 좌표는 줄어든 뒤의 창 좌표다. 창 좌표를 스타일에 넣을 때는 이 값으로 나눈다.
  */
 export function cssZoom(node) {
-  return Number(getComputedStyle(node).zoom) || 1;
+  if (typeof node.currentCSSZoom === "number") return node.currentCSSZoom;
+  let zoom = 1;
+  for (let el = node; el instanceof Element; el = el.parentElement) zoom *= Number(getComputedStyle(el).zoom) || 1;
+  return zoom;
 }
 
 /** SVG 요소. 사용법은 mk 와 같다. */

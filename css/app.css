@@ -1,5 +1,32 @@
 /* 화면 틀 보완 — css/style.css(화면 설계 원본) 위에 얹는 규칙 */
 
+/* ---- 화면 배율 ----
+   앱 전체를 80% 로 줄여 그린다. 화면은 너비 1600px 안팎을 기준으로 설계했고,
+   1920×1200 을 150% 로 쓰는 PC 의 브라우저 너비가 1280px 이라 0.8 이면 설계 너비와 같아진다.
+   배율 안에서는 vh·vw 도 같이 줄어들므로, 창 크기에 맞춰야 하는 값은 배율로 나눠 되돌린다. */
+:root {
+  --zoom: 0.8;
+}
+body {
+  zoom: var(--zoom);
+}
+.grid-wrap {
+  max-height: calc(100vh / var(--zoom) - 270px);
+}
+.tbl-wrap {
+  max-height: calc(70vh / var(--zoom));
+}
+.kufri-wrap {
+  max-height: calc(72vh / var(--zoom));
+}
+.drawer {
+  width: min(760px, calc(96vw / var(--zoom)));
+}
+.modal {
+  width: min(860px, calc(96vw / var(--zoom)));
+  max-height: calc(90vh / var(--zoom));
+}
+
 /* 로그인 전·준비 중 안내 */
 .notice-card {
   max-width: 560px;
@@ -31,28 +58,11 @@
 /* ---- Logistics 차량 마스터 ---- */
 .lg-search {
   width: 520px;
-  max-width: 60vw;
+  max-width: calc(60vw / var(--zoom));
 }
-/* 그리드 화면만 80% 배율로 줄이고, 양쪽 여백 없이 창 너비를 다 쓴다 */
+/* 그리드 화면은 양쪽 여백 없이 창 너비를 다 쓴다 */
 .page:has(.lg-screen) {
   max-width: none;
-}
-.lg-screen {
-  zoom: 0.8;
-}
-/* 그리드 화면에서 뜨는 열 필터·Note 입력창·차량 상세·창도 같은 배율로 */
-body:has(.lg-screen) .colfilter,
-body:has(.lg-screen) .drawer,
-body:has(.lg-screen) .modal {
-  zoom: 0.8;
-}
-/* 창의 최대 높이는 전과 같이 창 높이의 90% (112.5vh × 0.8) */
-body:has(.lg-screen) .modal {
-  max-height: 112.5vh;
-}
-/* 배율 안에서는 vh 도 같이 줄어든다. 125vh × 0.8 = 창 높이 */
-.lg-screen .grid-wrap {
-  max-height: calc(125vh - 280px);
 }
 /* 열 너비 고정: 페이지·검색·필터가 바뀌어도 열이 움직이지 않는다 */
 .grid.fixed {
@@ -68,9 +78,73 @@ body:has(.lg-screen) .modal {
   visibility: hidden;
   min-width: 0;
 }
-/* 정렬은 배지 줄에서만 되므로 열 이름 줄에는 손 모양을 쓰지 않는다 */
+/* 머리글 한 줄: 출처 색 점 · 열 이름(길면 두 줄) · 정렬 버튼 · 필터 버튼.
+   정렬은 버튼으로만 되므로 머리글 칸에는 손 모양을 쓰지 않는다 */
 .grid thead tr.fld th {
   cursor: default;
+  height: 38px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.grid th .th-in {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.grid th .th-name {
+  line-height: 1.25;
+}
+.grid th .th-name span {
+  display: block;
+}
+.grid th .th-in .cf {
+  margin-left: 0;
+}
+.grid th .sortbtn {
+  flex: none;
+  width: 16px;
+  padding: 1px 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.grid th .sortbtn:hover {
+  border-color: var(--line-strong);
+  background: #fff;
+}
+.grid th .sortbtn.on {
+  color: var(--accent);
+  font-size: 9px;
+}
+/* 출처 색 점(머리글과 범례) */
+.src-dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.src-dot.afab {
+  background: #2a78d6;
+}
+.src-dot.auto {
+  background: #9aa6b5;
+}
+.src-dot.input {
+  background: #2a9d4a;
+}
+.src-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+}
+.src-legend .src-dot {
+  margin-left: 6px;
 }
 /* 차량 상세: 긴 글은 줄바꿈을 살려 여러 줄로 */
 .fields .f .v.long-text {

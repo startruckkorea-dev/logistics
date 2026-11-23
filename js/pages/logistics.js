@@ -172,14 +172,36 @@ function cellClass(column, v) {
     .join(" ") || null;
 }
 
-// forMeasure: 너비를 잴 때는 모든 열에 정렬 표시를 넣어 가장 넓은 경우로 잰다.
+// 긴 열 이름은 가운데에 가장 가까운 띄어쓰기에서 두 줄로 나눈다(열이 이름 길이만큼 넓어지지 않게).
+const NAME_WRAP_FROM = 9; // 이 글자 수부터 나눈다
+function nameLines(label) {
+  if (label.length < NAME_WRAP_FROM || !label.includes(" ")) return [label];
+  const middle = label.length / 2;
+  let cut = -1;
+  for (let i = label.indexOf(" "); i >= 0; i = label.indexOf(" ", i + 1)) {
+    if (cut < 0 || Math.abs(i - middle) < Math.abs(cut - middle)) cut = i;
+  }
+  return [label.slice(0, cut), label.slice(cut + 1)];
+}
+
+// 머리글은 한 줄이다: 출처 색 점 · 열 이름 · 정렬 버튼 · 필터 버튼.
+// forMeasure: 너비를 잴 때는 편집 모드의 전체 선택 체크박스를 넣지 않는다(그 자리는 CHECK_WIDTH 로 더한다).
 function headerRows(forMeasure = false) {
-  const sortMark = (key) =>
-    forMeasure || view.sort === key ? mk("span", { class: "sort" }, view.dir > 0 ? "▲" : "▼") : null;
-  const badge = (src) => {
+  const sourceDot = (src) => {
     const b = sourceBadge(src);
-    return mk("span", { class: `badge ${b.cls}`, title: b.tip }, tx(src));
+    return mk("span", { class: `src-dot ${b.cls}`, title: `${tx(src)} · ${b.tip}` });
   };
+  // 정렬은 이 버튼으로만 한다. 열 이름을 눌러도 순서가 바뀌지 않는다.
+  const sortButton = (column) =>
+    mk(
+      "button",
+      {
+        class: `sortbtn ${view.sort === column.key ? "on" : ""}`,
+        type: "button",
+        title: tx("{c} 열 정렬", { c: tx(column.label) }),
+      },
+      view.sort === column.key ? (view.dir > 0 ? "▲" : "▼") : "⇅"
+    );
   const isFiltered = (key) => Boolean(view.col[key]) || (key === "shipping_calc" && view.delayed);
   const filterButton = (column) =>
     FILTER_COLUMNS.includes(column.key)
@@ -194,21 +216,26 @@ function headerRows(forMeasure = false) {
           "▼"
         )
       : null;
-  const th = (column, children) =>
-    mk(
-      "th",
-      { class: column.key === "commission_no" ? "sticky" : null, "data-sort": column.key, title: column.key },
-      children
-    );
   // 편집 모드: 현재 페이지의 행을 모두 선택하는 체크박스
   const selectAll = (column) =>
     !forMeasure && edit.on && column.key === "commission_no"
       ? mk("input", { type: "checkbox", id: "selAll", title: tx("현재 페이지 전체 선택") })
       : null;
-  return [
-    mk("tr", { class: "fld" }, COLUMNS.map((c) => th(c, tx(c.label)))),
-    mk("tr", { class: "sub" }, COLUMNS.map((c) => th(c, [selectAll(c), badge(c.src), sortMark(c.key), filterButton(c)]))),
-  ];
+  const th = (column) =>
+    mk(
+      "th",
+      { class: column.key === "commission_no" ? "sticky" : null, "data-sort": column.key, title: column.key },
+      mk(
+        "div",
+        { class: "th-in" },
+        selectAll(column),
+        sourceDot(column.src),
+        mk("span", { class: "th-name" }, nameLines(tx(column.label)).map((line) => mk("span", null, line))),
+        sortButton(column),
+        filterButton(column)
+      )
+    );
+  return [mk("tr", { class: "fld" }, COLUMNS.map(th))];
 }
 
 // 열 너비를 정한다. 전체 차량에서 열마다 가장 긴 값 몇 개를 골라 보이지 않는 표에 실제 모양대로 그리고,
@@ -723,10 +750,9 @@ function buildScreen(root, meta) {
       else startCellEdit(td, vehicle, column.key, repaint);
       return;
     }
-    // 정렬은 배지가 있는 둘째 줄에서만. 열 이름 줄은 눌러도 바뀌지 않는다.
-    const th = event.target.closest("tr.sub th[data-sort]");
-    if (!th) return;
-    const key = th.dataset.sort;
+    // 정렬은 머리글의 정렬 버튼으로만. 열 이름은 눌러도 바뀌지 않는다.
+    const key = event.target.closest("button.sortbtn")?.closest("th[data-sort]")?.dataset.sort;
+    if (!key) return;
     if (view.sort === key) view.dir *= -1;
     else Object.assign(view, { sort: key, dir: 1 });
     renderGrid();
@@ -749,7 +775,14 @@ function buildScreen(root, meta) {
       button.addEventListener("click", () => jumpTo(key));
       return button;
     }),
-    mk("span", { class: "muted" }, tx("· 열 {n}개 · 가로 스크롤 · Comm No. 고정", { n: COLUMNS.length }))
+    mk("span", { class: "muted" }, tx("· 열 {n}개 · 가로 스크롤 · Comm No. 고정", { n: COLUMNS.length })),
+    // 머리글 색 점의 범례
+    mk(
+      "span",
+      { class: "src-legend" },
+      `${tx("출처")}:`,
+      ["afab", "auto", "input"].map((cls, i) => [mk("span", { class: `src-dot ${cls}` }), tx(["AFAB", "자동", "입력"][i])])
+    )
   );
 
   // Main 에만 있는 차량은 AFAB 에 아직 없는 오더(오더 생성)라 정상이다. AFAB 에만 있는 경우만 알린다.

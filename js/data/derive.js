@@ -102,7 +102,7 @@ export function expectedArrivalMonth(v) {
   if (v.ata) return v.ata.slice(0, 7);
   if (v.eta_from_eukor_pirt) return v.eta_from_eukor_pirt.slice(0, 7);
   if (v.planned_arrival) return v.planned_arrival.slice(0, 7);
-  if (v.pm) return addMonths(v.pm, Number(v.lead_months) || DEFAULT_LEAD_MONTHS);
+  if (v.pm) return addMonths(v.pm.slice(0, 7),Number(v.lead_months) || DEFAULT_LEAD_MONTHS);
   return "";
 }
 

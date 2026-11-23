@@ -202,6 +202,8 @@ const RULE_TYPES = {
       sourceStatus: [check.nonEmptyString, true],
       dummyMarker: [check.string],
       dummyExclude: [check.string],
+      notDummyPattern: [(v) => (typeof v === "string" && v.length > 0 && isRegex(v) ? null : "정규식이어야 합니다")],
+      notDummyCount: [(v) => (Number.isInteger(v) && v >= 1 ? null : "1 이상의 정수여야 합니다")],
     },
   },
   deriveShippingCalc: {

@@ -334,7 +334,7 @@ function openAddModel(data, rerender) {
         "div",
         { class: "fields" },
         field("BM", controls.bm.node, true),
-        ["my", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto", "emission", "lead_days", "lead"].map((name) =>
+        ["my", "vehicle", "model", "type", "axle", "cab", "cab_gen", "pto", "wheelbase", "emission", "lead_days", "lead"].map((name) =>
           field(labels[name], controls[name].node)
         ),
         field(tx("대표"), mk("label", null, isRep, " Y")),

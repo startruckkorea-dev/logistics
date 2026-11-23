@@ -31,7 +31,7 @@ const MODEL_REQUIRED = ["my", "bm", "vehicle", "model", "type"];
 const WHOLE_NUMBER = ["lead_days", "lead"];
 
 // Spec 을 이루는 속성(이 순서로 잇는다). 빈 값은 "-" 로 둔다.
-const SPEC_FIELDS = ["vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto", "emission"];
+const SPEC_FIELDS = ["vehicle", "model", "type", "axle", "cab", "cab_gen", "pto", "wheelbase", "emission"];
 const SPEC_JOIN = "|";
 const SPEC_BLANK = "-";
 

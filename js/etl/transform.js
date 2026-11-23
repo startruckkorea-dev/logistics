@@ -694,7 +694,12 @@ const RULES = {
     const c = Object.fromEntries(
       Object.entries(rule.columns).map(([name, ref]) => [name, col(state, ref, rule.id)])
     );
-    const options = { dummyMarker: rule.dummyMarker, dummyExclude: rule.dummyExclude };
+    const options = {
+      dummyMarker: rule.dummyMarker,
+      dummyExclude: rule.dummyExclude,
+      notDummyPattern: rule.notDummyPattern ? new RegExp(rule.notDummyPattern, "g") : undefined,
+      notDummyCount: rule.notDummyCount,
+    };
     const details = {};
     let changed = 0;
     for (const row of state.rows) {

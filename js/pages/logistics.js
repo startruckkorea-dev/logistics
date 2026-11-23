@@ -2,7 +2,7 @@
 // 검색, 열 필터, 정렬, 50행 페이지, Commission No 열 고정, 바로가기, 편집 모드(입력 열).
 import { cssZoom, mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
-import { diffDays } from "../domain/dates.js";
+import { diffDays, monthOf } from "../domain/dates.js";
 import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
@@ -179,6 +179,9 @@ function cellContent(column, v, terms, today) {
         dotClass ? mk("span", { class: `dot r ${dotClass}`, title: `AFAB 수정 가능(Ä): ${v.afab_editable}` }) : null,
       ];
     }
+    case "pm":
+      // 연월일로 저장하고 월까지만 보여준다
+      return [isEmpty(value) ? dim() : monthOf(String(value))];
     case "color_code":
       return isEmpty(value) ? [dim()] : [mk("span", { title: v.color_name ?? "" }, highlight(value, terms))];
     case "shipping_calc": {
@@ -188,7 +191,7 @@ function cellContent(column, v, terms, today) {
       const tip = v.shipping
         ? tx("Shipping {s} · 실적 PM~Shipping {m}일 (계획 {p}일, 초과 {n}일)", {
             s: v.shipping,
-            m: diffDays(v.shipping, `${v.pm}-01`) ?? "-",
+            m: diffDays(v.shipping, `${monthOf(v.pm)}-01`) ?? "-",
             p: v.lead_days,
             n: days,
           })

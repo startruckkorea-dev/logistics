@@ -126,7 +126,9 @@
           },
           "sourceStatus": "FAKE_OPEN",
           "dummyMarker": "FAKE_MARK",
-          "dummyExclude": "FAKE_EXCEPT"
+          "dummyExclude": "FAKE_EXCEPT",
+          "notDummyPattern": "FAKE-\\d+",
+          "notDummyCount": 2
         },
         {
           "id": "derive-shipping-calc",

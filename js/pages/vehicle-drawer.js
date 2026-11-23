@@ -3,6 +3,7 @@ import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { openDrawer, closeDrawer, openModal, closeModal, toast } from "../app/ui.js";
 import { STATUS } from "../domain/status.js";
+import { monthOf } from "../domain/dates.js";
 import { COLUMNS, GROUPS, sourceBadge, stageClass } from "../data/columns.js";
 import { INPUT_FIELDS, changedFields, saveVehicleInputs, loadVehicleHistory } from "../data/store.js";
 import { createInput, labelOf, invalidMessage } from "./input-controls.js";
@@ -25,7 +26,7 @@ function doneCount(v) {
 
 function timeline(v) {
   const milestones = [
-    ["PM", v.pm],
+    ["PM", monthOf(v.pm)],
     ["TDD", v.tdd_calc],
     ["Dispatch", v.dispatch],
     ["Shipping", v.shipping],
@@ -58,7 +59,7 @@ function card(title, ...children) {
 function basicCard(v) {
   // 연식은 이 줄에서만 "MY26" 형식으로 보여준다. 데이터와 그리드는 "26" 그대로다.
   const modelYear = isEmpty(v.model_year) ? "" : `MY${v.model_year}`;
-  const model = [modelYear, v.model, v.type, v.axle, v.cab, v.cab_gen, v.wheelbase, v.pto, v.emission]
+  const model = [modelYear, v.model, v.type, v.axle, v.cab, v.cab_gen, v.pto, v.wheelbase, v.emission]
     .filter((x) => !isEmpty(x))
     .join(" ");
   const lines = [
@@ -112,7 +113,8 @@ function inputControl(column, value) {
 }
 
 function field(column, v) {
-  const value = v[column.key];
+  // PM 은 연월일로 저장하고 월까지만 보여준다
+  const value = column.key === "pm" ? monthOf(v.pm) : v[column.key];
   const badge = sourceBadge(column.src);
   let content;
   if (column.key === "current_status") content = mk("span", { class: `pill ${stageClass(value)}` }, value);

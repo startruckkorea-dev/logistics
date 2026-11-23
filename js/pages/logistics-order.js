@@ -58,7 +58,7 @@ function modelPicker(models) {
     }
     const pairs = [
       ["BM", m.bm], ["Vehicle", m.vehicle], ["Model", m.model], ["Type", m.type], ["Axle", m.axle], ["Cab", m.cab],
-      ["Cab Gen", m.cab_gen], ["Wheelbase", m.wheelbase], ["PTO", m.pto], ["Emission", m.emission],
+      ["Cab Gen", m.cab_gen], ["PTO", m.pto], ["Wheelbase", m.wheelbase], ["Emission", m.emission],
       [tx("리드타임(일)"), m.lead_days], [tx("리드타임(월)"), m.lead], ["MY", m.my],
     ];
     attrs.replaceChildren(

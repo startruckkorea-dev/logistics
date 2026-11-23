@@ -11,7 +11,7 @@ body {
   zoom: var(--zoom);
 }
 .grid-wrap {
-  max-height: calc(100vh / var(--zoom) - 270px);
+  max-height: calc(100vh / var(--zoom) - 312px);
 }
 .tbl-wrap {
   max-height: calc(70vh / var(--zoom));
@@ -421,4 +421,34 @@ body {
 }
 input[type="checkbox"].pend {
   outline: 2px solid var(--warn);
+}
+
+/* ---- 통관 완료 처리 ---- */
+.tbl td.cu-over {
+  color: var(--danger);
+  font-weight: 700;
+}
+.tbl tr.cu-review td {
+  background: var(--warn-soft);
+}
+.tbl tr.cu-review td.cu-apply {
+  background: var(--warn-soft);
+}
+.cu-choice {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: #fff;
+  font: inherit;
+}
+.cu-actions {
+  margin-top: 10px;
+}
+.callout.cu-bulk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.callout.cu-bulk .spacer {
+  flex: 1;
 }

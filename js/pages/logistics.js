@@ -15,6 +15,7 @@ import {
 } from "./logistics-edit.js";
 import { openBulkInput } from "./logistics-bulk.js";
 import { openOrderCreate, openOrderChange } from "./logistics-order.js";
+import { renderCustomsTab } from "./logistics-customs.js";
 import {
   COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, PRESENCE_FILTER_COLUMNS, VALUE_ORDERS,
   sourceBadge, stageClass,
@@ -1104,9 +1105,35 @@ window.addEventListener("hashchange", () => {
   closeNoteEditor();
 });
 
+// 화면 위의 탭. [탭 id, 이름]. 주소는 #/logistics?tab=<id> 이고 첫 탭은 tab 이 없다
+const TABS = [
+  ["grid", "Logistics"],
+  ["customs", "통관 완료 처리"],
+];
+
 export const logisticsPage = {
   render(root, params) {
     closeColumnFilter();
+    const tab = TABS.some(([id]) => id === params.get("tab")) ? params.get("tab") : "grid";
+    root.append(
+      mk(
+        "div",
+        { class: "tabs", id: "lgTabs" },
+        TABS.map(([id, label]) =>
+          mk(
+            "a",
+            { class: `tab${id === tab ? " active" : ""}`, href: id === "grid" ? "#/logistics" : `#/logistics?tab=${id}` },
+            tx(label)
+          )
+        )
+      )
+    );
+    if (tab === "customs") {
+      const tabBox = mk("div");
+      root.append(tabBox);
+      renderCustomsTab(tabBox);
+      return;
+    }
     // 다른 화면의 링크가 넘겨주는 조건: ?q= 검색어, ?stage= 상태(쉼표로 여러 개),
     // ?열이름= 열 필터 값(쉼표로 여러 개, 빈 문자열은 빈 칸), ?comm= Commission No 목록, ?delayed=1 경과 배지 행만
     const q = params.get("q");

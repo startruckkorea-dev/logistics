@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "의존성 관리대장 겸 취약점 알림용. 빌드에는 쓰지 않는다. js/vendor 의 파일은 여기 적힌 버전과 같아야 한다.",
   "dependencies": {
-    "@azure/msal-browser": "5.23.0"
+    "@azure/msal-browser": "5.23.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

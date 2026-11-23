@@ -89,10 +89,12 @@ body {
 .grid th .th-in {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
 .grid th .th-name {
   line-height: 1.25;
+  text-align: center;
 }
 .grid th .th-name span {
   display: block;

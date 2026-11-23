@@ -174,8 +174,14 @@ function cellClass(column, v) {
 
 // 긴 열 이름은 가운데에 가장 가까운 띄어쓰기에서 두 줄로 나눈다(열이 이름 길이만큼 넓어지지 않게).
 const NAME_WRAP_FROM = 9; // 이 글자 수부터 나눈다
-function nameLines(label) {
-  if (label.length < NAME_WRAP_FROM || !label.includes(" ")) return [label];
+// 이름이 길어도 한 줄로 두는 열
+const ONE_LINE_NAMES = new Set([
+  "commission_no", "current_status", "changeability_date", "original_pm", "model_in_afab", "engine_no", "import_license",
+  "option_note", "order_note", "model_classification",
+]);
+function nameLines(column) {
+  const label = tx(column.label);
+  if (ONE_LINE_NAMES.has(column.key) || label.length < NAME_WRAP_FROM || !label.includes(" ")) return [label];
   const middle = label.length / 2;
   let cut = -1;
   for (let i = label.indexOf(" "); i >= 0; i = label.indexOf(" ", i + 1)) {
@@ -230,7 +236,7 @@ function headerRows(forMeasure = false) {
         { class: "th-in" },
         selectAll(column),
         sourceDot(column.src),
-        mk("span", { class: "th-name" }, nameLines(tx(column.label)).map((line) => mk("span", null, line))),
+        mk("span", { class: "th-name" }, nameLines(column).map((line) => mk("span", null, line))),
         sortButton(column),
         filterButton(column)
       )

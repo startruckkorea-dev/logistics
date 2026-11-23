@@ -205,7 +205,7 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
         mk(
           "div",
           { class: "callout" },
-          tx("확정하면 이 선박 차량 {n}대의 TSC Arrival Date 에 날짜가 들어가고, In Transit {m}대가 Bonded Stock 으로 바뀝니다. 바로 저장됩니다.", {
+          tx("확정하면 이 선박 차량 {n}대의 TSC Arrival 에 날짜가 들어가고, In Transit {m}대가 Bonded Stock 으로 바뀝니다. 바로 저장됩니다.", {
             n: num(y.vehicles.length),
             m: num(transit),
           })
@@ -466,7 +466,7 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
     mk("th", null, tx("Planned Arrival")),
     mk("th", null, tx("ETA 선사 (EUKOR/MOL)")),
     mk("th", null, tx("ATA")),
-    mk("th", null, tx("TSC 입고일 (TSC Arrival Date)")),
+    mk("th", null, tx("TSC 입고일 (TSC Arrival)")),
     mk("th", { class: "tscst" }),
   ];
   const table = mk(

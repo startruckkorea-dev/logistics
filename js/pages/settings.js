@@ -24,7 +24,7 @@ const STAGE_RULES = [
   { order: 5, source: "AFAB", stage: "In Production", rule: "생산월 도래 시" },
   { order: 6, source: "AFAB", stage: "Shipment scheduled", rule: "Vessel, Shipping Date 확정 시" },
   { order: 7, source: "AFAB", stage: "In Transit", rule: "Shipping Date 기준" },
-  { order: 8, source: "선적·입항", stage: "Bonded Stock", rule: "TSC Arrival Date 확정 시 (입력만 하면 예정 · ATA ~ TSC 확정 전은 In Transit 유지)" },
+  { order: 8, source: "선적·입항", stage: "Bonded Stock", rule: "TSC Arrival 확정 시 (입력만 하면 예정 · ATA ~ TSC 확정 전은 In Transit 유지)" },
   { order: 9, source: "통관", stage: "OH Stock", rule: "통관 탭 입력 후 (Customs Clearance Date 입력)" },
   { order: 10, source: "Key-in", stage: "Sold", rule: "월말 입력 후" },
   { order: 11, source: "Key-in", stage: "Cancelled", rule: "STK 담당자가 취소할 경우" },

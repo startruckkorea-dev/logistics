@@ -39,8 +39,8 @@ const DICTIONARY = {
   "조건에 맞는 차량이 없습니다.": "No vehicles match the filters.",
   "차량 데이터를 불러오는 중...": "Loading vehicles...",
   "차량 데이터를 불러오지 못했습니다.": "Could not load vehicles.",
-  "Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note":
-    "Comm (comma-separated for multiple) / VIN / B/L / Vessel / Type / Order·Option Note",
+  "전체 열 검색 (여러 개는 쉼표 구분) · Current Status · 날짜 열 제외":
+    "Search all columns (comma-separated for multiple) · except Current Status and date columns",
   "Shipping 미입력 · Shipping Calc 경과 {n}일 (기준일 {d})":
     "No Shipping yet · {n} days past Shipping Calc (as of {d})",
   "Shipping {s} · 실적 PM~Shipping {m}일 (계획 {p}일, 초과 {n}일)":
@@ -63,6 +63,7 @@ const DICTIONARY = {
   "{y}년": "{y}",
   "{m}월": "{mon}",
   "(빈 값)": "(blank)",
+  "(값 있음)": "(has value)",
   "일치하는 값이 없습니다.": "No matching values.",
   "표시된 값 전체 선택": "Select All Shown",
   "표시된 값 해제": "Clear Shown",
@@ -143,7 +144,7 @@ const DICTIONARY = {
   "익월 입항 예정 ({m})": "Arriving Next Month ({m})",
   "Shipment scheduled 포함": "Incl. Shipment scheduled",
   "ETA 선사 (EUKOR/MOL)": "Carrier ETA (EUKOR/MOL)",
-  "TSC 입고일 (TSC Arrival Date)": "TSC Arrival Date",
+  "TSC 입고일 (TSC Arrival)": "TSC Arrival",
   "미확정": "TBD",
   "예정": "planned",
   "미입력": "Not entered",
@@ -324,7 +325,7 @@ const DICTIONARY = {
   "내 글로 저장": "Save my text",
   "확정하는 TSC 입고일은 실제 입고일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다.": "A confirmed TSC arrival date is the actual arrival date, so a date after the base date ({d}) cannot be entered.",
   "TSC 입고일 확정 · {v}": "TSC arrival confirmed · {v}",
-  "확정하면 이 선박 차량 {n}대의 TSC Arrival Date 에 날짜가 들어가고, In Transit {m}대가 Bonded Stock 으로 바뀝니다. 바로 저장됩니다.": "Confirming writes the date to TSC Arrival Date on this vessel's {n} vehicles and moves {m} In Transit vehicles to Bonded Stock. It is saved immediately.",
+  "확정하면 이 선박 차량 {n}대의 TSC Arrival 에 날짜가 들어가고, In Transit {m}대가 Bonded Stock 으로 바뀝니다. 바로 저장됩니다.": "Confirming writes the date to TSC Arrival on this vessel's {n} vehicles and moves {m} In Transit vehicles to Bonded Stock. It is saved immediately.",
   "TSC 입고일": "TSC arrival date",
   "차량 {n}대에 반영": "Applied to {n} vehicles",
   "선적·입항 저장": "Save shipping & arrival",
@@ -416,8 +417,8 @@ const DICTIONARY = {
   "체크한 오더의 모델·Original PM 을 바꿉니다 (Ordered(Dummy)·Ordered(Changeable) 만)": "Change the model and Original PM of the checked orders (Ordered(Dummy) and Ordered(Changeable) only)",
   // 화면 설계의 사전에서 가져온 문구
   "확정": "Confirmed",
-  "클릭 → TSC 입고일 확정": "Click → confirm TSC Arrival Date",
-  "TSC 입고일 확정 — {v}": "Confirm TSC Arrival Date — {v}",
+  "클릭 → TSC 입고일 확정": "Click → confirm TSC Arrival",
+  "TSC 입고일 확정 — {v}": "Confirm TSC Arrival — {v}",
   "총중량 (kg)": "Gross Weight (kg)",
 };
 

@@ -32,7 +32,7 @@ export const COLUMNS = [
   { key: "eta_from_tdd", label: "ETA From TDD", group: "일정", src: "+75 FROM TDD" },
   { key: "eta_from_eukor_pirt", label: "ETA From EUKOR/PIRT", group: "일정", src: "선적·입항" },
   { key: "ata", label: "ATA", group: "일정", src: "선적·입항" },
-  { key: "tsc_arrival_date", label: "TSC Arrival Date", group: "일정", src: "선적·입항" },
+  { key: "tsc_arrival_date", label: "TSC Arrival", group: "일정", src: "선적·입항" },
   { key: "bl_no", label: "B/L No", group: "선적", src: "선적·입항" },
   { key: "vessel", label: "Vessel", group: "선적", src: "AFAB" },
   { key: "customs_clearance_date", label: "Customs Clearance Date", group: "통관", src: "통관" },
@@ -63,21 +63,25 @@ export const GROUPS = ["기본", "메모", "일정", "선적", "통관", "사양
 // 그리드 위 바로가기 버튼이 이동하는 열
 export const GRID_JUMPS = ["current_status", "tdd_calc", "bl_no", "option_note"];
 
-// 검색어를 찾는 열
-export const SEARCH_COLUMNS = [
-  "commission_no", "vin_no", "bl_no", "vessel", "type", "engine_no", "order_note", "option_note",
-];
-
-// 열 필터를 쓸 수 있는 열. 날짜 열은 연·월 단위로 고른다.
+// 날짜·월 열. 열 필터에서 연·월 단위로 고르고, 검색 대상에서는 뺀다.
 export const DATE_FILTER_COLUMNS = [
   "changeability_date", "pm", "original_pm", "tdd_calc", "dispatch", "shipping_calc", "shipping",
   "invoice", "planned_arrival", "eta_from_tdd", "eta_from_eukor_pirt", "ata", "tsc_arrival_date",
-  "customs_clearance_date", "order_update_date",
+  "customs_clearance_date", "order_update_date", "b1_factory_order", "sales_month",
 ];
-export const FILTER_COLUMNS = [
-  "current_status", "gen", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto",
-  "emission", ...DATE_FILTER_COLUMNS, "vessel",
+
+// 검색어를 찾는 열: Current Status 와 날짜 열을 뺀 전체
+export const SEARCH_COLUMNS = COLUMNS.map((c) => c.key).filter(
+  (key) => key !== "current_status" && !DATE_FILTER_COLUMNS.includes(key)
+);
+
+// 열 필터에서 값 목록 없이 "값 있음 / 빈 값"만 고르는 열(값이 행마다 다르거나 긴 글인 열)
+export const PRESENCE_FILTER_COLUMNS = [
+  "vin_no", "engine_no", "bl_no", "tires", "option_note", "order_note", "import_license",
 ];
+
+// 열 필터를 쓸 수 있는 열. Commission No 는 빈 칸이 없어 필터를 두지 않는다.
+export const FILTER_COLUMNS = COLUMNS.map((c) => c.key).filter((key) => key !== "commission_no");
 
 // Current Status 열 필터에서 값을 나열하는 순서(단계 순)
 export const STAGE_ORDER = [

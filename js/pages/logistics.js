@@ -16,20 +16,24 @@ import {
 import { openBulkInput } from "./logistics-bulk.js";
 import { openOrderCreate, openOrderChange } from "./logistics-order.js";
 import {
-  COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, STAGE_ORDER,
+  COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, PRESENCE_FILTER_COLUMNS, STAGE_ORDER,
   sourceBadge, stageClass,
 } from "../data/columns.js";
 
 const PAGE_SIZE = 50;
-const MEMO_WIDTH = 220; // 긴 글 열(Tires · Option Note · Order Note)의 고정 너비(px). 넘치면 말줄임
+const MEMO_WIDTH = 330; // 긴 글 열(Tires · Option Note · Order Note)의 고정 너비(px). 넘치면 말줄임
 const WIDTH_SAMPLES = 5; // 열 너비를 잴 때 열마다 쓰는 가장 긴 값의 수
 const KEYIN_MIN_WIDTH = 150;
 const CHECK_WIDTH = 24; // 편집 모드에서 Commission No 열에 더하는 너비(px). 행 선택 체크박스 자리 // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
+// 잰 열 너비의 조정. SCALE 은 줄이는 비율(머리글이 들어가는 너비보다 좁아지지는 않는다), PAD 는 더하는 여백(px)
+const WIDTH_SCALE = { engine_no: 0.6, co: 0.6, sales_month: 0.8, model_in_afab: 0.9 };
+const WIDTH_PAD = { vin_no: 12, bm: 12 };
 const DELAY_BADGE_ROOM = "D+888"; // Shipping Calc 열 너비를 잴 때 넣어 보는 가장 긴 경과 배지
 const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다
-const SEARCH_HINT = "Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note";
+const SEARCH_HINT = "전체 열 검색 (여러 개는 쉼표 구분) · Current Status · 날짜 열 제외";
 
 const BLANK = "(빈 값)"; // 열 필터에서 빈 칸을 가리키는 값
+const FILLED = "(값 있음)"; // 값 목록을 두지 않는 열의 필터에서 빈 칸이 아닌 행을 가리키는 값
 const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // 화면 상태. 다른 화면에 다녀와도 검색어와 정렬은 유지한다.
@@ -82,9 +86,11 @@ function searchTerms() {
 }
 
 // 열 필터가 비교하는 값. 빈 칸은 BLANK, 날짜 열은 연-월까지만 본다.
+// 값 목록을 두지 않는 열은 값이 있는지만 본다.
 function filterValue(v, key) {
   const value = v[key];
   if (isEmpty(value)) return BLANK;
+  if (PRESENCE_FILTER_COLUMNS.includes(key)) return FILLED;
   return DATE_FILTER_COLUMNS.includes(key) ? String(value).slice(0, 7) : String(value);
 }
 
@@ -167,7 +173,7 @@ function cellContent(column, v, terms, today) {
       ];
     }
     case "color_code":
-      return isEmpty(value) ? [dim()] : [mk("span", { title: v.color_name ?? "" }, value)];
+      return isEmpty(value) ? [dim()] : [mk("span", { title: v.color_name ?? "" }, highlight(value, terms))];
     case "shipping_calc": {
       if (isEmpty(value)) return [dim()];
       const days = shipDelayDays(v, today);
@@ -206,7 +212,7 @@ function cellClass(column, v) {
 const NAME_WRAP_FROM = 9; // 이 글자 수부터 나눈다
 // 이름이 길어도 한 줄로 두는 열
 const ONE_LINE_NAMES = new Set([
-  "commission_no", "current_status", "changeability_date", "original_pm", "model_in_afab", "engine_no", "import_license",
+  "commission_no", "current_status", "changeability_date", "model_in_afab", "engine_no", "import_license",
   "option_note", "order_note", "model_classification",
 ]);
 function nameLines(column) {
@@ -323,7 +329,17 @@ function measureColumnWidths() {
   const widths = [...table.querySelectorAll("thead tr.fld th")].map((th, i) => {
     const width = Math.ceil(th.getBoundingClientRect().width / scale) + 1;
     if (COLUMNS[i].memo) return MEMO_WIDTH;
-    return COLUMNS[i].src === "입력" ? Math.max(width, KEYIN_MIN_WIDTH) : width;
+    const { key, src } = COLUMNS[i];
+    const base = src === "입력" ? Math.max(width, KEYIN_MIN_WIDTH) : width;
+    if (!WIDTH_SCALE[key]) return base + (WIDTH_PAD[key] ?? 0);
+    // 줄이는 열: 머리글(색 점 · 이름 · 버튼)이 들어가는 너비까지만 줄인다
+    const inner = th.querySelector(".th-in");
+    const style = getComputedStyle(th);
+    const head =
+      (inner.lastElementChild.getBoundingClientRect().right - inner.firstElementChild.getBoundingClientRect().left) / scale +
+      parseFloat(style.paddingLeft) +
+      parseFloat(style.paddingRight);
+    return Math.max(Math.round(base * WIDTH_SCALE[key]), Math.ceil(head) + 2);
   });
   table.remove();
   return widths;
@@ -549,8 +565,11 @@ function openColumnFilter(button, key) {
     };
     values.sort((a, b) => order(a) - order(b));
   }
-  const checked = new Set(view.col[key] ?? values);
   const isDate = DATE_FILTER_COLUMNS.includes(key);
+  // 값 있음 / 빈 값만 고르는 열: 값 검색과 전체 선택 도구를 두지 않는다
+  const isPresence = PRESENCE_FILTER_COLUMNS.includes(key);
+  if (isPresence) values.sort((a, b) => (a === FILLED ? -1 : 1) - (b === FILLED ? -1 : 1));
+  const checked = new Set(view.col[key] ?? values);
 
   const search = mk("input", {
     type: "text",
@@ -580,7 +599,9 @@ function openColumnFilter(button, key) {
   const draw = () => {
     list.replaceChildren();
     if (!isDate) {
-      for (const value of shown()) list.append(leaf(value, null, value === BLANK ? tx(BLANK) : value));
+      for (const value of shown()) {
+        list.append(leaf(value, null, value === BLANK || (isPresence && value === FILLED) ? tx(value) : value));
+      }
     } else {
       const byYear = new Map();
       for (const value of shown()) {
@@ -588,7 +609,9 @@ function openColumnFilter(button, key) {
         if (!byYear.has(year)) byYear.set(year, []);
         byYear.get(year).push(value);
       }
-      for (const year of [...byYear.keys()].sort()) {
+      // 빈 값을 맨 위에 두고, 연도는 최신부터
+      const years = [...byYear.keys()].sort((a, b) => (a === BLANK ? -1 : b === BLANK ? 1 : b.localeCompare(a)));
+      for (const year of years) {
         const months = byYear.get(year);
         if (year === BLANK) {
           list.append(leaf(BLANK, null, tx(BLANK)));
@@ -672,19 +695,21 @@ function openColumnFilter(button, key) {
       mk("button", { class: "x", type: "button", title: tx("닫기"), onclick: closeColumnFilter }, "×")
     ),
     delayedRow,
-    search,
-    mk(
-      "div",
-      { class: "cf-tools" },
-      tool(tx("표시된 값 전체 선택"), () => {
-        for (const value of shown()) checked.add(value);
-        draw();
-      }),
-      tool(tx("표시된 값 해제"), () => {
-        for (const value of shown()) checked.delete(value);
-        draw();
-      })
-    ),
+    isPresence ? null : search,
+    isPresence
+      ? null
+      : mk(
+          "div",
+          { class: "cf-tools" },
+          tool(tx("표시된 값 전체 선택"), () => {
+            for (const value of shown()) checked.add(value);
+            draw();
+          }),
+          tool(tx("표시된 값 해제"), () => {
+            for (const value of shown()) checked.delete(value);
+            draw();
+          })
+        ),
     list,
     mk("div", { class: "cf-foot" }, tool(tx("필터 해제"), () => apply(true)), applyButton)
   );
@@ -694,7 +719,7 @@ function openColumnFilter(button, key) {
   const zoom = cssZoom(pop);
   pop.style.top = `${(rect.bottom + 4) / zoom}px`;
   pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 296 * zoom)) / zoom}px`;
-  search.focus();
+  if (!isPresence) search.focus();
   setTimeout(() => document.addEventListener("mousedown", closeOnOutside), 0);
 }
 

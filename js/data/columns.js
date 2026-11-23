@@ -89,6 +89,12 @@ export const STAGE_ORDER = [
   "Shipment scheduled", "In Transit", "Bonded Stock", "OH Stock", "Sold", "Cancelled",
 ];
 
+// Vehicle 열의 정렬과 필터에서 값을 나열하는 순서
+export const VEHICLE_ORDER = ["Tractor", "Tipper", "Rigid", "BB"];
+
+// 글자 순이 아니라 정한 순서로 나열하는 열(차량 그리드의 정렬 버튼과 필터 창). 목록에 없는 값은 그 뒤에 글자 순
+export const VALUE_ORDERS = { current_status: STAGE_ORDER, vehicle: VEHICLE_ORDER };
+
 // 출처 배지: 배지 색(cls)과 설명(tip)
 const SOURCE_BADGES = {
   AFAB: { cls: "afab", tip: "AFAB 업로드로만 갱신(잠금)" },

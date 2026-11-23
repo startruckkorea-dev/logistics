@@ -3,6 +3,7 @@ import { tx } from "../app/i18n.js";
 import { addMonths, diffDays, monthEnd } from "../domain/dates.js";
 import { STATUS } from "../domain/status.js";
 import { MY_KEYS, MY_OTHER, MY_COLORS, STAGES } from "./stages.js";
+import { VEHICLE_ORDER } from "./columns.js";
 
 const isEmpty = (v) => v == null || v === "";
 
@@ -66,10 +67,13 @@ export function arrivalModelLabel(v) {
   return [v.vehicle, v.model, v.type, v.axle, v.cab, modelOptionTag(v)].filter(Boolean).join(" ");
 }
 
-/** 차량에 나오는 Vehicle 값(대수 많은 순) */
+/** 차량에 나오는 Vehicle 값. 정해 둔 순서(VEHICLE_ORDER)로, 목록에 없는 값은 그 뒤에 글자 순 */
 export function vehicleTypes(vehicles) {
-  const counts = countBy(vehicles, (v) => v.vehicle);
-  return Object.keys(counts).sort((a, b) => counts[b] - counts[a] || (a < b ? -1 : 1));
+  const rank = (value) => {
+    const i = VEHICLE_ORDER.indexOf(value);
+    return i < 0 ? VEHICLE_ORDER.length : i;
+  };
+  return Object.keys(countBy(vehicles, (v) => v.vehicle)).sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : 1));
 }
 
 // ---- Changeability Date ----

@@ -16,7 +16,7 @@ import {
 import { openBulkInput } from "./logistics-bulk.js";
 import { openOrderCreate, openOrderChange } from "./logistics-order.js";
 import {
-  COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, PRESENCE_FILTER_COLUMNS, STAGE_ORDER,
+  COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, PRESENCE_FILTER_COLUMNS, VALUE_ORDERS,
   sourceBadge, stageClass,
 } from "../data/columns.js";
 
@@ -108,12 +108,19 @@ function filteredRows() {
         ))
   );
   const { sort: key, dir } = view;
+  // 순서를 정해 둔 열(Current Status, Vehicle)은 글자 순이 아니라 그 순서로 정렬한다(목록에 없는 값은 뒤에 글자 순)
+  const order = VALUE_ORDERS[key];
+  const rank = (value) => {
+    const i = order.indexOf(value);
+    return i < 0 ? order.length : i;
+  };
   rows.sort((a, b) => {
     const x = a[key];
     const y = b[key];
     if (x === y) return 0;
     if (isEmpty(x)) return 1; // 빈 값은 방향과 관계없이 뒤로
     if (isEmpty(y)) return -1;
+    if (order && rank(x) !== rank(y)) return (rank(x) - rank(y)) * dir;
     return (x > y ? 1 : -1) * dir;
   });
   return rows;
@@ -558,10 +565,12 @@ function openColumnFilter(button, key) {
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
   const values = [...counts.keys()].sort();
-  if (key === "current_status") {
+  // 순서를 정해 둔 열은 그 순서로 나열한다. 목록에 없는 값과 빈 값은 뒤에 둔다(앞의 글자 순 유지)
+  const valueOrder = VALUE_ORDERS[key];
+  if (valueOrder) {
     const order = (value) => {
-      const i = STAGE_ORDER.indexOf(value);
-      return i < 0 ? 99 : i;
+      const i = valueOrder.indexOf(value);
+      return i < 0 ? valueOrder.length : i;
     };
     values.sort((a, b) => order(a) - order(b));
   }

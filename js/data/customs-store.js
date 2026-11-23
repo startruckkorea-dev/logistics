@@ -1,7 +1,7 @@
 // 통관 완료 처리 — 업로드한 표(Commission · 수리일 · 신고번호)를 차량에 넣는다.
 //   1. parseCustomsBook : 엑셀에서 세 열을 찾아 행으로 읽는다
 //   2. planCustoms      : 행마다 차량과 맞춰 판정한다(반영 대상 / 검토 필요 / 변경 없음 / 미등록 / 오류)
-//   3. applyCustoms     : 고른 행만 저장한다. 통관일이 들어가는 Bonded Stock 차량은 OH Stock 으로 바꾼다
+//   3. applyCustoms     : 고른 행만 저장한다(덮어쓰기 포함). 통관일이 들어가는 Bonded Stock 차량은 OH Stock 으로 바꾼다
 import { toIsoDate } from "../domain/dates.js";
 import { STATUS } from "../domain/status.js";
 import { checkInput, normalizeInput, saveVehicles, targetListNames } from "./store.js";
@@ -100,7 +100,7 @@ function vehicleFinder(vehicles) {
  *   overwrite: string[],   // 지금 값이 있어 덮어쓰게 되는 차량 열
  *   offStatus: boolean,    // 차량이 Bonded Stock 이 아니다
  * }>}
- *   ok = Bonded Stock 차량의 빈 칸만 채운다(그대로 반영). review = 사람이 반영 여부를 골라야 한다.
+ *   ok = Bonded Stock 차량의 빈 칸만 채운다. review = Bonded Stock 이 아니거나 기존 값을 덮어쓴다(사람이 확인할 행).
  */
 export function planCustoms(rows, vehicles, today) {
   const find = vehicleFinder(vehicles);
@@ -133,17 +133,9 @@ export function planCustoms(rows, vehicles, today) {
   return items;
 }
 
-/** 검토 행에서 고를 수 있는 선택. skip = 반영 안 함, fill = 빈 칸만, all = 덮어쓰기 포함 전부 */
-export function reviewChoices(item) {
-  const choices = ["skip"];
-  if (item.fill.length && item.overwrite.length) choices.push("fill");
-  choices.push("all");
-  return choices;
-}
-
-// 그 행이 차량에 넣을 값. 넣을 것이 없으면 null
-function inputsOf(item, choice) {
-  const fields = choice === "fill" ? item.fill : choice === "all" ? [...item.fill, ...item.overwrite] : [];
+// 그 행이 차량에 넣을 값(빈 칸 채움과 덮어쓰기 모두). 넣을 것이 없으면 null
+function inputsOf(item) {
+  const fields = [...item.fill, ...item.overwrite];
   if (!fields.length) return null;
   const inputs = {};
   for (const { column, field } of CUSTOMS_FIELDS) if (fields.includes(field)) inputs[field] = item[column];
@@ -153,15 +145,15 @@ function inputsOf(item, choice) {
   return inputs;
 }
 
-/** 그 행을 그 선택으로 반영하면 OH Stock 으로 바뀌는가 */
-export const turnsToOhStock = (item, choice) => inputsOf(item, choice)?.current_status === STATUS.OH_STOCK;
+/** 그 행을 반영하면 OH Stock 으로 바뀌는가 */
+export const turnsToOhStock = (item) => inputsOf(item)?.current_status === STATUS.OH_STOCK;
 
 /** 저장할 때 쓰는 List 이름(저장 전 확인 창에 보여준다) */
 export const customsListNames = () => targetListNames(CUSTOMS_FIELDS.map((f) => f.field));
 
 /**
  * 고른 행을 저장한다.
- * @param {Array<{item: object, choice: "fill" | "all"}>} picks ok 행은 choice "all" 로 넘긴다
+ * @param {object[]} picks planCustoms 가 돌려준 행 중 반영할 것(ok · review). 그 밖의 행은 무시한다
  * @param {string} today 기준일. 이보다 뒤의 통관일은 저장하지 않는다
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {Promise<{
@@ -172,10 +164,10 @@ export const customsListNames = () => targetListNames(CUSTOMS_FIELDS.map((f) => 
  */
 export async function applyCustoms(picks, today, onProgress) {
   const jobs = [];
-  for (const { item, choice } of picks) {
+  for (const item of picks) {
     if (!item.vehicle || (item.kind !== "ok" && item.kind !== "review")) continue;
     if (item.date > today) continue;
-    const inputs = inputsOf(item, item.kind === "ok" ? "all" : choice);
+    const inputs = inputsOf(item);
     if (inputs) jobs.push({ item, edit: { vehicle: item.vehicle, inputs, customs: true } });
   }
   const out = await saveVehicles(jobs.map((job) => job.edit), CUSTOMS_SOURCE, onProgress);

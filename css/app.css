@@ -423,32 +423,60 @@ input[type="checkbox"].pend {
   outline: 2px solid var(--warn);
 }
 
-/* ---- 통관 완료 처리 ---- */
-.tbl td.cu-over {
-  color: var(--danger);
+/* ---- 통관 완료 처리 ----
+   미리보기 표: 왼쪽 묶음은 올린 파일의 값, 오른쪽 묶음(.cu-apply, 파란 음영)은 반영한 뒤의 차량 값 */
+.cu-tbl th.cu-group {
+  text-align: center;
+  font-weight: 700;
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+/* 머리글이 두 줄이라, 둘째 줄은 첫 줄 높이만큼 내려서 붙인다(표를 내려도 두 줄이 다 보이게) */
+.cu-tbl thead tr:first-child th.cu-group {
+  height: 28px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.cu-tbl thead tr.cu-names th {
+  top: 28px;
+}
+.cu-tbl th.cu-pick,
+.cu-tbl td.cu-pick {
+  width: 28px;
+  text-align: center;
+}
+/* 오른쪽 묶음이 시작되는 곳의 세로 경계 */
+.cu-tbl thead tr:first-child th.cu-apply,
+.cu-tbl thead tr.cu-names th.cu-apply:nth-child(5),
+.cu-tbl tbody td.cu-apply:nth-child(6) {
+  border-left: 2px solid var(--line-strong);
+}
+/* 반영하면 바뀌는 칸: 채우는 값은 초록, 덮어쓰는 값은 빨강 */
+.cu-tbl td.cu-set {
+  background: var(--ok-soft);
+  color: var(--ok);
   font-weight: 700;
 }
-.tbl tr.cu-review td {
+.cu-tbl td.cu-set.over {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.cu-tbl .cu-was {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+/* 주의할 행(왼쪽 묶음만 노랑), 체크를 푼 행(흐리게) */
+.cu-tbl tr.cu-review td:not(.cu-apply) {
   background: var(--warn-soft);
 }
-.tbl tr.cu-review td.cu-apply {
-  background: var(--warn-soft);
+.cu-tbl tr.cu-off td {
+  color: var(--muted);
 }
-.cu-choice {
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  padding: 2px 6px;
-  background: #fff;
-  font: inherit;
+.cu-tbl tr.cu-off td:not(.cu-pick) {
+  opacity: 0.55;
 }
 .cu-actions {
   margin-top: 10px;
-}
-.callout.cu-bulk {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.callout.cu-bulk .spacer {
-  flex: 1;
 }

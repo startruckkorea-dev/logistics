@@ -148,6 +148,11 @@ body {
 .src-legend .src-dot {
   margin-left: 6px;
 }
+/* Changeability Date 의 D-day 배지: 칸 오른쪽 끝의 신호등 점 바로 왼쪽에 둔다 */
+.grid td.dotcell .pill.dday {
+  float: right;
+  margin: -2px -2px -2px 6px; /* 위아래: 배지가 줄 높이를 넘지 않게(날짜가 위로 밀리지 않게) */
+}
 /* 차량 상세: 긴 글은 줄바꿈을 살려 여러 줄로 */
 .fields .f .v.long-text {
   white-space: pre-wrap;

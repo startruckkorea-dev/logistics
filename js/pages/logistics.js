@@ -7,6 +7,7 @@ import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
 import { changeabilityDday } from "../data/derive.js";
+import { toast } from "../app/ui.js";
 import { openVehicle } from "./vehicle-drawer.js";
 import {
   edit, isEditableCell, isPending, shownRow, pendingCount, startCellEdit, openNoteEditor, closeNoteEditor,
@@ -24,6 +25,7 @@ const MEMO_WIDTH = 220; // 긴 글 열(Tires · Option Note · Order Note)의 �
 const WIDTH_SAMPLES = 5; // 열 너비를 잴 때 열마다 쓰는 가장 긴 값의 수
 const KEYIN_MIN_WIDTH = 150;
 const CHECK_WIDTH = 24; // 편집 모드에서 Commission No 열에 더하는 너비(px). 행 선택 체크박스 자리 // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
+const DELAY_BADGE_ROOM = "D+888"; // Shipping Calc 열 너비를 잴 때 넣어 보는 가장 긴 경과 배지
 const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다
 const SEARCH_HINT = "Comm(여러 개는 쉼표 구분) / VIN / B/L / Vessel / Type / Order·Option Note";
 
@@ -33,10 +35,37 @@ const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"
 // 화면 상태. 다른 화면에 다녀와도 검색어와 정렬은 유지한다.
 //   col     : 열 필터 { 열 key: Set(선택한 값) }. 없는 열은 전체
 //   delayed : Shipping Calc 경과 배지가 있는 행만
-const view = { q: "", col: {}, delayed: false, sort: "commission_no", dir: -1, page: 1 };
+//   hidden  : 숨긴 열의 key. Commission No 는 숨길 수 없다
+const view = { q: "", col: {}, delayed: false, sort: "commission_no", dir: -1, page: 1, hidden: new Set() };
 let vehicles = [];
 let els = {};
 let columnWidths = []; // 열마다 고정한 너비(px). 페이지·검색·필터가 바뀌어도 그대로다
+
+// 숨긴 열은 이 브라우저에 기억한다(열 key 목록만. 데이터 값은 넣지 않는다).
+// 저장소를 쓸 수 없는 환경(차단, 시크릿 창의 제한)에서는 기억하지 않고 그대로 동작한다.
+const HIDDEN_STORE_KEY = "logistics.grid.hiddenColumns";
+function loadHiddenColumns() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(HIDDEN_STORE_KEY) ?? "[]");
+    const known = new Set(COLUMNS.map((c) => c.key));
+    // 지금 있는 열만 받는다. Commission No 는 숨길 수 없다
+    return Array.isArray(saved) ? saved.filter((key) => known.has(key) && key !== "commission_no") : [];
+  } catch {
+    return [];
+  }
+}
+function saveHiddenColumns() {
+  try {
+    if (view.hidden.size) window.localStorage.setItem(HIDDEN_STORE_KEY, JSON.stringify([...view.hidden]));
+    else window.localStorage.removeItem(HIDDEN_STORE_KEY);
+  } catch {
+    // 저장하지 못해도 화면은 그대로 쓴다
+  }
+}
+for (const key of loadHiddenColumns()) view.hidden.add(key);
+
+// 화면에 그리는 열(숨긴 열 제외)
+const shownColumns = () => COLUMNS.filter((c) => !view.hidden.has(c.key));
 
 const num = (n) => Number(n).toLocaleString("ko-KR");
 const isEmpty = (v) => v == null || v === "";
@@ -132,7 +161,8 @@ function cellContent(column, v, terms, today) {
       const dday = changeabilityDday(v, today);
       return [
         isEmpty(value) ? dim() : value,
-        dday != null && dday <= DDAY_WITHIN ? [" ", mk("span", { class: "pill warn" }, `D-${dday}`)] : null,
+        // 배지는 칸 오른쪽의 신호등 점 바로 옆에 붙인다
+        dday != null && dday <= DDAY_WITHIN ? [" ", mk("span", { class: "pill warn dday" }, `D-${dday}`)] : null,
         dotClass ? mk("span", { class: `dot r ${dotClass}`, title: `AFAB 수정 가능(Ä): ${v.afab_editable}` }) : null,
       ];
     }
@@ -241,7 +271,8 @@ function headerRows(forMeasure = false) {
         filterButton(column)
       )
     );
-  return [mk("tr", { class: "fld" }, COLUMNS.map(th))];
+  // 너비는 숨긴 열까지 모두 잰다(다시 켰을 때 바로 쓴다)
+  return [mk("tr", { class: "fld" }, (forMeasure ? COLUMNS : shownColumns()).map(th))];
 }
 
 // 열 너비를 정한다. 전체 차량에서 열마다 가장 긴 값 몇 개를 골라 보이지 않는 표에 실제 모양대로 그리고,
@@ -268,7 +299,24 @@ function measureColumnWidths() {
       COLUMNS.map((c, i) => mk("td", { class: cellClass(c) }, cellContent(c, picks[i][r], [], today)))
     )
   );
-  const table = mk("table", { class: "grid measure" }, mk("thead", null, headerRows(true)), mk("tbody", null, sampleRows));
+  // Shipping Calc 의 경과 배지는 날마다 늘어난다. 세 자리 일수(D+888)까지 들어가는 너비를 미리 잡아 둔다.
+  const roomRow = mk(
+    "tr",
+    null,
+    COLUMNS.map((c) =>
+      mk(
+        "td",
+        { class: cellClass(c) },
+        c.key === "shipping_calc" ? ["8888-88-88", " ", mk("span", { class: "pill danger" }, DELAY_BADGE_ROOM)] : null
+      )
+    )
+  );
+  const table = mk(
+    "table",
+    { class: "grid measure" },
+    mk("thead", null, headerRows(true)),
+    mk("tbody", null, sampleRows, roomRow)
+  );
   els.grid.append(table);
   // 화면 배율(CSS zoom)이 걸려 있으면 잰 값이 배율만큼 줄어서 나온다. 열 너비는 배율 전 크기로 넣어야 하므로 되돌린다.
   const scale = table.offsetWidth ? table.getBoundingClientRect().width / table.offsetWidth : 1;
@@ -281,8 +329,11 @@ function measureColumnWidths() {
   return widths;
 }
 
-// 지금 쓰는 열 너비. 편집 모드에서는 첫 열에 체크박스 자리를 더한다.
-const currentWidths = () => columnWidths.map((width, i) => width + (edit.on && i === 0 ? CHECK_WIDTH : 0));
+// 지금 그리는 열의 너비. 편집 모드에서는 첫 열에 체크박스 자리를 더한다.
+const currentWidths = () =>
+  COLUMNS.map((c, i) => ({ c, width: columnWidths[i] + (edit.on && i === 0 ? CHECK_WIDTH : 0) }))
+    .filter(({ c }) => !view.hidden.has(c.key))
+    .map(({ width }) => width);
 
 function columnGroup() {
   return mk(
@@ -399,6 +450,9 @@ function renderGrid() {
   const onPage = new Set(pageRows.map((v) => v.commission_no));
   for (const comm of edit.selected) if (!onPage.has(comm)) edit.selected.delete(comm);
   renderEditState();
+  els.columnsButton.textContent = view.hidden.size
+    ? tx("열 설정 (숨김 {n})", { n: num(view.hidden.size) })
+    : tx("열 설정");
 
   const filtered = Object.keys(view.col);
   if (view.delayed && !filtered.includes("shipping_calc")) filtered.push("shipping_calc");
@@ -422,7 +476,7 @@ function renderGrid() {
           mk(
             "tr",
             { "data-comm": v.commission_no, class: edit.selected.has(v.commission_no) ? "sel" : null },
-            COLUMNS.map((c) => fillCell(mk("td", { "data-key": c.key }), c, v, terms, today))
+            shownColumns().map((c) => fillCell(mk("td", { "data-key": c.key }), c, v, terms, today))
           )
         )
       )
@@ -430,6 +484,10 @@ function renderGrid() {
     table.style.width = `${currentWidths().reduce((sum, w) => sum + w, 0)}px`;
     els.grid.replaceChildren(table);
     syncSelectAll();
+    // 범위 선택은 화면에 보이는 행에만 남긴다(페이지·검색·정렬이 바뀌면 시작 칸도 다시 잡는다)
+    for (const comm of range.set) if (!onPage.has(comm)) range.set.delete(comm);
+    if (!onPage.has(range.anchor)) range.anchor = "";
+    paintRange();
   }
 
   els.pager.replaceChildren(
@@ -640,6 +698,118 @@ function openColumnFilter(button, key) {
   setTimeout(() => document.addEventListener("mousedown", closeOnOutside), 0);
 }
 
+// ---- 열 설정: 열을 골라 숨긴다. 열 필터와 같은 상자를 쓴다 ----
+function openColumnSettings(button) {
+  const wasOpen = document.getElementById("colfilter")?.dataset.kind === "columns";
+  closeColumnFilter();
+  if (wasOpen) return;
+  const list = mk("div", { class: "cf-list" });
+  const draw = () =>
+    list.replaceChildren(
+      ...COLUMNS.filter((c) => c.key !== "commission_no").map((c) => {
+        const box = mk("input", { type: "checkbox" });
+        box.checked = !view.hidden.has(c.key);
+        box.addEventListener("change", () => {
+          if (box.checked) view.hidden.delete(c.key);
+          else view.hidden.add(c.key);
+          saveHiddenColumns();
+          renderGrid();
+        });
+        return mk("label", null, box, mk("span", null, tx(c.label)));
+      })
+    );
+  draw();
+  const tool = (label, action) => mk("button", { class: "btn sm", type: "button", onclick: action }, label);
+  const pop = mk(
+    "div",
+    { class: "colfilter", id: "colfilter", "data-kind": "columns" },
+    mk(
+      "div",
+      { class: "cf-h" },
+      mk("b", null, tx("열 설정")),
+      mk("span", { class: "muted small" }, tx("체크를 풀면 숨김")),
+      mk("button", { class: "x", type: "button", title: tx("닫기"), onclick: closeColumnFilter }, "×")
+    ),
+    mk(
+      "div",
+      { class: "cf-tools" },
+      tool(tx("전체 표시"), () => {
+        view.hidden.clear();
+        saveHiddenColumns();
+        draw();
+        renderGrid();
+      })
+    ),
+    list
+  );
+  const rect = button.getBoundingClientRect();
+  document.body.append(pop);
+  const zoom = cssZoom(pop);
+  pop.style.top = `${(rect.bottom + 4) / zoom}px`;
+  pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 296 * zoom)) / zoom}px`;
+  setTimeout(() => document.addEventListener("mousedown", closeOnOutside), 0);
+}
+
+// ---- Commission No 열 범위 선택 · 복사 ----
+// 칸을 누른 채 끌거나 Shift+클릭하면 현재 페이지 안에서 범위가 잡히고, Ctrl+C 로 한 줄에 하나씩 복사한다.
+// 검색창에 붙여넣으면 여러 건을 한 번에 찾는다. 그냥 클릭은 원래 동작(차량 상세, 편집 모드는 행 선택) 그대로다.
+const range = { set: new Set(), anchor: "" };
+const drag = { on: false, moved: false, anchor: "" };
+
+const pageOrder = () => [...els.grid.querySelectorAll("tbody tr[data-comm]")].map((tr) => tr.dataset.comm);
+
+function paintRange() {
+  for (const tr of els.grid.querySelectorAll("tbody tr[data-comm]")) {
+    tr.querySelector('td[data-key="commission_no"]')?.classList.toggle("rsel", range.set.has(tr.dataset.comm));
+  }
+}
+
+function setRange(from, to) {
+  const order = pageOrder();
+  const i = order.indexOf(from);
+  const j = order.indexOf(to);
+  if (i < 0 || j < 0) return;
+  range.set = new Set(order.slice(Math.min(i, j), Math.max(i, j) + 1));
+  paintRange();
+}
+
+function clearRange() {
+  if (!range.set.size && !range.anchor) return;
+  range.set = new Set();
+  range.anchor = "";
+  if (els.grid?.isConnected) paintRange();
+}
+
+const commCell = (target) => target.closest?.('tbody td[data-key="commission_no"]');
+const gridShown = () => Boolean(els.grid?.isConnected);
+
+document.addEventListener("mouseup", () => {
+  drag.on = false;
+  // 끌기를 끝내는 클릭이 지나간 뒤에 푼다(표 밖에서 끝내도 다음 클릭을 삼키지 않게)
+  setTimeout(() => {
+    drag.moved = false;
+  }, 0);
+});
+document.addEventListener("mousedown", (event) => {
+  if (gridShown() && range.set.size && !commCell(event.target)) clearRange();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && gridShown()) clearRange();
+});
+document.addEventListener("copy", (event) => {
+  if (!gridShown() || !range.set.size) return;
+  // 입력칸에서 글자를 복사하는 중이면 건드리지 않는다
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+  const values = pageOrder().filter((comm) => range.set.has(comm));
+  if (!values.length) return;
+  event.clipboardData.setData("text/plain", values.join("\r\n"));
+  event.preventDefault();
+  toast(
+    tx("Commission No {n}칸 복사", { n: num(values.length) }),
+    tx("한 줄에 하나씩 복사됨 · 검색창에 붙여넣으면 여러 건을 한 번에 조회")
+  );
+});
+
 // 바로가기: 고정된 Commission No 열 너비만큼 띄워 대상 열이 가려지지 않게 한다.
 function jumpTo(key) {
   const wrap = els.grid;
@@ -662,6 +832,16 @@ function buildScreen(root, meta) {
     view.page = 1;
     renderGrid();
     scrollToMatch();
+  });
+
+  // 여러 줄(엑셀 열, Commission No 범위 복사)을 붙여넣으면 줄마다 쉼표로 이어 여러 건 검색이 되게 한다
+  search.addEventListener("paste", (event) => {
+    const text = event.clipboardData?.getData("text/plain") ?? "";
+    if (!/[\r\n]/.test(text)) return;
+    event.preventDefault();
+    const joined = text.split(/[\r\n]+/).map((line) => line.trim()).filter(Boolean).join(", ");
+    search.setRangeText(joined, search.selectionStart, search.selectionEnd, "end");
+    search.dispatchEvent(new Event("input"));
   });
 
   const reset = mk("button", { class: "btn sm", type: "button" }, tx("초기화"));
@@ -692,12 +872,17 @@ function buildScreen(root, meta) {
     });
   });
 
+  // 열 설정: 숨길 열을 고른다. 편집 모드와 관계없이 쓸 수 있다
+  const columnsButton = mk("button", { class: "btn sm cf", type: "button", title: tx("열 표시/숨김") }, tx("열 설정"));
+  columnsButton.addEventListener("click", () => openColumnSettings(columnsButton));
+
   const createButton = mk("button", { class: "btn sm", type: "button" }, tx("오더 생성"));
   createButton.addEventListener("click", () => openOrderCreate(vehicles, { render: renderGrid }));
 
   els = {
     editButton,
     createButton,
+    columnsButton,
     reloadButton: reload,
     editbar: mk("div", { class: "editbar", hidden: true }),
     count: mk("span", { class: "muted small" }),
@@ -705,8 +890,38 @@ function buildScreen(root, meta) {
     pager: mk("div", { class: "pager" }),
   };
 
+  // Commission No 칸을 누른 채 끌면 범위 선택
+  els.grid.addEventListener("mousedown", (event) => {
+    const td = commCell(event.target);
+    if (!td || event.button !== 0 || event.target.tagName === "INPUT") return;
+    event.preventDefault(); // 글자가 끌려 선택되지 않게
+    Object.assign(drag, { on: true, moved: false, anchor: td.closest("tr").dataset.comm });
+  });
+  els.grid.addEventListener("mouseover", (event) => {
+    const td = drag.on && commCell(event.target);
+    if (!td) return;
+    const comm = td.closest("tr").dataset.comm;
+    if (!drag.moved && comm === drag.anchor) return;
+    drag.moved = true;
+    range.anchor = drag.anchor;
+    setRange(drag.anchor, comm);
+  });
+
   // 머리글 클릭: ▼ 는 열 필터, 그 외는 정렬
   els.grid.addEventListener("click", (event) => {
+    // 끌기를 끝내는 클릭은 범위 선택으로 끝낸다(차량 상세를 열지 않는다)
+    if (drag.moved) {
+      drag.moved = false;
+      return;
+    }
+    const rangeCell = commCell(event.target);
+    if (rangeCell && event.shiftKey && event.target.tagName !== "INPUT") {
+      const comm = rangeCell.closest("tr").dataset.comm;
+      if (!range.anchor) range.anchor = comm;
+      setRange(range.anchor, comm);
+      return;
+    }
+    if (rangeCell) clearRange();
     const filter = event.target.closest("button.cf");
     if (filter) {
       openColumnFilter(filter, filter.dataset.filter);
@@ -804,7 +1019,7 @@ function buildScreen(root, meta) {
         "div",
         { class: "card-h" },
         mk("h2", null, tx("Logistics 차량 마스터")),
-        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, editButton, createButton, reload, els.count)
+        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, columnsButton, editButton, createButton, reload, els.count)
       ),
       mismatch,
       els.editbar,

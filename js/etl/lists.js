@@ -53,11 +53,11 @@ const DEFINITIONS = [
     columns: [
       ...text(
         "commission_no", "current_status", "moma_no", "model_year", "bm", "vehicle", "model", "type", "axle",
-        "cab", "cab_gen"
+        "cab", "cab_gen", "pto"
       ),
       ...number("wheelbase"),
       ...text(
-        "pto", "emission", "original_pm", "shipping_calc", "eta_from_tdd",
+        "emission", "original_pm", "shipping_calc", "eta_from_tdd",
         "eta_from_eukor_pirt", "ata", "tsc_arrival_date", "bl_no", "customs_clearance_date",
         "color_name"
       ),

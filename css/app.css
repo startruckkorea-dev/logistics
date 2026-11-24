@@ -546,3 +546,35 @@ input[type="checkbox"].pend {
 .af-absent .tbl-wrap {
   max-height: 320px;
 }
+
+/* ---- 모델 마스터 그리드 ----
+   차량 그리드의 모양(.grid)을 쓰되 열 너비는 내용에 맞춘다(잘리지 않게). 넘치면 가로 스크롤.
+   편집 모드에서는 누른 칸만 입력칸으로 바뀐다(위의 .cell-hold / .cell-edit 와 같은 방식). */
+.grid.mst tbody tr {
+  cursor: default;
+}
+.grid.mst td.keyin {
+  min-width: 56px;
+}
+.grid.mst td.editing {
+  position: relative;
+}
+.grid.mst td.editing .cell-hold {
+  visibility: hidden;
+}
+.grid.mst td .cell-edit {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 1px;
+  bottom: 1px;
+  display: flex;
+}
+.grid.mst td .cell-edit .cell-in {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  padding: 0 4px;
+  box-sizing: border-box;
+}

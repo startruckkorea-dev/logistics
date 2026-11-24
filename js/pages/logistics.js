@@ -29,7 +29,7 @@ const WIDTH_SAMPLES = 5; // 열 너비를 잴 때 열마다 쓰는 가장 긴 �
 const KEYIN_MIN_WIDTH = 150;
 const CHECK_WIDTH = 24; // 편집 모드에서 Commission No 열에 더하는 너비(px). 행 선택 체크박스 자리 // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
 // 잰 열 너비의 조정. SCALE 은 줄이는 비율(머리글이 들어가는 너비보다 좁아지지는 않는다), PAD 는 더하는 여백(px)
-const WIDTH_SCALE = { engine_no: 0.6, co: 0.6, sales_month: 0.8, model_in_afab: 0.9 };
+const WIDTH_SCALE = { engine_no: 0.6, co: 0.6, sales_month: 0.9, model_in_afab: 0.9, b1_factory_order: 0.9 };
 const WIDTH_PAD = { vin_no: 12, bm: 12 };
 const DELAY_BADGE_ROOM = "D+888"; // Shipping Calc 열 너비를 잴 때 넣어 보는 가장 긴 경과 배지
 const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다

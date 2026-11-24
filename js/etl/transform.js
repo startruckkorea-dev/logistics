@@ -771,7 +771,7 @@ function checkHeaders(state, config) {
  *   baseDate: string,
  *   baseDateSource: "rules" | "today",
  *   report: Array<{sheet, id, type, changed, details}>,
- *   tables: Array<{name, sheet, key, columns: string[], rows: any[][]}>,
+ *   tables: Array<{name, sheet, key, columns: string[], rows: any[][], lines: number[]}>,  // lines: 행마다의 엑셀 행 번호
  * }}
  */
 export function runRules(workbook, rules) {
@@ -808,6 +808,7 @@ export function runRules(workbook, rules) {
       key: output.columns.find((c) => c.from === output.key).name,
       columns: output.columns.map((c) => c.name),
       rows: state.rows.map((row) => indexes.map((i) => (isEmpty(row.v[i]) ? null : row.v[i]))),
+      lines: state.rows.map((row) => row.n),
     };
   });
 

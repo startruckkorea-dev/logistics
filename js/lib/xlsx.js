@@ -42,43 +42,83 @@ export const isXlsxName = (name) => /\.xlsx$/i.test(String(name ?? ""));
  *   오류는 Error(code): not_xlsx | too_large | xlsx_library | unreadable
  */
 export async function readXlsxFile(file) {
+  const { XLSX, book } = await openBook(file);
+  const sheets = book.SheetNames.map((name) => {
+    const { firstRow, values, text } = readSheet(XLSX, book.Sheets[name], name, (cell, isDate) => [
+      isDate ? serialToIsoDate(cell.v) ?? "" : cell.v,
+      String(cell.w ?? cell.v),
+    ]);
+    return { name, firstRow, values, text };
+  });
+  return { sheets };
+}
+
+/**
+ * 사용자가 고른 엑셀 파일을 전처리 엔진(js/etl/transform.js 의 runRules)이 받는 모양으로 읽는다.
+ * js/etl/read.js 의 readWorkbook 과 같은 모양이다: 값은 원시 값(날짜는 엑셀 일련번호) 그대로 둔다.
+ * 날짜 서식인 숫자 칸의 표시 글자는 엑셀의 표시 형식과 상관없이 "YYYY-MM-DD" 로 맞춘다.
+ * @param {File} file
+ * @returns {Promise<{sheets: Array<{name: string, firstRow: number, firstColumn: number,
+ *   rowCount: number, columnCount: number, values: any[][], text: string[][]}>}>}
+ *   오류는 readXlsxFile 과 같다
+ */
+export async function readXlsxWorkbook(file) {
+  const { XLSX, book } = await openBook(file);
+  const sheets = book.SheetNames.map((name) =>
+    readSheet(XLSX, book.Sheets[name], name, (cell, isDate) => [
+      cell.v,
+      (isDate ? serialToIsoDate(cell.v) : null) ?? String(cell.w ?? cell.v),
+    ])
+  );
+  return { sheets };
+}
+
+// 파일을 열어 통합 문서로 읽는다. 오류는 Error(code): not_xlsx | too_large | xlsx_library | unreadable
+async function openBook(file) {
   if (!isXlsxName(file?.name)) throw new Error("not_xlsx");
   if (file.size > XLSX_MAX_BYTES) throw new Error("too_large");
   const XLSX = await loadLibrary();
-
-  let book;
   try {
-    book = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: "array", cellNF: true, cellDates: false });
+    const book = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: "array", cellNF: true, cellDates: false });
+    return { XLSX, book };
   } catch {
     throw new Error("unreadable");
   }
+}
 
-  const sheets = book.SheetNames.map((name) => {
-    const sheet = book.Sheets[name];
-    const values = [];
-    const text = [];
-    if (!sheet["!ref"]) return { name, firstRow: 1, values, text };
-    const range = XLSX.utils.decode_range(sheet["!ref"]);
-    for (let r = range.s.r; r <= range.e.r; r++) {
-      const valueRow = [];
-      const textRow = [];
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        const cell = sheet[XLSX.utils.encode_cell({ r, c })];
-        if (!cell || cell.v == null) {
-          valueRow.push("");
-          textRow.push("");
-          continue;
-        }
-        const isDate = cell.t === "n" && XLSX.SSF.is_date(String(cell.z ?? ""));
-        valueRow.push(isDate ? serialToIsoDate(cell.v) ?? "" : cell.v);
-        textRow.push(String(cell.w ?? cell.v));
+// 시트의 사용 범위를 칸마다 돌며 값 표와 글자 표를 만든다.
+// pick(cell, isDate) 가 그 칸의 [값, 글자] 를 정한다. isDate 는 날짜 서식인 숫자 칸이다
+function readSheet(XLSX, sheet, name, pick) {
+  const values = [];
+  const text = [];
+  if (!sheet["!ref"]) return { name, firstRow: 1, firstColumn: 0, rowCount: 0, columnCount: 0, values, text };
+  const range = XLSX.utils.decode_range(sheet["!ref"]);
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const valueRow = [];
+    const textRow = [];
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+      if (!cell || cell.v == null) {
+        valueRow.push("");
+        textRow.push("");
+        continue;
       }
-      values.push(valueRow);
-      text.push(textRow);
+      const [value, shown] = pick(cell, cell.t === "n" && XLSX.SSF.is_date(String(cell.z ?? "")));
+      valueRow.push(value);
+      textRow.push(shown);
     }
-    return { name, firstRow: range.s.r + 1, values, text };
-  });
-  return { sheets };
+    values.push(valueRow);
+    text.push(textRow);
+  }
+  return {
+    name,
+    firstRow: range.s.r + 1,
+    firstColumn: range.s.c,
+    rowCount: values.length,
+    columnCount: range.e.c - range.s.c + 1,
+    values,
+    text,
+  };
 }
 
 // 글자 수로 본 표시 너비. 한글·한자 등 전각 글자는 두 칸으로 센다

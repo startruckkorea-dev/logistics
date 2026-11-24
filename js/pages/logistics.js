@@ -15,6 +15,7 @@ import {
 } from "./logistics-edit.js";
 import { openBulkInput } from "./logistics-bulk.js";
 import { openOrderCreate, openOrderChange } from "./logistics-order.js";
+import { renderAfabTab } from "./logistics-afab.js";
 import { renderCustomsTab } from "./logistics-customs.js";
 import { renderInsuranceTab } from "./logistics-insurance.js";
 import {
@@ -1109,6 +1110,7 @@ window.addEventListener("hashchange", () => {
 // 화면 위의 탭. [탭 id, 이름]. 주소는 #/logistics?tab=<id> 이고 첫 탭은 tab 이 없다
 const TABS = [
   ["grid", "Logistics"],
+  ["afab", "AFAB 업로드"],
   ["customs", "통관 완료 처리"],
   ["insurance", "보험 조회"],
 ];
@@ -1133,7 +1135,8 @@ export const logisticsPage = {
     if (tab !== "grid") {
       const tabBox = mk("div");
       root.append(tabBox);
-      if (tab === "customs") renderCustomsTab(tabBox);
+      if (tab === "afab") renderAfabTab(tabBox);
+      else if (tab === "customs") renderCustomsTab(tabBox);
       else renderInsuranceTab(tabBox);
       return;
     }

@@ -480,3 +480,63 @@ input[type="checkbox"].pend {
 .cu-actions {
   margin-top: 10px;
 }
+
+/* ---- AFAB 업로드 ----
+   미리보기 표: 차량 1대 = 1행. 바뀌는 값은 칸 안에 "열 이름  기존 값 → 새 값" 으로 한 줄씩 적는다 */
+.af-tbl th.af-pick,
+.af-tbl td.af-pick {
+  width: 28px;
+  text-align: center;
+}
+.af-tbl td {
+  vertical-align: top;
+}
+.af-tbl .af-chg {
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.af-tbl .af-f {
+  display: inline-block;
+  min-width: 150px;
+  color: var(--muted);
+}
+/* 기존 값과 새 값 사이의 화살표 */
+.af-tbl .af-chg .old::after {
+  content: "→";
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--muted);
+  text-decoration: none;
+}
+/* AFAB 값에서 계산해 같이 맞추는 값 */
+.af-tbl .af-auto {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+/* 주의할 행(노랑), 체크를 푼 행(흐리게) */
+.af-tbl tr.af-review td {
+  background: var(--warn-soft);
+}
+.af-tbl tr.af-off td:not(.af-pick) {
+  opacity: 0.55;
+}
+.af-errors {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+/* 파일에 없는 차량 */
+.af-absent {
+  margin-top: 16px;
+}
+.af-absent summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.af-absent .af-counts {
+  margin: 8px 0;
+  line-height: 2;
+}
+.af-absent .tbl-wrap {
+  max-height: 320px;
+}

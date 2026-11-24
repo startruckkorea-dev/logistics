@@ -47,6 +47,13 @@ const VOYAGE_FIELDS = ["bl_no", "eta_from_eukor_pirt", "ata", "tsc_arrival_date"
 const MASTER_FIELDS = [...MODEL_FIELDS.filter((name) => name !== "moma_no"), "shipping_calc", "color_name"];
 // 통관 완료 처리가 넣는 열. 통관일이 들어가면 상태도 같이 바꾼다.
 const CUSTOMS_FIELDS = ["customs_clearance_date", "import_license", "current_status"];
+/** AFAB 업로드가 넣는 AFAB List 의 열(키 제외) */
+export const AFAB_FIELDS = SLOTS.find(([slot]) => slot === "afab")[1]
+  .columns.map((c) => c.name)
+  .filter((name) => name !== "commission_no");
+/** AFAB 값이 바뀌면 같이 맞추는 Main List 의 열(PM → Shipping Calc, TDD Calc → ETA From TDD, Color Code → Color Name) */
+export const AFAB_DERIVED_FIELDS = ["shipping_calc", "eta_from_tdd", "color_name"];
+const AFAB_UPLOAD_FIELDS = [...AFAB_FIELDS, ...AFAB_DERIVED_FIELDS];
 const DATE_FIELDS = ["b1_factory_order", "eta_from_eukor_pirt", "ata", "tsc_arrival_date", "customs_clearance_date"];
 
 /** 편집 모드에서 저장 대기에 오를 수 있는 열 전체(입력 열 + 오더 변경 열) */
@@ -180,10 +187,36 @@ async function saveSlot(slot, def, jobs, onProgress) {
   if (!targets.length) return;
   const listId = await findListId(def.listName);
 
-  for (const t of targets) {
-    if (!t.job.vehicle._items[slot]) t.job.problem = { status: 0, code: "no_item" };
+  // AFAB 업로드: AFAB List 에 아직 행이 없는 차량(오더 생성으로 만든 오더)은 행을 만든다
+  const creating = targets.filter((t) => slot === "afab" && t.job.afab && !t.job.vehicle._items[slot]);
+  if (creating.length) {
+    const responses = await addListItems(
+      listId,
+      creating.map((t) => ({
+        [def.key]: t.job.vehicle[def.key],
+        ...toFields(t.changes.filter((c) => c.new !== "")),
+      })),
+      onProgress
+    );
+    creating.forEach((t, i) => {
+      const res = responses[i];
+      const { vehicle } = t.job;
+      if (!isOk(res.status) || !res.id) {
+        t.job.problem = { status: res.status, code: res.code };
+        return;
+      }
+      vehicle._items[slot] = res.id;
+      vehicle._etags[slot] = res.etag;
+      for (const c of t.changes) vehicle[c.field] = c.new;
+      t.job.applied.push(...t.changes);
+    });
   }
-  const ready = targets.filter((t) => !t.job.problem);
+  const created = new Set(creating);
+
+  for (const t of targets) {
+    if (!created.has(t) && !t.job.vehicle._items[slot]) t.job.problem = { status: 0, code: "no_item" };
+  }
+  const ready = targets.filter((t) => !created.has(t) && !t.job.problem);
   // 버전 표시가 있는 항목은 한꺼번에 보내고, 없는 항목은 412 를 받은 것처럼 다시 읽는다
   const sendable = ready.filter((t) => t.job.vehicle._etags[slot]);
   const responses = await updateListItems(
@@ -228,6 +261,8 @@ async function saveSlot(slot, def, jobs, onProgress) {
  *   voyage 가 참이면 선적·입항의 선박 단위 입력이다: B/L·ETA 선사·ATA·TSC 입고일·상태 열을 받는다
  *   master 가 참이면 마스터 수정의 반영이다: 모델 속성·Shipping Calc·Color Name 열을 받는다
  *   customs 가 참이면 통관 완료 처리다: Customs Clearance Date·Import License·상태 열을 받는다
+ *   afab 가 참이면 AFAB 업로드다: AFAB List 의 열과 거기서 나오는 Shipping Calc·ETA From TDD·Color Name 을 받는다.
+ *     AFAB List 에 행이 없는 차량은 행을 만든다. AFAB List 를 먼저 쓰고 Main List 를 쓴다
  * @param {string} [source] 변경 경로(이력에 남긴다)
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {Promise<{
@@ -245,7 +280,8 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
     saved: [], invalid: [], conflicts: [], denied: [], failed: [], historyFailed: 0, historyCodes: [],
   };
   const jobs = [];
-  for (const { vehicle, inputs, source: own, order = false, voyage = false, master = false, customs = false } of edits) {
+  for (const edit of edits) {
+    const { vehicle, inputs, source: own, order = false, voyage = false, master = false, customs = false, afab = false } = edit;
     const allowed = order
       ? EDIT_FIELDS
       : voyage
@@ -254,14 +290,16 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
           ? MASTER_FIELDS
           : customs
             ? CUSTOMS_FIELDS
-            : INPUT_FIELDS;
+            : afab
+              ? AFAB_UPLOAD_FIELDS
+              : INPUT_FIELDS;
     const changes = changedFields(vehicle, inputs, allowed);
     if (!changes.length) continue;
     const bad = changes.map((c) => [c, checkInput(c.field, c.new)]).find(([, reason]) => reason);
     if (bad) out.invalid.push({ vehicle, field: bad[0].field, reason: bad[1] });
     else {
       jobs.push({
-        vehicle, changes, order, source: own ?? source, specBefore: normalizeInput(vehicle.spec), applied: [], problem: null,
+        vehicle, changes, order, afab, source: own ?? source, specBefore: normalizeInput(vehicle.spec), applied: [], problem: null,
       });
     }
   }
@@ -272,7 +310,9 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
   const orderJobs = jobs.filter((job) => job.order);
   const modelByKey = orderJobs.length ? new Map((await loadModelMaster()).map((m) => [m.moma_no, m])) : null;
 
-  for (const [slot, def] of SLOTS) await saveSlot(slot, def, jobs, onProgress);
+  // AFAB 업로드는 AFAB 값을 먼저 쓴다(거기서 나온 Main 값만 들어가고 AFAB 값은 빠지는 일이 없게)
+  const slots = jobs.every((job) => job.afab) ? [...SLOTS].reverse() : SLOTS;
+  for (const [slot, def] of slots) await saveSlot(slot, def, jobs, onProgress);
   for (const job of orderJobs) syncModel(job.vehicle, modelByKey);
 
   for (const job of jobs) job.history = job.applied.length ? historyChanges(job) : [];

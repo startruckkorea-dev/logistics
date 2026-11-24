@@ -4,6 +4,7 @@
 //
 // 타입: text(한 줄, 255자) | note(여러 줄) | number | boolean
 import { SHAREPOINT } from "../lib/config.js";
+import { STATUS } from "../domain/status.js";
 
 const columns = (type, names) => names.map((name) => ({ name, type }));
 const text = (...names) => columns("text", names);
@@ -15,7 +16,8 @@ const boolean = (...names) => columns("boolean", names);
 // key    : 키 열. 고유값 + 인덱스를 건다
 // indexed: 인덱스만 거는 열
 // lock   : 적재할 때 고정 목록에 있는 키의 행은 columns 의 열을 바꾸지 않는다(이미 있는 항목만 해당).
-//          목록에 없는 행은 required 열이 비어 있으면 적재를 막는다
+//          목록에 없는 행은 required 열이 비어 있으면 적재를 막는다.
+//          exempt 의 열이 그 값인 행은 막지 않고 columns 의 열을 그대로 둔다
 
 // 차량 행에서 모델에 딸린 열(모델 연결과 Model Master 에서 옮겨 적은 속성)
 const MODEL_COLUMNS = [
@@ -59,8 +61,13 @@ const DEFINITIONS = [
     key: "commission_no",
     indexed: ["moma_no"],
     // 모델 고정 목록(model-lock.js)에 있는 차량은 모델 연결과 모델 속성을 바꾸지 않는다.
-    // 목록에 없는 차량은 전처리 결과에 모델(moma_no)이 있어야 적재한다
-    lock: { columns: MODEL_COLUMNS, required: "moma_no" },
+    // 목록에 없는 차량은 전처리 결과에 모델(moma_no)이 있어야 적재한다.
+    // 다만 Cancelled 차량은 모델을 찾지 못해도 막지 않고, List 에 있던 모델 연결과 모델 속성을 그대로 둔다
+    lock: {
+      columns: MODEL_COLUMNS,
+      required: "moma_no",
+      exempt: { column: "current_status", values: [STATUS.CANCELLED] },
+    },
     columns: [
       ...text(
         "commission_no", "current_status", "moma_no", "model_year", "bm", "vehicle", "model", "type", "axle",

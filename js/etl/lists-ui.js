@@ -265,6 +265,17 @@ function lockNote(plans) {
   return lines.length ? mk("p", { class: "hint" }, "모델 고정 — ", lines.join(" / ")) : null;
 }
 
+// 모델을 찾지 못했지만 막지 않는 행(Cancelled 등): List 의 모델 값을 그대로 둔 항목 수
+function exemptNote(plans) {
+  const lines = plans
+    .filter((p) => p.plan?.exempted)
+    .map((p) => {
+      const { exempt, required } = p.def.lock;
+      return `${p.def.listName}: ${required} 를 찾지 못한 ${exempt.values.join("·")} 차량 ${p.plan.exempted}대는 모델 관련 열을 바꾸지 않습니다`;
+    });
+  return lines.length ? mk("p", { class: "hint" }, "모델 유지 — ", lines.join(" / ")) : null;
+}
+
 /**
  * 전처리 결과 화면 아래에 붙는 적재 영역.
  * @param {object} result runRules 의 결과
@@ -295,6 +306,7 @@ export function loadSection(result, setStatus) {
       planTable(plans),
       changedColumnsNote(plans) ?? "",
       lockNote(plans) ?? "",
+      exemptNote(plans) ?? "",
       unresolvedNote(plans) ?? ""
     );
 

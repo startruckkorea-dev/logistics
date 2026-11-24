@@ -495,18 +495,18 @@ const DICTIONARY = {
   "Commission No 가 비어 있음": "Commission No is empty",
   "값이 너무 김": "Value is too long",
   "파일의 두 Vin No 열 값이 서로 다름": "The two Vin No columns in the file differ",
-  "{f} 값을 지움": "clears {f}",
   "{f} 이 날짜가 아님": "{f} is not a date",
   "색상 마스터에 없는 Color Code": "Color Code not in Color Master",
   "AFAB 행 추가": "New AFAB row",
   "바뀌는 차량이 없습니다.": "No vehicles change.",
   "파일에 없는 차량 {n}대 — 아무것도 바꾸지 않습니다": "{n} vehicles not in the file — nothing is changed",
   "AFAB 반영": "Apply AFAB",
+  "상태 변경 — Rejected {r}대 · Shipment scheduled {s}대": "Status changes — Rejected: {r} · Shipment scheduled: {s}",
   "선택한 차량 {n}대에 AFAB 값을 반영합니다.": "AFAB values will be applied to the {n} selected vehicles.",
-  "AFAB 행 추가 {c}대 · 기존 값을 지우는 차량 {k}대 · 날짜가 아닌 값이 들어가는 차량 {d}대": "New AFAB rows: {c} · clears existing values: {k} · non-date values: {d}",
+  "AFAB 행 추가 {c}대 · 날짜가 아닌 값이 들어가는 차량 {d}대": "New AFAB rows: {c} · non-date values: {d}",
   "차량 {n}대에 반영 · AFAB 행 추가 {c}대": "Applied to {n} vehicles · new AFAB rows: {c}",
   "파일 {r}행 · AFAB 행 추가 {c}대 · 색상 마스터에 없는 Color Code {u}건 · 파일에 없는 차량 {a}대": "File rows {r} · new AFAB rows {c} · Color Codes not in Color Master {u} · vehicles not in the file {a}",
-  "⚠ 표시가 있는 행은 기존 값을 지우거나, 날짜 열에 날짜가 아닌 값이 들어갑니다. 반영하지 않을 행은 체크를 푸세요.": "Rows marked ⚠ clear existing values or put a non-date value in a date column. Uncheck the rows you do not want to apply.",
+  "⚠ 표시가 있는 행은 날짜 열에 날짜가 아닌 값이 들어갑니다. 반영하지 않을 행은 체크를 푸세요.": "Rows marked ⚠ put a non-date value in a date column. Uncheck the rows you do not want to apply.",
 };
 
 /**

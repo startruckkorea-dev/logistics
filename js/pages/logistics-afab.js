@@ -1,6 +1,6 @@
 // Logistics · AFAB 업로드 탭 — AFAB 엑셀을 올려 차량의 AFAB 열에 반영한다.
 // 파일 선택 → 규칙 파일로 가공 → 미리보기(차량 1행, 바뀌는 열마다 1칸) → 반영하지 않을 행은 체크를 품 → 확인 창 → 저장 → 결과 표시.
-// Current Status 는 바꾸지 않는다. 파일에 없는 차량과 차량 마스터에 없는 Commission 은 보여주기만 한다.
+// Current Status 는 Rejected · Shipment scheduled 만 바꾼다. 파일에 없는 차량과 차량 마스터에 없는 Commission 은 보여주기만 한다.
 import { mk } from "../lib/dom.js";
 import { ENV } from "../lib/config.js";
 import { readXlsxWorkbook, XLSX_MAX_BYTES } from "../lib/xlsx.js";
@@ -13,7 +13,7 @@ import { loadVehicles } from "../data/vehicles.js";
 import { loadColorMaster } from "../data/masters.js";
 import { AFAB_DERIVED_FIELDS } from "../data/store.js";
 import {
-  AfabRulesError, afabRulesPath, loadAfabRules, readAfabTable, planAfab, afabListNames, applyAfab,
+  AfabRulesError, afabRulesPath, loadAfabRules, readAfabTable, planAfab, afabListNames, applyAfab, statusKind,
 } from "../data/afab-store.js";
 
 const labelOf = (field) => COLUMNS.find((c) => c.key === field)?.label ?? field;
@@ -153,7 +153,8 @@ export function renderAfabTab(root) {
     return COLUMNS.map((c) => c.key).filter((key) => used.has(key));
   }
 
-  // 값 칸. 체크된 행의 바뀌는 칸만 강조해 새 값을 보여주고 기존 값을 아래에 작게 적는다. 그 밖에는 지금 값을 보여준다
+  // 값 칸. 체크된 행의 바뀌는 칸만 강조해 새 값을 보여주고 기존 값을 아래에 작게 적는다. 그 밖에는 지금 값을 보여준다.
+  // 값을 비우는 칸은 Color Name 뿐이다(색상 마스터에 없는 Color Code 가 올 때). 파일의 빈 칸은 값을 지우지 않는다
   function valueCell(item, field) {
     if (!item.vehicle || item.kind === "error") return mk("td", { class: "mono af-val" }, dim());
     const now = String(item.vehicle[field] ?? "");
@@ -164,6 +165,19 @@ export function renderAfabTab(root) {
       { class: `mono af-val af-set${change.new ? "" : " clear"}` },
       change.new || tx("(빈 값)"),
       change.old ? mk("span", { class: "af-was" }, tx("기존 {v}", { v: change.old })) : null
+    );
+  }
+
+  // Current Status 칸. 체크된 행의 상태가 바뀌면 새 상태를 강조하고 기존 상태를 아래에 적는다
+  function statusCell(item) {
+    const now = item.vehicle?.current_status;
+    if (!now) return mk("td", null, dim());
+    if (state.results || !isOn(item) || !item.status) return mk("td", null, pill(stageClass(now), now));
+    return mk(
+      "td",
+      { class: "af-set" },
+      pill(stageClass(item.status.new), item.status.new),
+      mk("span", { class: "af-was" }, tx("기존 {v}", { v: item.status.old }))
     );
   }
 
@@ -180,7 +194,6 @@ export function renderAfabTab(root) {
     if (item.kind === "missing") return pill("danger", tx("미등록"));
     if (item.kind === "error") return [pill("danger", tx("오류")), " ", mk("span", { class: "muted small" }, tx(ERROR_TEXT[item.error]))];
     const notes = [
-      ...item.clears.map((field) => tx("{f} 값을 지움", { f: labelOf(field) })),
       ...item.oddDates.map((field) => tx("{f} 이 날짜가 아님", { f: labelOf(field) })),
       item.unknownColor ? tx("색상 마스터에 없는 Color Code") : null,
     ].filter(Boolean);
@@ -197,14 +210,13 @@ export function renderAfabTab(root) {
       ? mk("input", { type: "checkbox", class: "rowsel", checked: isOn(item), disabled: state.saving })
       : null;
     const cls = !selectable ? null : !isOn(item) ? "af-off" : item.kind === "review" ? "af-review" : null;
-    const status = item.vehicle?.current_status;
     const tr = mk(
       "tr",
       { class: cls },
       mk("td", { class: "af-pick" }, box),
       mk("td", { class: "num" }, item.line),
       mk("td", { class: "mono" }, item.commission || dim()),
-      mk("td", null, status ? pill(stageClass(status), status) : dim()),
+      statusCell(item),
       fields.map((field) => valueCell(item, field)),
       mk("td", null, noteCell(item))
     );
@@ -329,10 +341,17 @@ export function renderAfabTab(root) {
         mk(
           "p",
           null,
-          tx("AFAB 행 추가 {c}대 · 기존 값을 지우는 차량 {k}대 · 날짜가 아닌 값이 들어가는 차량 {d}대", {
+          tx("AFAB 행 추가 {c}대 · 날짜가 아닌 값이 들어가는 차량 {d}대", {
             c: count((item) => item.creates),
-            k: count((item) => item.clears.length),
             d: count((item) => item.oddDates.length),
+          })
+        ),
+        mk(
+          "p",
+          null,
+          tx("상태 변경 — Rejected {r}대 · Shipment scheduled {s}대", {
+            r: count((item) => statusKind(item) === "rejected"),
+            s: count((item) => statusKind(item) === "scheduled"),
           })
         ),
         mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${afabListNames().join(", ")}`),
@@ -436,7 +455,7 @@ export function renderAfabTab(root) {
         ? mk(
             "div",
             { class: "callout warn" },
-            tx("⚠ 표시가 있는 행은 기존 값을 지우거나, 날짜 열에 날짜가 아닌 값이 들어갑니다. 반영하지 않을 행은 체크를 푸세요.")
+            tx("⚠ 표시가 있는 행은 날짜 열에 날짜가 아닌 값이 들어갑니다. 반영하지 않을 행은 체크를 푸세요.")
           )
         : null,
       table.node,

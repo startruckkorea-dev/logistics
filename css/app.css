@@ -497,7 +497,7 @@ input[type="checkbox"].pend {
 .af-tbl td.af-val {
   color: var(--muted);
 }
-/* 반영하면 바뀌는 칸: 새 값은 초록, 값을 지우는 칸은 빨강. 기존 값은 아래에 작게 */
+/* 반영하면 바뀌는 칸: 새 값은 초록, 값을 비우는 칸은 빨강. 기존 값은 아래에 작게 */
 .af-tbl td.af-set {
   background: var(--ok-soft);
   color: var(--ok);

@@ -53,7 +53,8 @@ export const AFAB_FIELDS = SLOTS.find(([slot]) => slot === "afab")[1]
   .filter((name) => name !== "commission_no");
 /** AFAB 값이 바뀌면 같이 맞추는 Main List 의 열(PM → Shipping Calc, TDD Calc → ETA From TDD, Color Code → Color Name) */
 export const AFAB_DERIVED_FIELDS = ["shipping_calc", "eta_from_tdd", "color_name"];
-const AFAB_UPLOAD_FIELDS = [...AFAB_FIELDS, ...AFAB_DERIVED_FIELDS];
+// AFAB 업로드는 상태도 바꾼다(Rejected, Rejected 해제, Shipment scheduled)
+const AFAB_UPLOAD_FIELDS = [...AFAB_FIELDS, ...AFAB_DERIVED_FIELDS, "current_status"];
 const DATE_FIELDS = ["b1_factory_order", "eta_from_eukor_pirt", "ata", "tsc_arrival_date", "customs_clearance_date"];
 
 /** 편집 모드에서 저장 대기에 오를 수 있는 열 전체(입력 열 + 오더 변경 열) */
@@ -261,7 +262,7 @@ async function saveSlot(slot, def, jobs, onProgress) {
  *   voyage 가 참이면 선적·입항의 선박 단위 입력이다: B/L·ETA 선사·ATA·TSC 입고일·상태 열을 받는다
  *   master 가 참이면 마스터 수정의 반영이다: 모델 속성·Shipping Calc·Color Name 열을 받는다
  *   customs 가 참이면 통관 완료 처리다: Customs Clearance Date·Import License·상태 열을 받는다
- *   afab 가 참이면 AFAB 업로드다: AFAB List 의 열과 거기서 나오는 Shipping Calc·ETA From TDD·Color Name 을 받는다.
+ *   afab 가 참이면 AFAB 업로드다: AFAB List 의 열과 거기서 나오는 Shipping Calc·ETA From TDD·Color Name, 그리고 상태 열을 받는다.
  *     AFAB List 에 행이 없는 차량은 행을 만든다. AFAB List 를 먼저 쓰고 Main List 를 쓴다
  * @param {string} [source] 변경 경로(이력에 남긴다)
  * @param {(done: number, total: number) => void} [onProgress]

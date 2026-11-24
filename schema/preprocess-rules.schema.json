@@ -46,6 +46,12 @@
     "column": {
       "anyOf": [{ "$ref": "#/$defs/excelColumn" }, { "$ref": "#/$defs/newColumn" }]
     },
+    "lookupKey": {
+      "anyOf": [
+        { "$ref": "#/$defs/column" },
+        { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/column" } }
+      ]
+    },
     "columns": {
       "type": "array",
       "minItems": 1,
@@ -369,9 +375,9 @@
       "required": ["key", "sheet", "targetKey", "fill", "onMissing", "onSourceEmpty"],
       "properties": {
         "type": { "const": "lookup" },
-        "key": { "$ref": "#/$defs/column" },
+        "key": { "$ref": "#/$defs/lookupKey", "description": "이 시트의 키. 열 목록이면 그 열들의 조합으로 찾는다." },
         "sheet": { "type": "string", "minLength": 1 },
-        "targetKey": { "$ref": "#/$defs/column" },
+        "targetKey": { "$ref": "#/$defs/lookupKey", "description": "참조 시트의 키. key 와 열 개수가 같아야 한다." },
         "fill": {
           "type": "array",
           "minItems": 1,
@@ -386,7 +392,8 @@
           }
         },
         "onMissing": { "enum": ["empty", "keep", "error"], "description": "키가 참조 시트에 없을 때." },
-        "onSourceEmpty": { "enum": ["empty", "keep"], "description": "참조 시트의 값이 빈칸일 때." }
+        "onSourceEmpty": { "enum": ["empty", "keep"], "description": "참조 시트의 값이 빈칸일 때." },
+        "onAmbiguous": { "enum": ["first", "keep"], "description": "참조 시트에 같은 키가 여러 행일 때. first(기본)는 첫 행을 쓰고, keep 은 값을 바꾸지 않는다." }
       },
       "unevaluatedProperties": false
     },

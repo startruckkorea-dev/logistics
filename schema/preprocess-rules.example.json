@@ -94,6 +94,17 @@
           "onMissing": "empty",
           "onSourceEmpty": "empty"
         },
+        {
+          "id": "code-by-pair",
+          "type": "lookup",
+          "key": ["I", "@label"],
+          "sheet": "SampleMaster",
+          "targetKey": ["B", "C"],
+          "fill": [{ "from": "A", "to": "X" }],
+          "onMissing": "keep",
+          "onSourceEmpty": "keep",
+          "onAmbiguous": "keep"
+        },
         { "id": "must-have-master", "type": "mustExistIn", "column": "X", "sheet": "SampleMaster", "targetColumn": "A", "onMissing": "keep" },
         { "id": "dates", "type": "toDate", "columns": ["J", "K"], "formats": ["yyyyMMdd", "dd.MM.yyyy"], "onInvalid": "keep" },
         { "id": "months", "type": "toDate", "columns": ["L"], "formats": ["MMMM-yy", "MMM-yy"], "precision": "month", "onInvalid": "keep" },

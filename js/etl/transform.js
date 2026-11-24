@@ -258,6 +258,9 @@ function parseDate(row, c, formats) {
 // ---- 규칙 ----
 // 각 함수는 적용 기록 { changed, details? } 를 돌려준다.
 
+// 조합 키를 이을 때 쓰는 구분자(칸 값에 나오지 않는 제어 문자)
+const KEY_SEPARATOR = "\u001f";
+
 const count = (details, key, n = 1) => {
   details[key] = (details[key] ?? 0) + n;
 };
@@ -589,8 +592,16 @@ const RULES = {
     if (!other) {
       throw new RuleError(state.name, rule.id, "참조 시트는 sheets 에서 이 시트보다 먼저 적어야 합니다");
     }
-    const key = col(state, rule.key, rule.id);
-    const targetKey = col(other, rule.targetKey, rule.id);
+    // 키는 열 하나 또는 여러 열의 조합. 조합 키는 한 열이라도 비면 키가 없는 것으로 본다
+    const keyOf = (sheet, ref) => {
+      const columns = [].concat(ref).map((c) => col(sheet, c, rule.id));
+      return (row) => {
+        const parts = columns.map((c) => str(row, c).trim());
+        return parts.some((part) => !part) ? "" : parts.join(KEY_SEPARATOR);
+      };
+    };
+    const key = keyOf(state, rule.key);
+    const targetKey = keyOf(other, rule.targetKey);
     const pairs = rule.fill.map((f) => ({
       ref: f.to,
       from: col(other, f.from, rule.id),
@@ -598,21 +609,35 @@ const RULES = {
     }));
 
     const index = new Map();
+    const ambiguous = new Set();
     let duplicates = 0;
+    let blankKeys = 0;
     for (const row of other.rows) {
-      const k = str(row, targetKey).trim();
-      if (!k) continue;
-      if (index.has(k)) duplicates++;
-      else index.set(k, row);
+      const k = targetKey(row);
+      if (!k) {
+        blankKeys++;
+        continue;
+      }
+      if (index.has(k)) {
+        duplicates++;
+        ambiguous.add(k);
+      } else index.set(k, row);
     }
+    const keepAmbiguous = rule.onAmbiguous === "keep";
 
     const details = {};
     const missingRows = [];
     let changed = 0;
-    if (duplicates) count(details, "참조 시트의 중복 키(첫 행 사용)", duplicates);
+    if (blankKeys) count(details, "참조 시트에서 키가 빈 행", blankKeys);
+    if (duplicates) count(details, keepAmbiguous ? "참조 시트의 중복 키" : "참조 시트의 중복 키(첫 행 사용)", duplicates);
     for (const row of state.rows) {
       if (!match(row)) continue;
-      const found = index.get(str(row, key).trim());
+      const k = key(row);
+      if (keepAmbiguous && ambiguous.has(k)) {
+        count(details, "여러 건 매칭(그대로 둠)");
+        continue;
+      }
+      const found = index.get(k);
       if (!found) {
         count(details, "매칭 실패");
         if (rule.onMissing === "error") missingRows.push(row.n);

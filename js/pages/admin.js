@@ -54,6 +54,21 @@ function loadButton(item) {
   return button;
 }
 
+// 폴더의 엑셀 파일. 참조 파일 선택 칸이 이 목록에서 고른다
+let excelItems = [];
+const referenceItem = () => excelItems.find((item) => item.id === $("reference")?.value) ?? null;
+
+function renderReference() {
+  const select = $("reference");
+  const chosen = select.value;
+  select.replaceChildren(
+    mk("option", { value: "" }, "없음"),
+    ...excelItems.map((item) => mk("option", { value: item.id }, item.name))
+  );
+  if (excelItems.some((item) => item.id === chosen)) select.value = chosen;
+  $("reference-row").hidden = excelItems.length < 2;
+}
+
 // 규칙 파일을 읽어 엑셀에 적용하고 결과를 보여준다. List 에는 쓰지 않는다.
 async function runPreprocess(item, button) {
   button.disabled = true;
@@ -83,13 +98,29 @@ async function runPreprocess(item, button) {
     }
 
     setStatus(`${item.name} 을(를) 읽는 중...`);
-    const workbook = await readWorkbook(item.id);
+    let workbook = await readWorkbook(item.id);
+    let sourceName = item.name;
+
+    // 참조 파일을 골랐으면 그 파일의 시트를 합쳐서 규칙을 돌린다(마스터와 Logistics 가 다른 파일일 때)
+    const reference = referenceItem();
+    if (reference && reference.id !== item.id) {
+      setStatus(`${reference.name} 을(를) 읽는 중...`);
+      const other = await readWorkbook(reference.id);
+      const names = new Set(workbook.sheets.map((sheet) => sheet.name));
+      const same = other.sheets.filter((sheet) => names.has(sheet.name)).length;
+      if (same) {
+        setStatus(`두 파일에 이름이 같은 시트가 ${same}개 있어 전처리를 하지 않았습니다.`, true);
+        return;
+      }
+      workbook = { sheets: [...workbook.sheets, ...other.sheets] };
+      sourceName = `${item.name} + ${reference.name}`;
+    }
 
     try {
       const result = runRules(workbook, rules);
-      renderResult(container, info, item.name, result);
+      renderResult(container, info, sourceName, result);
       container.append(loadSection(result, setStatus));
-      setStatus(`${item.name} — 전처리 결과 표 ${result.tables.length}개를 만들었습니다.`);
+      setStatus(`${sourceName} — 전처리 결과 표 ${result.tables.length}개를 만들었습니다.`);
     } catch (err) {
       if (!(err instanceof RuleError)) throw err;
       renderRunError(container, info, err);
@@ -138,6 +169,8 @@ function renderItems(items) {
     })
   );
   $("files").hidden = false;
+  excelItems = items.filter(isExcelFile);
+  renderReference();
 }
 
 async function showFolder() {
@@ -168,6 +201,12 @@ function layout() {
       { id: "files", hidden: true },
       mk("thead", null, mk("tr", null, ["이름", "크기", "수정한 날짜", "엑셀"].map((h) => mk("th", null, h)))),
       mk("tbody")
+    ),
+    mk(
+      "p",
+      { id: "reference-row", hidden: true },
+      mk("label", null, "참조 파일 ", mk("select", { id: "reference" })),
+      mk("span", { class: "hint" }, " 전처리할 때 이 파일의 시트를 함께 읽습니다(마스터 파일이 따로 있을 때).")
     ),
     mk(
       "p",

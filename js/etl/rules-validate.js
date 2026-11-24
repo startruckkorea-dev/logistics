@@ -36,6 +36,10 @@ const check = {
     Array.isArray(v) && v.length > 0 && v.every(isColumn)
       ? null
       : "열 목록(1개 이상)이어야 합니다",
+  columnOrColumns: (v) =>
+    isColumn(v) || (Array.isArray(v) && v.length > 1 && v.every(isColumn))
+      ? null
+      : "열 하나 또는 열 목록(2개 이상)이어야 합니다",
   columnsOrAll: (v) => (v === "*" ? null : check.columns(v) && '열 목록 또는 "*" 이어야 합니다'),
   newColumns: (v) =>
     Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && NEW_COLUMN.test(x))
@@ -171,13 +175,18 @@ const RULE_TYPES = {
   },
   lookup: {
     fields: {
-      key: [check.column, true],
+      key: [check.columnOrColumns, true],
       sheet: [check.nonEmptyString, true],
-      targetKey: [check.column, true],
+      targetKey: [check.columnOrColumns, true],
       fill: [check.fill, true],
       onMissing: [check.oneOf("empty", "keep", "error"), true],
       onSourceEmpty: [check.oneOf("empty", "keep"), true],
+      onAmbiguous: [check.oneOf("first", "keep")],
     },
+    extra: (rule) =>
+      [].concat(rule.key).length === [].concat(rule.targetKey).length
+        ? null
+        : ["targetKey", "key 와 열 개수가 같아야 합니다"],
   },
   dedupe: {
     fields: { column: [check.column, true], keep: [check.oneOf("first", "last", "error"), true] },

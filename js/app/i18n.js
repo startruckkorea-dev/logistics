@@ -494,6 +494,7 @@ const DICTIONARY = {
   "해당 행 {n}건 (엑셀 행 번호: {rows})": "{n} rows (Excel row numbers: {rows})",
   "Commission No 가 비어 있음": "Commission No is empty",
   "값이 너무 김": "Value is too long",
+  "파일의 두 Vin No 열 값이 서로 다름": "The two Vin No columns in the file differ",
   "{f} 값을 지움": "clears {f}",
   "{f} 이 날짜가 아님": "{f} is not a date",
   "색상 마스터에 없는 Color Code": "Color Code not in Color Master",

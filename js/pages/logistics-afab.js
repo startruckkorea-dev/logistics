@@ -25,6 +25,7 @@ const ERROR_TEXT = {
   no_commission: "Commission No 가 비어 있음",
   duplicate: "같은 차량이 여러 줄에 있음",
   too_long: "값이 너무 김",
+  vin_mismatch: "파일의 두 Vin No 열 값이 서로 다름",
 };
 const FILE_ERROR_TEXT = {
   not_xlsx: ".xlsx 파일만 올릴 수 있습니다.",

@@ -26,6 +26,10 @@ const ETA_FROM_TDD_DAYS = 75;
 // 날짜("YYYY-MM-DD")가 들어가는 열. PM 은 날짜 또는 월("YYYY-MM")이다
 const DATE_COLUMNS = ["changeability_date", "tdd_calc", "dispatch", "shipping", "invoice", "planned_arrival"];
 
+// 결과 표에 둘 수 있는 확인용 열(List 에는 넣지 않는다). Vin No 가 파일의 두 열에 올 때 다른 쪽 열의 값을 여기에 싣는다.
+// 값이 있고 vin_no 와 다르면 그 행은 받지 않는다
+const VIN_CHECK = "vin_no_check";
+
 /** 규칙 파일 경로(오류 안내에 보여준다) */
 export const afabRulesPath = () => SHAREPOINT.afabRulesFile;
 
@@ -54,7 +58,7 @@ function checkAfabOutput(rules) {
   const [output] = outputs;
   const names = output.columns.map((c) => c.name);
   if (output.columns.find((c) => c.from === output.key)?.name !== KEY) add("key", `키 열의 이름은 ${KEY} 여야 합니다`);
-  const known = new Set(AFAB_DEF.columns.map((c) => c.name));
+  const known = new Set([...AFAB_DEF.columns.map((c) => c.name), VIN_CHECK]);
   const unknown = names.filter((name) => !known.has(name));
   if (unknown.length) add("columns", `AFAB List 에 없는 열입니다: ${unknown.join(", ")}`);
   return errors;
@@ -92,18 +96,21 @@ const cellText = (value) => (value == null ? "" : normalizeInput(String(value)))
  * 올린 통합 문서에 규칙을 적용해 AFAB 표를 만든다.
  * @param {object} workbook readXlsxWorkbook 의 결과
  * @param {object} rules loadAfabRules 의 결과
- * @returns {{fields: string[], rows: Array<{line: number, commission: string, values: Record<string, string>}>}}
- *   fields 는 파일이 주는 AFAB 열(키 제외). line 은 엑셀 행 번호
+ * @returns {{fields: string[], rows: Array<{line: number, commission: string, values: Record<string, string>, vinCheck: string}>}}
+ *   fields 는 파일이 주는 AFAB 열(키 제외). line 은 엑셀 행 번호. vinCheck 는 확인용 열의 값(없으면 "")
  * @throws {RuleError} 규칙 실행 중 오류(시트·머리글이 다르다 등)
  */
 export function readAfabTable(workbook, rules) {
   const table = runRules(workbook, rules).tables.find((t) => t.name === AFAB_DEF.table);
   const keyAt = table.columns.indexOf(KEY);
-  const fields = table.columns.filter((name) => name !== KEY);
+  const fields = table.columns.filter((name) => name !== KEY && name !== VIN_CHECK);
+  const checkAt = table.columns.indexOf(VIN_CHECK);
   const rows = table.rows.map((row, i) => ({
     line: table.lines[i],
-    commission: cellText(row[keyAt]),
-    values: Object.fromEntries(table.columns.map((name, c) => [name, cellText(row[c])]).filter(([name]) => name !== KEY)),
+    // Commission No 에는 공백이 없다. 파일에 섞여 들어온 공백(앞뒤와 가운데)은 모두 뺀다
+    commission: cellText(row[keyAt]).replace(/\s+/g, ""),
+    values: Object.fromEntries(table.columns.map((name, c) => [name, cellText(row[c])]).filter(([name]) => fields.includes(name))),
+    vinCheck: checkAt < 0 ? "" : cellText(row[checkAt]),
   }));
   return { fields, rows };
 }
@@ -147,7 +154,7 @@ function derivedChanges(vehicle, changes, colorByCode) {
  *   items: Array<{
  *     line, commission, vehicle: object | null,
  *     kind: "ok" | "review" | "same" | "missing" | "error",
- *     error: null | "no_commission" | "duplicate" | "too_long",
+ *     error: null | "no_commission" | "duplicate" | "too_long" | "vin_mismatch",  // vin_mismatch: 파일의 두 Vin No 열 값이 다르다
  *     changes: Array<{field, old, new}>,   // AFAB List 의 열
  *     derived: Array<{field, old, new}>,   // 같이 맞추는 Main List 의 열
  *     creates: boolean,      // AFAB List 에 행이 없어 새로 만든다
@@ -173,7 +180,15 @@ export function planAfab(table, vehicles, colors) {
     if (!vehicle) return { ...item, kind: "missing" };
     item.vehicle = vehicle;
     seen.set(vehicle, [...(seen.get(vehicle) ?? []), item]);
-    if (table.fields.some((field) => checkInput(field, row.values[field]))) return { ...item, error: "too_long" };
+    // (seen 에 넣은 객체를 그대로 돌려준다. 아래의 중복 판정이 같은 객체를 고친다)
+    if (row.vinCheck && row.vinCheck !== (row.values.vin_no ?? "")) {
+      item.error = "vin_mismatch";
+      return item;
+    }
+    if (table.fields.some((field) => checkInput(field, row.values[field]))) {
+      item.error = "too_long";
+      return item;
+    }
 
     for (const field of table.fields) {
       const next = row.values[field];

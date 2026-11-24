@@ -12,9 +12,23 @@ const note = (...names) => columns("note", names);
 const number = (...names) => columns("number", names);
 const boolean = (...names) => columns("boolean", names);
 
+// 적재할 때 결과 표의 값이 비어도 List 값을 지우지 않는 차량. 같은 전처리 결과의 logistics_main 표에서 고른다.
+//   - Cancelled 차량: 원본 엑셀에서 AFAB 연결이 끊겨 값이 오류로 바뀌고, 전처리가 그 칸을 빈 값으로 만든다
+//   - 표시 열(keep_values)에 표시가 있는 차량: AFAB 연결 열이 모두 오류인 행. 무엇을 그렇게 보는지는 규칙 파일에만 있다
+const KEEP_MARK = "keep_values";
+const KEEP_EMPTY = {
+  table: "logistics_main",
+  any: [
+    { column: "current_status", values: [STATUS.CANCELLED] },
+    { column: KEEP_MARK, values: ["Y"] },
+  ],
+};
+
 // table  : 전처리 규칙 파일 outputs 의 name
 // key    : 키 열. 고유값 + 인덱스를 건다
 // indexed: 인덱스만 거는 열
+// keepEmptyWhen: 적재할 때 그 표(table)에서 any 중 하나에 해당하는(열이 values 인) 키는 빈 값으로 List 값을 지우지 않는다
+// marks  : 결과 표에 둘 수 있는 표시 열. List 에는 넣지 않는다(없어도 된다)
 // lock   : 적재할 때 고정 목록에 있는 키의 행은 columns 의 열을 바꾸지 않는다(이미 있는 항목만 해당).
 //          목록에 없는 행은 required 열이 비어 있으면 적재를 막는다.
 //          exempt 의 열이 그 값인 행은 막지 않고 columns 의 열을 그대로 둔다
@@ -49,6 +63,7 @@ const DEFINITIONS = [
     id: "logisticsAfab",
     table: "logistics_afab",
     key: "commission_no",
+    keepEmptyWhen: KEEP_EMPTY,
     columns: text(
       "commission_no", "vin_no", "changeability_date", "pm", "tdd_calc",
       "dispatch", "shipping", "invoice", "planned_arrival", "vessel", "color_code",
@@ -60,6 +75,8 @@ const DEFINITIONS = [
     table: "logistics_main",
     key: "commission_no",
     indexed: ["moma_no"],
+    keepEmptyWhen: KEEP_EMPTY,
+    marks: [KEEP_MARK],
     // 모델 고정 목록(model-lock.js)에 있는 차량은 모델 연결과 모델 속성을 바꾸지 않는다.
     // 목록에 없는 차량은 전처리 결과에 모델(moma_no)이 있어야 적재한다.
     // 다만 Cancelled 차량은 모델을 찾지 못해도 막지 않고, List 에 있던 모델 연결과 모델 속성을 그대로 둔다

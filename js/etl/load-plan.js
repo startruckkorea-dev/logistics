@@ -41,7 +41,9 @@ function same(current, next, type) {
  * @param {{name, columns: string[], rows: any[][], lines?: number[]}} table 전처리 결과 표. lines 는 행마다의 엑셀 행 번호
  * @param {{key: string, columns: Array<{name, type}>, lock?: {columns: string[], required: string, exempt?: {column: string, values: string[]}}}} def List 정의
  * @param {Array<{id: string, fields: object}>} items List 의 현재 항목
- * @param {{lockedKeys?: Set<string>}} [options] lockedKeys: 고정 목록의 키(def.lock 이 있을 때만 쓴다)
+ * @param {{lockedKeys?: Set<string>, keepEmptyKeys?: Set<string>}} [options]
+ *   lockedKeys: 고정 목록의 키(def.lock 이 있을 때만 쓴다)
+ *   keepEmptyKeys: 결과 표의 값이 비어도 List 값을 지우지 않는 키
  * @returns {{
  *   problems: string[],   // 있으면 적재할 수 없다. 값은 담지 않는다
  *   ops: Array,           // writeListItems 에 넘길 추가·변경
@@ -51,16 +53,18 @@ function same(current, next, type) {
  *   unresolved: number,   // 고정 목록에 없는데 def.lock.required 열이 빈 행 수. 있으면 적재할 수 없다
  *   unresolvedLines: number[], // 그 행의 엑셀 행 번호(앞에서부터 UNRESOLVED_LINES 개까지)
  *   exempted: number,     // 필수 열이 비었지만 def.lock.exempt 에 해당해 고정 열을 그대로 둔 기존 항목 수
+ *   keptEmpty: number,    // options.keepEmptyKeys 의 차량 중, 빈 값으로 지워질 뻔한 칸을 그대로 둔 항목 수
  * }}
  */
 export function planLoad(table, def, items, options = {}) {
   const problems = [];
   const defNames = def.columns.map((c) => c.name);
   const missing = defNames.filter((n) => !table.columns.includes(n));
-  const extra = table.columns.filter((n) => !defNames.includes(n));
+  // 표시 열(def.marks)은 결과 표에 있어도 되고 List 에는 넣지 않는다
+  const extra = table.columns.filter((n) => !defNames.includes(n) && !(def.marks ?? []).includes(n));
   if (missing.length) problems.push(`결과 표에 없는 열: ${missing.join(", ")}`);
   if (extra.length) problems.push(`List 정의에 없는 열: ${extra.join(", ")}`);
-  const empty = { problems, ops: [], adds: 0, updates: 0, same: 0, onlyInList: 0, changedByColumn: {}, locked: 0, unresolved: 0, unresolvedLines: [], exempted: 0 };
+  const empty = { problems, ops: [], adds: 0, updates: 0, same: 0, onlyInList: 0, changedByColumn: {}, locked: 0, unresolved: 0, unresolvedLines: [], exempted: 0, keptEmpty: 0 };
   if (problems.length) return empty;
 
   const indexOf = Object.fromEntries(table.columns.map((name, i) => [name, i]));
@@ -87,6 +91,8 @@ export function planLoad(table, def, items, options = {}) {
   let unresolved = 0;
   const unresolvedLines = [];
   let exempted = 0;
+  const keepEmptyKeys = options.keepEmptyKeys ?? new Set();
+  let keptEmpty = 0;
 
   for (const [rowIndex, row] of table.rows.entries()) {
     const key = isEmpty(row[keyIndex]) ? "" : String(row[keyIndex]);
@@ -133,14 +139,22 @@ export function planLoad(table, def, items, options = {}) {
     // 고정 목록의 차량은 고정 열을 List 값 그대로 둔다
     if (isLocked) locked++;
     if (isExempt) exempted++;
+    // 빈 값으로 지우지 않는 차량: 결과 표의 값이 비었으면 List 값을 그대로 둔다
+    const keepEmpty = keepEmptyKeys.has(key);
+    let keptHere = false;
     const fields = {};
     for (const column of def.columns) {
       if ((isLocked || isExempt) && lockColumns.has(column.name)) continue;
       const next = values[column.name];
       if (next === undefined || same(item.fields[column.name], next, column.type)) continue;
+      if (keepEmpty && next === null) {
+        keptHere = true;
+        continue;
+      }
       fields[column.name] = next;
       changedByColumn[column.name] = (changedByColumn[column.name] ?? 0) + 1;
     }
+    if (keptHere) keptEmpty++;
     if (Object.keys(fields).length) {
       ops.push({ kind: "update", id: item.id, fields });
       updates++;
@@ -169,6 +183,7 @@ export function planLoad(table, def, items, options = {}) {
     unresolved,
     unresolvedLines,
     exempted,
+    keptEmpty,
   };
 }
 

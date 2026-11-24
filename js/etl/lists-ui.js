@@ -165,6 +165,23 @@ export async function renderListCheck(container, setStatus) {
 
 // ---- 적재 ----
 
+// def.keepEmptyWhen 에 해당하는 키(빈 값으로 List 값을 지우지 않는 차량). 기준 표가 결과에 없으면 빈 집합
+function keepEmptyKeysOf(result, def) {
+  const keys = new Set();
+  const rule = def.keepEmptyWhen;
+  const source = rule && result.tables.find((t) => t.name === rule.table);
+  if (!source) return keys;
+  const keyIndex = source.columns.indexOf(listForTable(rule.table).key);
+  // 결과 표에 없는 열(표시 열을 내지 않는 규칙 파일)의 조건은 건너뛴다
+  const conditions = rule.any
+    .map((c) => ({ index: source.columns.indexOf(c.column), values: c.values }))
+    .filter((c) => c.index >= 0);
+  for (const row of source.rows) {
+    if (row[keyIndex] != null && conditions.some((c) => c.values.includes(row[c.index]))) keys.add(String(row[keyIndex]));
+  }
+  return keys;
+}
+
 async function buildPlans(result) {
   const existing = await listLists();
   const plans = [];
@@ -187,11 +204,12 @@ async function buildPlans(result) {
     const items = await readListItems(found.id, def.columns.map((c) => c.name));
     // 모델 고정 목록을 쓰는 List 면 목록을 읽어 넘긴다. 목록 파일이 없으면 고정 없이 비교한다
     const lock = def.lock ? await readModelLock() : null;
+    const keepEmptyKeys = keepEmptyKeysOf(result, def);
     plans.push({
       table,
       def,
       listId: found.id,
-      plan: planLoad(table, def, items, { lockedKeys: lock?.keys }),
+      plan: planLoad(table, def, items, { lockedKeys: lock?.keys, keepEmptyKeys }),
       note: "",
       lockSize: def.lock ? lock?.keys.size ?? null : undefined,
     });
@@ -229,6 +247,16 @@ function changedColumnsNote(plans) {
           .join(" · ")
     );
   return lines.length ? mk("p", { class: "hint" }, "변경되는 열 — ", lines.join(" / ")) : null;
+}
+
+// 빈 값으로 지우지 않은 차량 수(Cancelled 등)
+function keptEmptyNote(plans) {
+  const lines = plans
+    .filter((p) => p.plan?.keptEmpty)
+    .map((p) => `${p.def.listName}: ${p.plan.keptEmpty}대`);
+  return lines.length
+    ? mk("p", { class: "hint" }, "빈 값으로 지우지 않음(Cancelled 이거나 AFAB 연결 열이 모두 오류인 차량) — ", lines.join(" / "), ". 결과 표에서 빈 칸은 List 값을 그대로 둡니다.")
+    : null;
 }
 
 // 고정 목록에 없는데 모델이 정해지지 않은 행. 엑셀에서 찾아 고칠 수 있게 행 번호를 보여준다
@@ -307,6 +335,7 @@ export function loadSection(result, setStatus) {
       changedColumnsNote(plans) ?? "",
       lockNote(plans) ?? "",
       exemptNote(plans) ?? "",
+      keptEmptyNote(plans) ?? "",
       unresolvedNote(plans) ?? ""
     );
 

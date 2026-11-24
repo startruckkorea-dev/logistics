@@ -81,15 +81,39 @@ export async function readXlsxFile(file) {
   return { sheets };
 }
 
+// 글자 수로 본 표시 너비. 한글·한자 등 전각 글자는 두 칸으로 센다
+const displayWidth = (value) =>
+  [...String(value ?? "")].reduce((sum, ch) => sum + (ch.charCodeAt(0) > 0x2e7f ? 2 : 1), 0);
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DATE_FORMAT = "yyyy-mm-dd";
+// "YYYY-MM-DD" → 엑셀 날짜 일련번호
+const isoToSerial = (iso) => {
+  const m = ISO_DATE.exec(iso);
+  return m ? Math.round((Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) - Date.UTC(1899, 11, 30)) / 86400000) : null;
+};
+
 /**
- * 표 하나를 엑셀 파일로 내려받는다.
+ * 표 하나를 엑셀 파일로 내려받는다. 열 너비는 머리글과 값이 잘리지 않게 맞춘다.
  * @param {string} fileName ".xlsx" 로 끝나는 이름
  * @param {string} sheetName
- * @param {any[][]} rows 첫 줄이 머리글
+ * @param {any[][]} rows 첫 줄이 머리글. 글자로 넘긴 값은 글자 칸이 된다(앞자리 0 이 지워지지 않는다)
+ * @param {{dateColumns?: number[]}} [options] dateColumns: "YYYY-MM-DD" 값을 엑셀 날짜 칸으로 넣을 열(0부터)
  */
-export async function downloadXlsx(fileName, sheetName, rows) {
+export async function downloadXlsx(fileName, sheetName, rows, options = {}) {
   const XLSX = await loadLibrary();
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  for (const c of options.dateColumns ?? []) {
+    for (let r = 1; r < rows.length; r++) {
+      const serial = isoToSerial(String(rows[r][c] ?? ""));
+      if (serial != null) sheet[XLSX.utils.encode_cell({ r, c })] = { t: "n", v: serial, z: DATE_FORMAT };
+    }
+  }
+  const columnCount = Math.max(0, ...rows.map((row) => row.length));
+  sheet["!cols"] = Array.from({ length: columnCount }, (_, c) => ({
+    wch: Math.min(60, Math.max(8, ...rows.map((row) => displayWidth(row[c]))) + 2),
+  }));
   const book = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(rows), sheetName);
+  XLSX.utils.book_append_sheet(book, sheet, sheetName);
   XLSX.writeFile(book, fileName, { bookType: "xlsx" });
 }

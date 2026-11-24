@@ -4,6 +4,7 @@
 //   3. applyCustoms     : 고른 행만 저장한다(덮어쓰기 포함). 통관일이 들어가는 Bonded Stock 차량은 OH Stock 으로 바꾼다
 import { toIsoDate } from "../domain/dates.js";
 import { STATUS } from "../domain/status.js";
+import { commissionFinder } from "./vehicles.js";
 import { checkInput, normalizeInput, saveVehicles, targetListNames } from "./store.js";
 
 /** 이력에 남는 변경 경로 */
@@ -75,18 +76,6 @@ export function parseCustomsBook(book) {
   return null;
 }
 
-// Commission No 로 차량을 찾는다. 엑셀이 숫자로 바꿔 앞자리 0 이 빠진 값도 한 대로 좁혀지면 받아 준다.
-function vehicleFinder(vehicles) {
-  const exact = new Map(vehicles.map((v) => [v.commission_no, v]));
-  const loose = new Map();
-  const strip = (text) => text.replace(/^0+/, "");
-  for (const v of vehicles) {
-    const key = strip(String(v.commission_no ?? ""));
-    loose.set(key, loose.has(key) ? null : v);
-  }
-  return (commission) => exact.get(commission) ?? loose.get(strip(commission)) ?? null;
-}
-
 /**
  * 행마다 차량과 맞춰 판정한다. 아무것도 쓰지 않는다.
  * @param {ReturnType<typeof parseCustomsBook>["rows"]} rows
@@ -103,7 +92,7 @@ function vehicleFinder(vehicles) {
  *   ok = Bonded Stock 차량의 빈 칸만 채운다. review = Bonded Stock 이 아니거나 기존 값을 덮어쓴다(사람이 확인할 행).
  */
 export function planCustoms(rows, vehicles, today) {
-  const find = vehicleFinder(vehicles);
+  const find = commissionFinder(vehicles);
   const seen = new Map();
   const items = rows.map((row) => {
     const item = { ...row, vehicle: null, kind: "error", fill: [], overwrite: [], offStatus: false };

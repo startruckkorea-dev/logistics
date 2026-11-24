@@ -16,6 +16,7 @@ import {
 import { openBulkInput } from "./logistics-bulk.js";
 import { openOrderCreate, openOrderChange } from "./logistics-order.js";
 import { renderCustomsTab } from "./logistics-customs.js";
+import { renderInsuranceTab } from "./logistics-insurance.js";
 import {
   COLUMNS, GRID_JUMPS, SEARCH_COLUMNS, FILTER_COLUMNS, DATE_FILTER_COLUMNS, PRESENCE_FILTER_COLUMNS, VALUE_ORDERS,
   sourceBadge, stageClass,
@@ -1109,6 +1110,7 @@ window.addEventListener("hashchange", () => {
 const TABS = [
   ["grid", "Logistics"],
   ["customs", "통관 완료 처리"],
+  ["insurance", "보험 조회"],
 ];
 
 export const logisticsPage = {
@@ -1128,10 +1130,11 @@ export const logisticsPage = {
         )
       )
     );
-    if (tab === "customs") {
+    if (tab !== "grid") {
       const tabBox = mk("div");
       root.append(tabBox);
-      renderCustomsTab(tabBox);
+      if (tab === "customs") renderCustomsTab(tabBox);
+      else renderInsuranceTab(tabBox);
       return;
     }
     // 다른 화면의 링크가 넘겨주는 조건: ?q= 검색어, ?stage= 상태(쉼표로 여러 개),

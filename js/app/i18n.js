@@ -471,6 +471,15 @@ const DICTIONARY = {
   "오류 {n}건": "Error {n}",
   "반영 결과 — {f}": "Result — {f}",
   "미리보기 — {f}": "Preview — {f}",
+  // Logistics · 보험 조회
+  "보험 조회": "Insurance Lookup",
+  "Commission No 로 차량을 조회해 Excel(xlsx)로 내보내기": "Look up vehicles by Commission No and export to Excel (xlsx)",
+  "Commission No 여러 개 (줄바꿈·쉼표 구분)": "Multiple Commission Nos (newline- or comma-separated)",
+  "조회": "Search",
+  "Commission No를 입력하세요.": "Enter Commission Nos.",
+  "조회 {n}건": "Found {n}",
+  "미등록 {n}건: {list}": "Not found {n}: {list}",
+  "엑셀 파일을 만들지 못했습니다.": "Could not create the Excel file.",
 };
 
 /**

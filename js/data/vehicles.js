@@ -72,3 +72,20 @@ async function read() {
 
   return { vehicles, onlyAfab, onlyMain, loadedAt: new Date() };
 }
+
+/**
+ * Commission No 로 차량을 찾는 함수를 만든다.
+ * 엑셀이 숫자로 바꿔 앞자리 0 이 빠진 값도 차량 한 대로 좁혀지면 받아 준다.
+ * @param {object[]} vehicles
+ * @returns {(commission: string) => object | null}
+ */
+export function commissionFinder(vehicles) {
+  const exact = new Map(vehicles.map((v) => [v.commission_no, v]));
+  const loose = new Map();
+  const strip = (text) => text.replace(/^0+/, "");
+  for (const v of vehicles) {
+    const key = strip(String(v.commission_no ?? ""));
+    loose.set(key, loose.has(key) ? null : v);
+  }
+  return (commission) => exact.get(commission) ?? loose.get(strip(commission)) ?? null;
+}

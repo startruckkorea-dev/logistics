@@ -20,7 +20,7 @@ const DEFINITIONS = [
     table: "model_master",
     key: "moma_no",
     columns: [
-      ...text("moma_no", "my", "bm", "vehicle", "model", "type", "axle", "cab", "cab_gen", "pto"),
+      ...text("moma_no", "my", "bm", "gen", "vehicle", "model", "type", "axle", "cab", "cab_gen", "pto"),
       ...number("wheelbase"),
       ...text("emission"),
       ...number("lead_days", "lead"),
@@ -42,7 +42,7 @@ const DEFINITIONS = [
     columns: text(
       "commission_no", "vin_no", "changeability_date", "pm", "tdd_calc",
       "dispatch", "shipping", "invoice", "planned_arrival", "vessel", "color_code",
-      "model_in_afab", "engine_no", "gen", "sub_cat", "afab_editable", "baumuster"
+      "model_in_afab", "engine_no", "sub_cat", "afab_editable", "baumuster"
     ),
   },
   {
@@ -64,7 +64,7 @@ const DEFINITIONS = [
       ...note("tires"),
       ...text("import_license", "ref_commission_no"),
       ...note("option_note", "order_note"),
-      ...text("order_update_date", "b1_factory_order", "co", "sales_month", "model_classification"),
+      ...text("order_update_date", "b1_factory_order", "co", "sales_month", "model_classification", "gen"),
     ],
   },
 ];

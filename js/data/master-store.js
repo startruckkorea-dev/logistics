@@ -19,7 +19,7 @@ export const SOURCE_COLOR = "색상 마스터";
 
 /** 모델 마스터에서 고칠 수 있는 열(키와 Spec 은 뺀다. Spec 은 속성에서 만든다) */
 export const MODEL_EDIT_FIELDS = [
-  "my", "bm", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto", "emission",
+  "my", "bm", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto", "emission", "gen",
   "lead_days", "lead", "is_rep", "active",
 ];
 /** 색상 마스터에서 고칠 수 있는 열 */
@@ -38,7 +38,7 @@ const SPEC_BLANK = "-";
 // 마스터 열 → 차량 행의 열. 이름이 다른 것은 MY 하나다.
 const VEHICLE_FIELD = {
   my: "model_year", bm: "bm", vehicle: "vehicle", model: "model", type: "type", axle: "axle", cab: "cab",
-  cab_gen: "cab_gen", wheelbase: "wheelbase", pto: "pto", emission: "emission",
+  cab_gen: "cab_gen", wheelbase: "wheelbase", pto: "pto", emission: "emission", gen: "gen",
 };
 
 // 리드타임(일)이 바뀌면 Shipping Calc 를 다시 계산하는 단계(아직 선적 전)

@@ -124,6 +124,7 @@ function modelTab(body, data, rebuild) {
     { key: "moma_no", label: "moma_no" },
     { key: "my", label: "MY", edit: "text" },
     { key: "bm", label: "BM", edit: "text" },
+    { key: "gen", label: "Gen", edit: "text" },
     { key: "vehicle", label: "Vehicle", edit: "text" },
     { key: "model", label: "Model", edit: "text" },
     { key: "type", label: "Type", edit: "text" },

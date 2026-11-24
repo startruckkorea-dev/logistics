@@ -268,14 +268,14 @@ function openAddModel(data, rerender) {
     bm: text("bm"), my: text("my", true), vehicle: text("vehicle", true), model: text("model", true),
     type: text("type"), axle: text("axle", true), cab: text("cab", true), cab_gen: text("cab_gen", true),
     wheelbase: text("wheelbase"), pto: text("pto", true), emission: text("emission", true),
-    lead_days: text("lead_days"), lead: text("lead"),
+    gen: text("gen", true), lead_days: text("lead_days"), lead: text("lead"),
   };
   const isRep = mk("input", { type: "checkbox" });
   const active = mk("input", { type: "checkbox" });
   active.checked = true;
   const labels = {
     bm: "BM", my: "MY", vehicle: "Vehicle", model: "Model", type: "Type", axle: "Axle", cab: "Cab", cab_gen: "Cab Gen",
-    wheelbase: "Wheelbase", pto: "PTO", emission: "Emission", lead_days: tx("리드타임(일)"), lead: tx("리드타임(월)"),
+    wheelbase: "Wheelbase", pto: "PTO", emission: "Emission", gen: "Gen", lead_days: tx("리드타임(일)"), lead: tx("리드타임(월)"),
   };
   const error = mk("div", { class: "small error", hidden: true });
   const specLine = mk("span", { class: "mono" });
@@ -334,7 +334,7 @@ function openAddModel(data, rerender) {
         "div",
         { class: "fields" },
         field("BM", controls.bm.node, true),
-        ["my", "vehicle", "model", "type", "axle", "cab", "cab_gen", "pto", "wheelbase", "emission", "lead_days", "lead"].map((name) =>
+        ["my", "gen", "vehicle", "model", "type", "axle", "cab", "cab_gen", "pto", "wheelbase", "emission", "lead_days", "lead"].map((name) =>
           field(labels[name], controls[name].node)
         ),
         field(tx("대표"), mk("label", null, isRep, " Y")),

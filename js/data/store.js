@@ -35,6 +35,7 @@ export function targetListNames(fields) {
 // Model Master 행에서 차량 행으로 옮겨 적는 열(차량 행의 이름)
 const MODEL_FIELDS = [
   "moma_no", "model_year", "bm", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto", "emission",
+  "gen",
 ];
 // 오더 변경이 바꿀 수 있는 열. model_classification 은 이관 때만 채우는 값이라 모델이 바뀌면 비운다.
 const ORDER_FIELDS = [...MODEL_FIELDS, "model_classification", "original_pm", "current_status", "order_update_date"];
@@ -69,7 +70,7 @@ export const ORDER_MAX = 100;
 // Model Master 행 → 차량 행에 들어갈 모델 속성
 function modelFields(model) {
   const { my, ...rest } = Object.fromEntries(
-    ["moma_no", "my", "bm", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto", "emission"].map(
+    ["moma_no", "my", "bm", "vehicle", "model", "type", "axle", "cab", "cab_gen", "wheelbase", "pto", "emission", "gen"].map(
       (name) => [name, model[name] ?? ""]
     )
   );

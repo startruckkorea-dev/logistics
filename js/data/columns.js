@@ -50,7 +50,7 @@ export const COLUMNS = [
   { key: "co", label: "C/O", group: "메모", src: "입력", drawerAfter: "ref_commission_no" },
   { key: "sales_month", label: "Sales Month", group: "일정", src: "입력" },
   { key: "model_classification", label: "Model Classification", group: "사양", src: "자동" },
-  { key: "gen", label: "Gen", group: "사양", src: "AFAB" },
+  { key: "gen", label: "Gen", group: "사양", src: "MODEL_MASTER" },
   { key: "spec", label: "Spec", group: "사양", src: "자동" },
   { key: "sub_cat", label: "Sub Cat", group: "사양", src: "AFAB" },
   { key: "afab_editable", label: "AFAB 수정 가능", group: "사양", src: "AFAB" },

@@ -57,7 +57,7 @@ function modelPicker(models) {
       return;
     }
     const pairs = [
-      ["BM", m.bm], ["Vehicle", m.vehicle], ["Model", m.model], ["Type", m.type], ["Axle", m.axle], ["Cab", m.cab],
+      ["BM", m.bm], ["Gen", m.gen], ["Vehicle", m.vehicle], ["Model", m.model], ["Type", m.type], ["Axle", m.axle], ["Cab", m.cab],
       ["Cab Gen", m.cab_gen], ["PTO", m.pto], ["Wheelbase", m.wheelbase], ["Emission", m.emission],
       [tx("리드타임(일)"), m.lead_days], [tx("리드타임(월)"), m.lead], ["MY", m.my],
     ];

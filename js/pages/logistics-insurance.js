@@ -15,9 +15,9 @@ const KEYS = [
   "dispatch", "shipping", "ata", "tsc_arrival_date",
 ];
 // 엑셀에 날짜 칸으로 넣는 열
-const DATE_KEYS = ["dispatch", "shipping", "ata", "tsc_arrival_date"];
+const DATE_KEYS = ["pm", "dispatch", "shipping", "ata", "tsc_arrival_date"];
 // 고정폭 글꼴로 보이는 열
-const MONO_KEYS = new Set(["commission_no", "vin_no", "bl_no", "pm", ...DATE_KEYS]);
+const MONO_KEYS = new Set(["commission_no", "vin_no", "bl_no", ...DATE_KEYS]);
 
 const labelOf = (key) => COLUMNS.find((c) => c.key === key)?.label ?? key;
 

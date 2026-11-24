@@ -482,40 +482,46 @@ input[type="checkbox"].pend {
 }
 
 /* ---- AFAB 업로드 ----
-   미리보기 표: 차량 1대 = 1행. 바뀌는 값은 칸 안에 "열 이름  기존 값 → 새 값" 으로 한 줄씩 적는다 */
+   미리보기 표: 차량 1대 = 1행(파일의 행 순서). 바뀌는 열마다 1칸(차량 그리드의 열 순서) */
 .af-tbl th.af-pick,
 .af-tbl td.af-pick {
   width: 28px;
   text-align: center;
 }
+.af-tbl th,
 .af-tbl td {
+  white-space: nowrap;
   vertical-align: top;
 }
-.af-tbl .af-chg {
-  white-space: nowrap;
-  line-height: 1.6;
-}
-.af-tbl .af-f {
-  display: inline-block;
-  min-width: 150px;
+/* 바뀌지 않는 칸은 지금 값을 흐리게 */
+.af-tbl td.af-val {
   color: var(--muted);
 }
-/* 기존 값과 새 값 사이의 화살표 */
-.af-tbl .af-chg .old::after {
-  content: "→";
-  display: inline-block;
-  margin-left: 6px;
-  color: var(--muted);
-  text-decoration: none;
+/* 반영하면 바뀌는 칸: 새 값은 초록, 값을 지우는 칸은 빨강. 기존 값은 아래에 작게 */
+.af-tbl td.af-set {
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-weight: 700;
 }
-/* AFAB 값에서 계산해 같이 맞추는 값 */
-.af-tbl .af-auto {
-  margin-left: 6px;
+.af-tbl td.af-set.clear {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.af-tbl .af-was {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
   font-size: 11px;
+}
+/* AFAB 값에서 계산해 같이 맞추는 열 */
+.af-tbl th .af-auto {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 400;
   color: var(--muted);
 }
-/* 주의할 행(노랑), 체크를 푼 행(흐리게) */
-.af-tbl tr.af-review td {
+/* 주의할 행(값 칸 밖을 노랑으로), 체크를 푼 행(흐리게) */
+.af-tbl tr.af-review td:not(.af-val) {
   background: var(--warn-soft);
 }
 .af-tbl tr.af-off td:not(.af-pick) {

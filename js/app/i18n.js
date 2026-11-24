@@ -499,7 +499,6 @@ const DICTIONARY = {
   "{f} 이 날짜가 아님": "{f} is not a date",
   "색상 마스터에 없는 Color Code": "Color Code not in Color Master",
   "AFAB 행 추가": "New AFAB row",
-  "바뀌는 값 (기존 → 새 값)": "Changes (old → new)",
   "바뀌는 차량이 없습니다.": "No vehicles change.",
   "파일에 없는 차량 {n}대 — 아무것도 바꾸지 않습니다": "{n} vehicles not in the file — nothing is changed",
   "AFAB 반영": "Apply AFAB",

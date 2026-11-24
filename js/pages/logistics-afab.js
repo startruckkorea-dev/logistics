@@ -1,5 +1,5 @@
 // Logistics · AFAB 업로드 탭 — AFAB 엑셀을 올려 차량의 AFAB 열에 반영한다.
-// 파일 선택 → 규칙 파일로 가공 → 미리보기(차량마다 바뀌는 값) → 반영하지 않을 행은 체크를 품 → 확인 창 → 저장 → 결과 표시.
+// 파일 선택 → 규칙 파일로 가공 → 미리보기(차량 1행, 바뀌는 열마다 1칸) → 반영하지 않을 행은 체크를 품 → 확인 창 → 저장 → 결과 표시.
 // Current Status 는 바꾸지 않는다. 파일에 없는 차량과 차량 마스터에 없는 Commission 은 보여주기만 한다.
 import { mk } from "../lib/dom.js";
 import { ENV } from "../lib/config.js";
@@ -11,6 +11,7 @@ import { COLUMNS, STAGE_ORDER, stageClass } from "../data/columns.js";
 import { RuleError } from "../etl/transform.js";
 import { loadVehicles } from "../data/vehicles.js";
 import { loadColorMaster } from "../data/masters.js";
+import { AFAB_DERIVED_FIELDS } from "../data/store.js";
 import {
   AfabRulesError, afabRulesPath, loadAfabRules, readAfabTable, planAfab, afabListNames, applyAfab,
 } from "../data/afab-store.js";
@@ -19,8 +20,6 @@ const labelOf = (field) => COLUMNS.find((c) => c.key === field)?.label ?? field;
 const pill = (kind, text) => mk("span", { class: `pill ${kind}` }, text);
 const dim = () => mk("span", { class: "muted" }, "·");
 
-// 표에 보이는 순서: 사람이 봐야 하는 것부터. 변경 없는 행은 표에 넣지 않는다
-const KIND_ORDER = ["review", "error", "missing", "ok"];
 const ERROR_TEXT = {
   no_commission: "Commission No 가 비어 있음",
   duplicate: "같은 차량이 여러 줄에 있음",
@@ -143,26 +142,28 @@ export function renderAfabTab(root) {
     return [zone, input];
   }
 
-  // ---- 미리보기 표: 차량 1대 = 1행, 바뀌는 값은 "열 이름  기존 값 → 새 값" 으로 한 줄씩 ----
+  // ---- 미리보기 표: 차량 1대 = 1행(파일의 행 순서), 바뀌는 열마다 1칸(차량 그리드의 열 순서) ----
 
-  function changeLine(change, auto) {
-    return mk(
-      "div",
-      { class: "af-chg" },
-      mk("span", { class: "af-f" }, labelOf(change.field)),
-      change.old ? mk("span", { class: "old" }, change.old) : null,
-      mk("span", { class: change.new ? "new" : "muted" }, change.new || tx("(빈 값)")),
-      auto ? mk("span", { class: "af-auto" }, tx("자동")) : null
-    );
+  // 표에 펼칠 열: 반영할 수 있는 행 중 하나라도 바뀌는 열만, 차량 그리드의 순서로
+  function shownFields() {
+    const used = new Set();
+    for (const item of state.plan.items) {
+      if (canApply(item)) for (const change of [...item.changes, ...item.derived]) used.add(change.field);
+    }
+    return COLUMNS.map((c) => c.key).filter((key) => used.has(key));
   }
 
-  function changesCell(item) {
-    if (!item.changes.length) return mk("td", null, dim());
+  // 값 칸. 체크된 행의 바뀌는 칸만 강조해 새 값을 보여주고 기존 값을 아래에 작게 적는다. 그 밖에는 지금 값을 보여준다
+  function valueCell(item, field) {
+    if (!item.vehicle || item.kind === "error") return mk("td", { class: "mono af-val" }, dim());
+    const now = String(item.vehicle[field] ?? "");
+    const change = [...item.changes, ...item.derived].find((c) => c.field === field);
+    if (state.results || !isOn(item) || !change) return mk("td", { class: "mono af-val" }, now || dim());
     return mk(
       "td",
-      { class: "diff" },
-      item.changes.map((c) => changeLine(c, false)),
-      item.derived.map((c) => changeLine(c, true))
+      { class: `mono af-val af-set${change.new ? "" : " clear"}` },
+      change.new || tx("(빈 값)"),
+      change.old ? mk("span", { class: "af-was" }, tx("기존 {v}", { v: change.old })) : null
     );
   }
 
@@ -190,7 +191,7 @@ export function renderAfabTab(root) {
     ];
   }
 
-  function previewRow(item, onChange) {
+  function previewRow(item, fields, onChange) {
     const selectable = canApply(item) && !state.results;
     const box = selectable
       ? mk("input", { type: "checkbox", class: "rowsel", checked: isOn(item), disabled: state.saving })
@@ -204,14 +205,14 @@ export function renderAfabTab(root) {
       mk("td", { class: "num" }, item.line),
       mk("td", { class: "mono" }, item.commission || dim()),
       mk("td", null, status ? pill(stageClass(status), status) : dim()),
-      changesCell(item),
+      fields.map((field) => valueCell(item, field)),
       mk("td", null, noteCell(item))
     );
     box?.addEventListener("change", () => {
       if (box.checked) state.off.delete(item);
       else state.off.add(item);
       // 그 행만 다시 그린다(표의 스크롤 위치가 유지된다)
-      tr.replaceWith(previewRow(item, onChange));
+      tr.replaceWith(previewRow(item, fields, onChange));
       onChange();
     });
     return tr;
@@ -219,9 +220,9 @@ export function renderAfabTab(root) {
 
   // @returns {{node: Node, sync: () => void}} sync 는 머리글 체크박스를 지금의 선택에 맞춘다
   function previewTable(onChange) {
-    const shown = state.plan.items
-      .filter((item) => item.kind !== "same")
-      .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.line - b.line);
+    // 파일의 행 순서 그대로. 변경 없는 행은 표에 넣지 않는다
+    const shown = state.plan.items.filter((item) => item.kind !== "same").sort((a, b) => a.line - b.line);
+    const fields = shownFields();
     const appliable = state.plan.items.filter(canApply);
     const all = state.results || !appliable.length
       ? null
@@ -255,11 +256,18 @@ export function renderAfabTab(root) {
                 mk("th", { class: "num" }, tx("행")),
                 mk("th", null, labelOf("commission_no")),
                 mk("th", null, labelOf("current_status")),
-                mk("th", null, tx("바뀌는 값 (기존 → 새 값)")),
+                fields.map((field) =>
+                  mk(
+                    "th",
+                    null,
+                    labelOf(field),
+                    AFAB_DERIVED_FIELDS.includes(field) ? mk("span", { class: "af-auto" }, tx("자동")) : null
+                  )
+                ),
                 mk("th", null, tx(state.results ? "결과" : "확인"))
               )
             ),
-            mk("tbody", null, shown.map((item) => previewRow(item, onChange)))
+            mk("tbody", null, shown.map((item) => previewRow(item, fields, onChange)))
           )
         )
       : mk("p", { class: "muted" }, tx("바뀌는 차량이 없습니다."));

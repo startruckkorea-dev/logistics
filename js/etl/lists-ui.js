@@ -8,6 +8,7 @@ import {
 } from "../lib/splist.js";
 import { LISTS, APP_LISTS, listForTable } from "./lists.js";
 import { planLoad, compareColumns } from "./load-plan.js";
+import { readModelLock } from "./model-lock.js";
 
 // 운영에서 쓰기 전에 입력해야 하는 확인 문구
 const PROD_CONFIRM_WORD = "PRD";
@@ -35,13 +36,13 @@ function describeError(err) {
 }
 
 // 운영에서만 나타나는 확인 입력. 반환한 isConfirmed() 가 참이어야 쓴다.
-function prodConfirm() {
+export function prodConfirm() {
   if (ENV_NAME !== "prod") return { node: null, isConfirmed: () => true };
   const input = mk("input", { type: "text", "aria-label": "운영 확인 문구" });
   const node = mk(
     "p",
     { class: "error" },
-    `운영 List 에 씁니다. 계속하려면 ${PROD_CONFIRM_WORD} 를 입력하세요: `,
+    `운영에 씁니다. 계속하려면 ${PROD_CONFIRM_WORD} 를 입력하세요: `,
     input
   );
   return { node, isConfirmed: () => input.value.trim() === PROD_CONFIRM_WORD };
@@ -184,7 +185,16 @@ async function buildPlans(result) {
       continue;
     }
     const items = await readListItems(found.id, def.columns.map((c) => c.name));
-    plans.push({ table, def, listId: found.id, plan: planLoad(table, def, items), note: "" });
+    // 모델 고정 목록을 쓰는 List 면 목록을 읽어 넘긴다. 목록 파일이 없으면 고정 없이 비교한다
+    const lock = def.lock ? await readModelLock() : null;
+    plans.push({
+      table,
+      def,
+      listId: found.id,
+      plan: planLoad(table, def, items, { lockedKeys: lock?.keys }),
+      note: "",
+      lockSize: def.lock ? lock?.keys.size ?? null : undefined,
+    });
   }
   return plans;
 }
@@ -221,6 +231,40 @@ function changedColumnsNote(plans) {
   return lines.length ? mk("p", { class: "hint" }, "변경되는 열 — ", lines.join(" / ")) : null;
 }
 
+// 고정 목록에 없는데 모델이 정해지지 않은 행. 엑셀에서 찾아 고칠 수 있게 행 번호를 보여준다
+function unresolvedNote(plans) {
+  const lines = plans
+    .filter((p) => p.plan?.unresolved)
+    .map((p) => {
+      const { unresolved, unresolvedLines } = p.plan;
+      const rows = unresolvedLines.length
+        ? ` 엑셀 행 번호(${p.table.sheet ?? p.table.name}): ${unresolvedLines.join(", ")}${unresolved > unresolvedLines.length ? " …" : ""}`
+        : "";
+      return `${p.def.listName}: ${p.def.lock.required} 를 정하지 못한 차량 ${unresolved}대.${rows}`;
+    });
+  return lines.length
+    ? mk(
+        "p",
+        { class: "error" },
+        "모델을 찾지 못한 차량 — ",
+        lines.join(" / "),
+        " 엑셀의 연식·BM 이나 Model Master 를 고친 뒤 다시 전처리하세요."
+      )
+    : null;
+}
+
+// 모델 고정 목록을 쓰는 List: 목록 크기와 이번 결과에서 고정된 항목 수
+function lockNote(plans) {
+  const lines = plans
+    .filter((p) => p.plan && p.lockSize !== undefined)
+    .map((p) =>
+      p.lockSize === null
+        ? `${p.def.listName}: 목록 파일이 없어 고정 없이 비교했습니다`
+        : `${p.def.listName}: 목록 ${p.lockSize}대 중 이번 결과의 ${p.plan.locked}대는 ${p.def.lock.columns.join(", ")} 을 바꾸지 않습니다`
+    );
+  return lines.length ? mk("p", { class: "hint" }, "모델 고정 — ", lines.join(" / ")) : null;
+}
+
 /**
  * 전처리 결과 화면 아래에 붙는 적재 영역.
  * @param {object} result runRules 의 결과
@@ -247,7 +291,12 @@ export function loadSection(result, setStatus) {
   function showPlans(plans) {
     const blocked = plans.some((p) => !p.plan || p.plan.problems.length);
     const total = plans.reduce((n, p) => n + (p.plan?.ops.length ?? 0), 0);
-    body.replaceChildren(planTable(plans), changedColumnsNote(plans) ?? "");
+    body.replaceChildren(
+      planTable(plans),
+      changedColumnsNote(plans) ?? "",
+      lockNote(plans) ?? "",
+      unresolvedNote(plans) ?? ""
+    );
 
     if (blocked) {
       body.append(mk("p", { class: "error" }, "문제가 있어 적재할 수 없습니다. 위 표의 문제 열을 확인하세요."));

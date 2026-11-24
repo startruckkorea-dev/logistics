@@ -38,6 +38,11 @@ const ENVIRONMENTS = {
       readDownload: "02._kufri_UAT/Internal/R-Download",
     },
     rulesFile: "02._kufri_UAT/Internal/Modify/preprocess-rules.uat.json",
+    // 모델 고정 목록: 1차 이관 때 이미 모델이 확정된 차량. 적재가 이 차량의 모델 관련 열을 바꾸지 않는다.
+    //   lockRulesFile: 1차 파일에서 대상 차량을 고르는 규칙 파일(형식은 전처리 규칙 파일과 같다)
+    //   modelLockFile: 만들어진 목록. 관리 화면에서 만든다
+    lockRulesFile: "02._kufri_UAT/Internal/Modify/model-lock-rules.uat.json",
+    modelLockFile: "02._kufri_UAT/Internal/Modify/model-lock.uat.json",
     // AFAB 업로드가 올린 파일을 가공할 때 쓰는 규칙 파일. 형식은 전처리 규칙 파일과 같다.
     afabRulesFile: "02._kufri_UAT/Internal/Modify/afab-rules.uat.json",
     // 선적·입항 공지(자유 입력 한 칸). 처음 저장할 때 만들어진다.
@@ -61,6 +66,8 @@ const ENVIRONMENTS = {
       readDownload: "01._kufri/Internal/R-Download",
     },
     rulesFile: "01._kufri/Internal/Modify/preprocess-rules.prod.json",
+    lockRulesFile: "01._kufri/Internal/Modify/model-lock-rules.prod.json",
+    modelLockFile: "01._kufri/Internal/Modify/model-lock.prod.json",
     afabRulesFile: "01._kufri/Internal/Modify/afab-rules.prod.json",
     noticeFile: "01._kufri/Internal/Modify/shipping-notice.prod.json",
     lists: {
@@ -87,6 +94,8 @@ export const SHAREPOINT = {
   sitePath: "/sites/STK-Kufri",
   folders: ENV.folders,
   rulesFile: ENV.rulesFile,
+  lockRulesFile: ENV.lockRulesFile,
+  modelLockFile: ENV.modelLockFile,
   afabRulesFile: ENV.afabRulesFile,
   noticeFile: ENV.noticeFile,
   // 같은 사이트를 UAT 와 운영이 같이 쓰므로 List 는 이름의 접두어로 구분한다.

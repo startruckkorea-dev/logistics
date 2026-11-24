@@ -14,6 +14,14 @@ const boolean = (...names) => columns("boolean", names);
 // table  : 전처리 규칙 파일 outputs 의 name
 // key    : 키 열. 고유값 + 인덱스를 건다
 // indexed: 인덱스만 거는 열
+// lock   : 적재할 때 고정 목록에 있는 키의 행은 columns 의 열을 바꾸지 않는다(이미 있는 항목만 해당).
+//          목록에 없는 행은 required 열이 비어 있으면 적재를 막는다
+
+// 차량 행에서 모델에 딸린 열(모델 연결과 Model Master 에서 옮겨 적은 속성)
+const MODEL_COLUMNS = [
+  "moma_no", "model_year", "bm", "vehicle", "model", "type", "axle", "cab", "cab_gen", "pto", "wheelbase",
+  "emission", "gen",
+];
 const DEFINITIONS = [
   {
     id: "modelMaster",
@@ -50,6 +58,9 @@ const DEFINITIONS = [
     table: "logistics_main",
     key: "commission_no",
     indexed: ["moma_no"],
+    // 모델 고정 목록(model-lock.js)에 있는 차량은 모델 연결과 모델 속성을 바꾸지 않는다.
+    // 목록에 없는 차량은 전처리 결과에 모델(moma_no)이 있어야 적재한다
+    lock: { columns: MODEL_COLUMNS, required: "moma_no" },
     columns: [
       ...text(
         "commission_no", "current_status", "moma_no", "model_year", "bm", "vehicle", "model", "type", "axle",

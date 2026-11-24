@@ -8,7 +8,8 @@ import { renderPreview } from "../etl/preview.js";
 import { validateRules } from "../etl/rules-validate.js";
 import { runRules, RuleError } from "../etl/transform.js";
 import { renderResult, renderRuleErrors, renderRunError } from "../etl/result.js";
-import { renderListCheck, loadSection } from "../etl/lists-ui.js";
+import { renderListCheck, loadSection, prodConfirm } from "../etl/lists-ui.js";
+import { checkLockRules, lockKeysOf, readModelLock, saveModelLock } from "../etl/model-lock.js";
 import { renderWriteCheck, WRITE_CHECK_LIST } from "../etl/write-check.js";
 
 const $ = (id) => document.getElementById(id);
@@ -140,8 +141,114 @@ function preprocessButton(item) {
   return button;
 }
 
+// 모델 고정 목록 — 고정 목록용 규칙 파일을 이 엑셀(1차 이관 파일)에 적용해 대상 차량의 키를 모으고,
+// 건수를 확인받은 뒤 JSON 파일로 저장한다. 화면에는 건수와 파일 경로만 보여준다.
+async function runModelLock(item, button) {
+  button.disabled = true;
+  const container = $("result");
+  try {
+    setStatus(`규칙 파일(${SHAREPOINT.lockRulesFile})을 읽는 중...`);
+    let file;
+    try {
+      file = await readTextFile(SHAREPOINT.lockRulesFile);
+    } catch (err) {
+      if (err?.status !== 404) throw err;
+      setStatus(`모델 고정 목록용 규칙 파일이 없습니다: ${SHAREPOINT.lockRulesFile}`, true);
+      return;
+    }
+    const info = { ...file, envLabel: ENV.label };
+    let rules;
+    try {
+      rules = JSON.parse(file.text);
+    } catch {
+      renderRuleErrors(container, info, [
+        { where: "파일", item: "전체", message: "JSON 형식이 아닙니다(쉼표·따옴표·괄호를 확인하세요)" },
+      ]);
+      setStatus("규칙 파일을 읽을 수 없습니다.", true);
+      return;
+    }
+    const errors = validateRules(rules, ENV_NAME);
+    if (!errors.length) errors.push(...checkLockRules(rules));
+    if (errors.length) {
+      renderRuleErrors(container, info, errors);
+      setStatus(`규칙 파일 형식 오류 ${errors.length}건`, true);
+      return;
+    }
+
+    setStatus(`${item.name} 을(를) 읽는 중...`);
+    const workbook = await readWorkbook(item.id);
+    let keys;
+    try {
+      keys = lockKeysOf(runRules(workbook, rules));
+    } catch (err) {
+      if (!(err instanceof RuleError)) throw err;
+      renderRunError(container, info, err);
+      setStatus("모델 고정 목록을 만들지 못했습니다.", true);
+      return;
+    }
+    const current = await readModelLock();
+    renderModelLock(container, item, keys, current);
+    setStatus(`${item.name} — 모델 고정 대상 ${keys.length}대`);
+  } catch (err) {
+    console.error(err);
+    setStatus(`모델 고정 목록 실패: ${err.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderModelLock(container, item, keys, current) {
+  const confirm = prodConfirm();
+  const save = mk("button", { type: "button" }, `목록 저장 (${keys.length}대)`);
+  save.disabled = keys.length === 0;
+  save.addEventListener("click", async () => {
+    if (!confirm.isConfirmed()) {
+      setStatus("확인 문구가 맞지 않습니다.", true);
+      return;
+    }
+    save.disabled = true;
+    try {
+      await saveModelLock(keys, item.name, current?.etag);
+      setStatus(`모델 고정 목록을 저장했습니다 — ${keys.length}대`);
+    } catch (err) {
+      console.error(err);
+      setStatus(
+        err?.status === 412
+          ? "그사이 목록 파일이 바뀌었습니다. 다시 만들어 주세요."
+          : `모델 고정 목록 저장 실패: ${err?.status ?? ""} ${err?.message ?? ""}`.trim(),
+        true
+      );
+      save.disabled = false;
+    }
+  });
+  container.replaceChildren(
+    mk("h2", null, "모델 고정 목록"),
+    mk("p", { class: "hint" }, `원본 ${item.name} · 규칙 파일 ${SHAREPOINT.lockRulesFile}`),
+    mk("p", null, `모델 고정 대상 ${keys.length}대. 적재는 이 차량의 모델 연결과 모델 속성을 바꾸지 않습니다.`),
+    mk(
+      "p",
+      { class: "hint" },
+      current
+        ? `지금 저장된 목록: ${current.keys.size}대 · 원본 ${current.source || "-"} · 저장 ${
+            current.savedAt ? new Date(current.savedAt).toLocaleString("ko-KR") : "-"
+          }. 저장하면 이 목록을 바꿉니다.`
+        : "지금 저장된 목록이 없습니다."
+    ),
+    mk("p", { class: "hint" }, `대상(${ENV.label}): ${SHAREPOINT.modelLockFile}`),
+    confirm.node ?? "",
+    save
+  );
+  container.hidden = false;
+}
+
+function modelLockButton(item) {
+  const button = mk("button", { type: "button" }, "모델 고정 목록");
+  button.addEventListener("click", () => runModelLock(item, button));
+  return button;
+}
+
 function excelCell(item) {
-  return mk("span", { class: "actions" }, loadButton(item), preprocessButton(item));
+  return mk("span", { class: "actions" }, loadButton(item), preprocessButton(item), modelLockButton(item));
 }
 
 function renderItems(items) {

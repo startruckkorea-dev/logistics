@@ -181,8 +181,7 @@ function trendCard(vehicles, baseMonth) {
 // ---- 입항 예정 선박: 입항 예정일은 Planned Arrival → ETA(선사) → ATA 순으로 바뀐다.
 // 선적·입항과 같은 선박 목록을 쓴다(TSC 입고일을 확정한 뒤 TSC_KEEP_DAYS 일까지 보여준다) ----
 function shipsCard(vehicles, today) {
-  const voyages = listVoyages(vehicles, today)
-    .sort((a, b) => ((a.eta_final || a.eta_carrier || a.pl || "9") < (b.eta_final || b.eta_carrier || b.pl || "9") ? -1 : 1));
+  const voyages = listVoyages(vehicles, today);
   const arrivalCell = (y) => {
     const [date, tag] = y.eta_final ? [y.eta_final, "ATA"] : y.eta_carrier ? [y.eta_carrier, "ETA"] : [y.pl, "Pl."];
     const cls = tag === "ATA" ? "st-oh" : tag === "ETA" ? "st-transit" : "neutral";

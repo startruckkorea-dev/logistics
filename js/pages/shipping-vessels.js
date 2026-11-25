@@ -45,9 +45,7 @@ function pendingCount() {
  */
 export function vesselsCard(vehicles, notes, notice, hooks) {
   const today = baseDate();
-  const voyages = listVoyages(vehicles, today).sort((a, b) =>
-    (a.shipping || "9") !== (b.shipping || "9") ? ((a.shipping || "9") < (b.shipping || "9") ? -1 : 1) : a.vessel < b.vessel ? -1 : 1
-  );
+  const voyages = listVoyages(vehicles, today);
   const byKey = new Map(voyages.map((y) => [y.key, y]));
 
   // 저장된 값. TSC 입고일은 확정이면 차량의 날짜, 아니면 선박에 둔 예정일이다.

@@ -128,7 +128,8 @@ export const voyageKey = (vessel, shipping) => `${vessel}|${shipping ?? ""}`;
  * @returns {Array<{key, vessel, shipping, kind: "transit"|"scheduled"|"arrived", count, pl, eta_carrier, eta_final,
  *                   bl, bls: string[], tsc, confirmed: boolean, vehicles}>}
  *   날짜는 선박 안에서 가장 이른 값. bls = 차량들에 들어 있는 B/L(보통 하나), bl = 그것을 이은 글.
- *   confirmed = TSC 입고일이 차량에 들어가 있다(확정). vehicles = 그 선박의 차량
+ *   confirmed = TSC 입고일이 차량에 들어가 있다(확정). vehicles = 그 선박의 차량.
+ *   Shipping 날짜 > 선박 이름 순으로 정렬해 돌려준다
  */
 export function listVoyages(vehicles, today) {
   const groups = new Map();
@@ -161,7 +162,9 @@ export function listVoyages(vehicles, today) {
       vehicles: list,
     });
   }
-  return out;
+  // 순서: Shipping 날짜(없으면 맨 뒤) > 선박 이름. 대시보드와 선적·입항이 같은 순서로 보여준다
+  const when = (y) => y.shipping || "9";
+  return out.sort((a, b) => (when(a) !== when(b) ? (when(a) < when(b) ? -1 : 1) : a.vessel < b.vessel ? -1 : 1));
 }
 
 /**

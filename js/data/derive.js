@@ -62,9 +62,9 @@ export function modelOptionTag(v) {
     .join(" ");
 }
 
-/** 입항 표의 모델 행 이름: Vehicle · Model · Type · Axle · Cab · 옵션 표시 */
+/** 입항 표의 모델 행 이름: Model · Type · Axle · Cab · 옵션 표시. Vehicle 은 바로 위 차종 행에 있어 뺀다 */
 export function arrivalModelLabel(v) {
-  return [v.vehicle, v.model, v.type, v.axle, v.cab, modelOptionTag(v)].filter(Boolean).join(" ");
+  return [v.model, v.type, v.axle, v.cab, modelOptionTag(v)].filter(Boolean).join(" ");
 }
 
 /** 차량에 나오는 Vehicle 값. 정해 둔 순서(VEHICLE_ORDER)로, 목록에 없는 값은 그 뒤에 글자 순 */

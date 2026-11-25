@@ -210,7 +210,7 @@ function monthlyCard(vehicles, baseMonth, rerender) {
         "span",
         { class: "desc" },
         [
-          tx("행: 구분 > 차종 > 모델(Vehicle · Model · Type · Axle · Cab · 비표준 옵션) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)"),
+          tx("행: 구분 > 차종 > 모델(Model · Type · Axle · Cab · 비표준 옵션) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)"),
           tx("당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)"),
           tx("미배정 = Vessel 없이 ETA From TDD만 있는 오더 (ETA From TDD 월)"),
         ].join(" · ")

@@ -164,7 +164,7 @@ function matrixCard(list) {
     { class: "card" },
     cardHead(
       tx("모델별 구역 현황"),
-      tx("행 = 구분 > 차종 > 모델(Vehicle Model Type Axle Cab 비표준 옵션) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)")
+      tx("행 = 구분 > 차종 > 모델(Model Type Axle Cab 비표준 옵션) · 열 = 5구역 균등 · 막대 = 연식 누적, 길이 = 대수(모델 행끼리 · 그룹 행끼리 같은 기준)")
     ),
     mk("div", { class: "cfs3" }, portsRowEl(ports), mk("div", { class: "cfs3body" }, band, head, body, vlinesEl(ports)))
   );

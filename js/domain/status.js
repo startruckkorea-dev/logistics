@@ -34,6 +34,29 @@ export const isShipmentScheduled = (vessel, shippingDate) =>
 export const isShipped = (shippingDate, baseDate) =>
   Boolean(shippingDate) && shippingDate <= baseDate;
 
+/**
+ * 날짜가 지나 다음 단계로 넘어갈 차량이면 그 단계를 돌려준다. 한 번에 한 단계만이다
+ * (이어지는 전환은 반영한 뒤 다시 판정한다).
+ * In Production 은 Vessel 과 Shipping 이 정해져야 넘어간다. Shipping 이 지났어도 In Transit 으로 바로 가지 않는다.
+ * @param {{status?: string, changeability?: string, pm?: string, vessel?: string, shipping?: string}} v
+ * @param {string} baseDate "YYYY-MM-DD"
+ * @returns {null | {to: string, rule: "changeability" | "pm" | "vessel" | "shipped"}}
+ */
+export function nextStatus(v, baseDate) {
+  switch (v.status) {
+    case STATUS.ORDERED_CHANGEABLE:
+      return isChangeabilityPassed(v.changeability, baseDate) ? { to: STATUS.ORDERED_FIXED, rule: "changeability" } : null;
+    case STATUS.ORDERED_FIXED:
+      return isProductionMonthReached(v.pm, baseDate) ? { to: STATUS.IN_PRODUCTION, rule: "pm" } : null;
+    case STATUS.IN_PRODUCTION:
+      return isShipmentScheduled(v.vessel, v.shipping) ? { to: STATUS.SHIPMENT_SCHEDULED, rule: "vessel" } : null;
+    case STATUS.SHIPMENT_SCHEDULED:
+      return isShipped(v.shipping, baseDate) ? { to: STATUS.IN_TRANSIT, rule: "shipped" } : null;
+    default:
+      return null;
+  }
+}
+
 // 더미 오더: Order Note 에 marker 가 있고 exclude 가 없다
 export function isDummyOrder(orderNote, marker, exclude) {
   const note = String(orderNote ?? "");

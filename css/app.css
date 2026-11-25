@@ -578,3 +578,21 @@ input[type="checkbox"].pend {
   padding: 0 4px;
   box-sizing: border-box;
 }
+
+/* ---- Current Status 업데이트 창 ----
+   전환마다 표 하나. 표가 길면 표 안에서 세로 스크롤한다 */
+.su-group .tbl-wrap {
+  max-height: 240px;
+}
+.su-tbl th.su-pick,
+.su-tbl td.su-pick {
+  width: 28px;
+  text-align: center;
+}
+.su-tbl tr.su-off td:not(.su-pick) {
+  opacity: 0.55;
+}
+.su-info {
+  margin-right: auto;
+  align-self: center;
+}

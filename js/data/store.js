@@ -56,6 +56,8 @@ export const AFAB_FIELDS = SLOTS.find(([slot]) => slot === "afab")[1]
 export const AFAB_DERIVED_FIELDS = ["shipping_calc", "eta_from_tdd", "color_name"];
 // AFAB 업로드는 상태도 바꾼다(Rejected, Rejected 해제, Shipment scheduled)
 const AFAB_UPLOAD_FIELDS = [...AFAB_FIELDS, ...AFAB_DERIVED_FIELDS, "current_status"];
+// 상태 자동 갱신과 상태 정리는 상태 열만 바꾼다
+const STATUS_FIELDS = ["current_status"];
 const DATE_FIELDS = ["b1_factory_order", "eta_from_eukor_pirt", "ata", "tsc_arrival_date", "customs_clearance_date"];
 
 /** 편집 모드에서 저장 대기에 오를 수 있는 열 전체(입력 열 + 오더 변경 열) */
@@ -265,6 +267,7 @@ async function saveSlot(slot, def, jobs, onProgress) {
  *   customs 가 참이면 통관 완료 처리다: Customs Clearance Date·Import License·상태 열을 받는다
  *   afab 가 참이면 AFAB 업로드다: AFAB List 의 열과 거기서 나오는 Shipping Calc·ETA From TDD·Color Name, 그리고 상태 열을 받는다.
  *     AFAB List 에 행이 없는 차량은 행을 만든다. AFAB List 를 먼저 쓰고 Main List 를 쓴다
+ *   status 가 참이면 상태 자동 갱신·상태 정리다: 상태 열만 받는다
  * @param {string} [source] 변경 경로(이력에 남긴다)
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {Promise<{
@@ -283,10 +286,15 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
   };
   const jobs = [];
   for (const edit of edits) {
-    const { vehicle, inputs, source: own, order = false, voyage = false, master = false, customs = false, afab = false } = edit;
+    const {
+      vehicle, inputs, source: own,
+      order = false, voyage = false, master = false, customs = false, afab = false, status = false,
+    } = edit;
     const allowed = order
       ? EDIT_FIELDS
-      : voyage
+      : status
+        ? STATUS_FIELDS
+        : voyage
         ? VOYAGE_FIELDS
         : master
           ? MASTER_FIELDS

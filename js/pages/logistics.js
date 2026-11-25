@@ -15,6 +15,7 @@ import {
 } from "./logistics-edit.js";
 import { openBulkInput } from "./logistics-bulk.js";
 import { openOrderCreate, openOrderChange } from "./logistics-order.js";
+import { openStatusUpdate, statusUpdateCount } from "./logistics-status.js";
 import { renderAfabTab } from "./logistics-afab.js";
 import { renderCustomsTab } from "./logistics-customs.js";
 import { renderInsuranceTab } from "./logistics-insurance.js";
@@ -411,9 +412,14 @@ function syncSelectAll() {
 
 // 편집 모드 표시줄과 편집 버튼
 function renderEditState() {
-  const { editButton, createButton, reloadButton, editbar } = els;
+  const { editButton, createButton, statusButton, reloadButton, editbar } = els;
   // 오더 생성은 편집 모드 밖에서 한다(편집 중에는 저장 대기와 섞이지 않게)
   createButton.disabled = edit.on;
+  // 상태 업데이트: 바꿀 차량이 있을 때만 보인다. 바로 저장하므로 편집 모드 밖에서 한다
+  const statusCount = statusUpdateCount(vehicles);
+  statusButton.hidden = statusCount === 0;
+  statusButton.disabled = edit.on;
+  statusButton.textContent = tx("상태 업데이트 대상 {n}건", { n: num(statusCount) });
   editButton.textContent = edit.saving ? tx("저장 중...") : edit.on ? tx("편집 종료") : tx("편집");
   editButton.classList.toggle("primary", edit.on);
   editButton.disabled = edit.saving;
@@ -919,9 +925,18 @@ function buildScreen(root, meta) {
   const createButton = mk("button", { class: "btn sm", type: "button" }, tx("오더 생성"));
   createButton.addEventListener("click", () => openOrderCreate(vehicles, { render: renderGrid }));
 
+  const statusButton = mk("button", {
+    class: "btn sm primary",
+    type: "button",
+    hidden: true,
+    title: tx("날짜가 지난 차량의 Current Status 를 다음 단계로 바꿉니다"),
+  });
+  statusButton.addEventListener("click", () => openStatusUpdate(vehicles, { render: renderGrid }));
+
   els = {
     editButton,
     createButton,
+    statusButton,
     columnsButton,
     reloadButton: reload,
     editbar: mk("div", { class: "editbar", hidden: true }),
@@ -1059,7 +1074,7 @@ function buildScreen(root, meta) {
         "div",
         { class: "card-h" },
         mk("h2", null, tx("Logistics 차량 마스터")),
-        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, columnsButton, editButton, createButton, reload, els.count)
+        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, columnsButton, editButton, createButton, statusButton, reload, els.count)
       ),
       mismatch,
       els.editbar,

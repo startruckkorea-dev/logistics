@@ -508,6 +508,21 @@ const DICTIONARY = {
   "차량 {n}대에 반영 · AFAB 행 추가 {c}대": "Applied to {n} vehicles · new AFAB rows: {c}",
   "파일 {r}행 · AFAB 행 추가 {c}대 · 색상 마스터에 없는 Color Code {u}건 · 파일에 없는 차량 {a}대": "File rows {r} · new AFAB rows {c} · Color Codes not in Color Master {u} · vehicles not in the file {a}",
   "⚠ 표시가 있는 행은 날짜 열에 날짜가 아닌 값이 들어갑니다. 반영하지 않을 행은 체크를 푸세요.": "Rows marked ⚠ put a non-date value in a date column. Uncheck the rows you do not want to apply.",
+  // Current Status 업데이트(상태 자동 갱신)
+  "Current Status 업데이트": "Update Current Status",
+  "상태 업데이트 대상 {n}건": "{n} status updates pending",
+  "날짜가 지난 차량의 Current Status 를 다음 단계로 바꿉니다": "Moves vehicles whose dates have passed to the next Current Status",
+  "상태를 바꿀 차량이 없습니다.": "No vehicles need a status change.",
+  "선택 {n}건 / 대상 {a}건": "Selected {n} / {a} pending",
+  "Changeability Date 경과": "Changeability Date passed",
+  "PM(생산월) 도래": "Production month reached",
+  "Vessel · Shipping 확정": "Vessel · Shipping set",
+  "Shipping 날짜 경과": "Shipping date passed",
+  "변경 전": "Before",
+  "변경 후": "After",
+  "사유": "Reason",
+  "Current Status 업데이트 {n}대 반영": "Current Status updated on {n} vehicles",
+  "오늘({d}) 기준으로 날짜가 지난 차량의 Current Status 를 다음 단계로 바꿉니다. 한 번에 한 단계만 바꾸므로, 반영한 뒤 대상이 다시 나오면 한 번 더 반영하세요. 체크를 푼 차량은 바꾸지 않습니다. '반영'을 누르면 바로 저장되고 변경 이력에 남습니다.": "Moves vehicles whose dates have passed as of today ({d}) to the next Current Status. Only one step is applied at a time, so apply again if vehicles are still listed afterwards. Unchecked vehicles are left as they are. 'Apply' saves immediately and records change history.",
 };
 
 /**

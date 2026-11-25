@@ -5,6 +5,3 @@ import { todayIso } from "../domain/dates.js";
 
 /** @returns {string} "YYYY-MM-DD" */
 export const baseDate = () => ENV.baseDate ?? todayIso();
-
-/** 기준일을 설정으로 고정해 둔 상태인지 */
-export const isBaseDateFixed = () => Boolean(ENV.baseDate);

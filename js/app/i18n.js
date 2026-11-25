@@ -41,7 +41,7 @@ const DICTIONARY = {
   "차량 데이터를 불러오지 못했습니다.": "Could not load vehicles.",
   "전체 열 검색 (여러 개는 쉼표 구분) · Current Status · 날짜 열 제외":
     "Search all columns (comma-separated for multiple) · except Current Status and date columns",
-  "Shipping 미입력 · Shipping Calc 경과 {n}일 (기준일 {d})":
+  "Shipping 미입력 · Shipping Calc 경과 {n}일 (오늘 {d})":
     "No Shipping yet · {n} days past Shipping Calc (as of {d})",
   "Shipping {s} · 실적 PM~Shipping {m}일 (계획 {p}일, 초과 {n}일)":
     "Shipping {s} · actual PM~Shipping {m} days (plan {p}, over by {n})",
@@ -79,7 +79,6 @@ const DICTIONARY = {
   "일정": "Schedule",
   "선적": "Shipping",
   "사양": "Spec",
-  "기준일": "Base date",
   "미배정 셀 클릭 → 해당 월 ETA From TDD · Vessel 빈 값 목록. 월 Total 은 미배정을 포함한 그 달 전체.":
     "Click an unassigned cell → that month's ETA From TDD list with blank Vessel. A month Total covers the whole month including unassigned.",
   // 출처 배지
@@ -283,7 +282,7 @@ const DICTIONARY = {
   "Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환 · TSC 입고일 후 {n}일까지 표시": "Pl. arrival (AFAB) → ETA (EUKOR, Pyeongtaek) → ATA · shown until {n} days after TSC arrival",
   "저장 대기 {n}건 → '편집 종료' 시 저장": "{n} pending → saved on 'End Edit'",
   "ATA 입력 불가": "ATA not accepted",
-  "ATA 는 실제 입항일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다. 입항 예정일은 ETA 선사에 넣으세요.": "ATA is the actual arrival date, so a date after the base date ({d}) cannot be entered. Put the expected arrival in ETA (carrier).",
+  "ATA 는 실제 입항일이라 오늘({d}) 이후 날짜는 넣을 수 없습니다. 입항 예정일은 ETA 선사에 넣으세요.": "ATA is the actual arrival date, so a date after today ({d}) cannot be entered. Put the expected arrival in ETA (carrier).",
   "TSC 입고일 확정": "Confirm TSC arrival",
   "날짜를 입력하세요.": "Enter a date.",
   // 마스터 편집
@@ -325,7 +324,7 @@ const DICTIONARY = {
   "내가 쓴 글:": "My text:",
   "저장된 글 사용": "Use the saved text",
   "내 글로 저장": "Save my text",
-  "확정하는 TSC 입고일은 실제 입고일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다.": "A confirmed TSC arrival date is the actual arrival date, so a date after the base date ({d}) cannot be entered.",
+  "확정하는 TSC 입고일은 실제 입고일이라 오늘({d}) 이후 날짜는 넣을 수 없습니다.": "A confirmed TSC arrival date is the actual arrival date, so a date after today ({d}) cannot be entered.",
   "TSC 입고일 확정 · {v}": "TSC arrival confirmed · {v}",
   "확정하면 이 선박 차량 {n}대의 TSC Arrival 에 날짜가 들어가고, In Transit {m}대가 Bonded Stock 으로 바뀝니다. 바로 저장됩니다.": "Confirming writes the date to TSC Arrival on this vessel's {n} vehicles and moves {m} In Transit vehicles to Bonded Stock. It is saved immediately.",
   "TSC 입고일": "TSC arrival date",
@@ -442,7 +441,7 @@ const DICTIONARY = {
   "Commission 이 비어 있음": "Commission is empty",
   "수리일을 날짜로 읽을 수 없음": "수리일 is not a readable date",
   "수리일과 신고번호가 모두 비어 있음": "Both 수리일 and 신고번호 are empty",
-  "수리일이 기준일보다 뒤": "수리일 is after the base date",
+  "수리일이 오늘보다 뒤": "수리일 is after today",
   "같은 차량이 여러 줄에 있음": "Same vehicle on several rows",
   "신고번호가 너무 김": "신고번호 is too long",
   "반영 안 함": "Skip",

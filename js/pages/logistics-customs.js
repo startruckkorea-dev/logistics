@@ -25,7 +25,7 @@ const ERROR_TEXT = {
   no_commission: "Commission 이 비어 있음",
   date: "수리일을 날짜로 읽을 수 없음",
   empty: "수리일과 신고번호가 모두 비어 있음",
-  future: "수리일이 기준일보다 뒤",
+  future: "수리일이 오늘보다 뒤",
   duplicate: "같은 차량이 여러 줄에 있음",
   too_long: "신고번호가 너무 김",
 };

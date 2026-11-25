@@ -3,7 +3,6 @@ import { ENV, ENV_NAME } from "./lib/config.js";
 import { initAuth, login, logout } from "./lib/auth.js";
 import { mk } from "./lib/dom.js";
 import { state } from "./app/state.js";
-import { baseDate, isBaseDateFixed } from "./app/base-date.js";
 import { tx } from "./app/i18n.js";
 import { initUi } from "./app/ui.js";
 import { registerPage, startRouter, route } from "./app/router.js";
@@ -29,16 +28,6 @@ function showNotice(message, isError) {
   );
 }
 
-// 상단 바의 기준일 표시. 설정으로 고정한 날짜면 그 사실을 풍선 도움말로 알린다.
-function showBaseDate() {
-  const box = $("baseDate");
-  box.replaceChildren(`${tx("기준일")} `, mk("b", null, baseDate()));
-  box.title = isBaseDateFixed()
-    ? "설정으로 고정한 기준일입니다. 화면의 당월·경과 일수·입항 예정 계산이 이 날짜를 오늘로 삼습니다."
-    : "오늘 날짜입니다. 화면의 당월·경과 일수·입항 예정 계산의 기준입니다.";
-  box.hidden = false;
-}
-
 function setLanguage(lang) {
   if (lang === state.lang) return;
   state.lang = lang;
@@ -46,10 +35,7 @@ function setLanguage(lang) {
   for (const button of document.querySelectorAll("#langbox button")) {
     button.classList.toggle("active", button.dataset.lang === lang);
   }
-  if (state.account) {
-    showBaseDate();
-    route();
-  }
+  if (state.account) route();
 }
 
 async function main() {
@@ -76,7 +62,6 @@ async function main() {
     return;
   }
 
-  showBaseDate();
   $("userName").textContent = state.account.name ?? state.account.username;
   $("userName").title = state.account.username;
   $("userbox").hidden = false;

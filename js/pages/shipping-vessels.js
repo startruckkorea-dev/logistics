@@ -90,13 +90,13 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
       }
       // ATA 는 실제 입항일이라 기준일 이후 날짜는 받지 않는다
       if (name === "ata" && value > today) {
-        toast(tx("ATA 입력 불가"), tx("ATA 는 실제 입항일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다. 입항 예정일은 ETA 선사에 넣으세요.", { d: today }));
+        toast(tx("ATA 입력 불가"), tx("ATA 는 실제 입항일이라 오늘({d}) 이후 날짜는 넣을 수 없습니다. 입항 예정일은 ETA 선사에 넣으세요.", { d: today }));
         node.value = shown(y, name);
         return;
       }
       // 확정된 TSC 입고일도 실제 입고일이다. 예정일은 앞날이어도 된다.
       if (name === "tsc" && y.confirmed && value > today) {
-        toast(tx("TSC 입고일 확정"), tx("확정하는 TSC 입고일은 실제 입고일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다.", { d: today }));
+        toast(tx("TSC 입고일 확정"), tx("확정하는 TSC 입고일은 실제 입고일이라 오늘({d}) 이후 날짜는 넣을 수 없습니다.", { d: today }));
         node.value = shown(y, name);
         return;
       }
@@ -168,7 +168,7 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
         return;
       }
       if (date > today) {
-        toast(tx("TSC 입고일 확정"), tx("확정하는 TSC 입고일은 실제 입고일이라 기준일({d}) 이후 날짜는 넣을 수 없습니다.", { d: today }));
+        toast(tx("TSC 입고일 확정"), tx("확정하는 TSC 입고일은 실제 입고일이라 오늘({d}) 이후 날짜는 넣을 수 없습니다.", { d: today }));
         return;
       }
       confirm.disabled = true;

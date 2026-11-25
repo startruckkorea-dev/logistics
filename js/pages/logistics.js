@@ -198,7 +198,7 @@ function cellContent(column, v, terms, today) {
             p: v.lead_days,
             n: days,
           })
-        : tx("Shipping 미입력 · Shipping Calc 경과 {n}일 (기준일 {d})", { n: days, d: today });
+        : tx("Shipping 미입력 · Shipping Calc 경과 {n}일 (오늘 {d})", { n: days, d: today });
       // 선적 전은 빨강(늘어나는 중), 선적 후는 회색(확정)
       return [value, " ", mk("span", { class: `pill ${v.shipping ? "neutral" : "danger"}`, title: tip }, `D+${days}`)];
     }

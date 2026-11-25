@@ -188,6 +188,28 @@ export function planLoad(table, def, items, options = {}) {
 }
 
 /**
+ * 1차 복구 정리 계획 — List 의 항목 중 결과 표에 키가 없는 것을 고른다.
+ * 결과 표가 비었거나 키 열이 없으면 아무것도 고르지 않는다(List 를 통째로 비우는 일을 막는다).
+ * 키가 빈 항목은 건드리지 않는다.
+ * @param {{columns: string[], rows: any[][]}} table 전처리 결과 표
+ * @param {{key: string}} def List 정의
+ * @param {Array<{id: string, fields: object}>} items List 의 현재 항목
+ * @returns {{problem: string, ids: string[], kept: number}} ids 는 지울 항목의 id
+ */
+export function planPrune(table, def, items) {
+  const keyIndex = table.columns.indexOf(def.key);
+  const keys = new Set();
+  if (keyIndex >= 0) {
+    for (const row of table.rows) if (!isEmpty(row[keyIndex])) keys.add(String(row[keyIndex]));
+  }
+  if (!keys.size) return { problem: "결과 표에 키가 없어 정리하지 않음", ids: [], kept: items.length };
+  const ids = items
+    .filter((item) => !isEmpty(item.fields[def.key]) && !keys.has(String(item.fields[def.key])))
+    .map((item) => item.id);
+  return { problem: "", ids, kept: items.length - ids.length };
+}
+
+/**
  * List 의 실제 열과 정의의 차이.
  * @param {{key, indexed: string[], columns: Array<{name, type}>}} def
  * @param {Array<{name, type, indexed, unique}>} actual

@@ -70,14 +70,32 @@ function renderReference() {
   $("reference-row").hidden = excelItems.length < 2;
 }
 
+// 전처리에 쓸 규칙 파일. 1차 이관 파일용(고정)이 설정에 있으면 화면에서 고른다.
+//   baseline: 그 결과를 적재하면 List 를 1차 상태로 되돌린다(lists-ui.js)
+const RULE_SETS = [
+  { id: "update", label: "2차(업데이트)", path: SHAREPOINT.rulesFile, baseline: false },
+  ...(SHAREPOINT.baselineRulesFile
+    ? [{ id: "baseline", label: "1차(복구)", path: SHAREPOINT.baselineRulesFile, baseline: true }]
+    : []),
+];
+const ruleSet = () => RULE_SETS.find((set) => set.id === $("rule-set")?.value) ?? RULE_SETS[0];
+
 // 규칙 파일을 읽어 엑셀에 적용하고 결과를 보여준다. List 에는 쓰지 않는다.
 async function runPreprocess(item, button) {
   button.disabled = true;
   const container = $("result");
+  const set = ruleSet();
   try {
-    setStatus(`규칙 파일(${SHAREPOINT.rulesFile})을 읽는 중...`);
-    const file = await readTextFile(SHAREPOINT.rulesFile);
-    const info = { ...file, envLabel: ENV.label };
+    setStatus(`규칙 파일(${set.path})을 읽는 중...`);
+    let file;
+    try {
+      file = await readTextFile(set.path);
+    } catch (err) {
+      if (err?.status !== 404) throw err;
+      setStatus(`규칙 파일이 없습니다: ${set.path}`, true);
+      return;
+    }
+    const info = { ...file, envLabel: RULE_SETS.length > 1 ? `${ENV.label} · ${set.label}` : ENV.label };
 
     let rules;
     try {
@@ -120,8 +138,11 @@ async function runPreprocess(item, button) {
     try {
       const result = runRules(workbook, rules);
       renderResult(container, info, sourceName, result);
-      container.append(loadSection(result, setStatus));
-      setStatus(`${sourceName} — 전처리 결과 표 ${result.tables.length}개를 만들었습니다.`);
+      container.append(loadSection(result, setStatus, { baseline: set.baseline }));
+      setStatus(
+        `${sourceName} — 전처리 결과 표 ${result.tables.length}개를 만들었습니다.` +
+          (RULE_SETS.length > 1 ? ` 규칙: ${set.label}` : "")
+      );
     } catch (err) {
       if (!(err instanceof RuleError)) throw err;
       renderRunError(container, info, err);
@@ -308,6 +329,17 @@ function layout() {
       { id: "files", hidden: true },
       mk("thead", null, mk("tr", null, ["이름", "크기", "수정한 날짜", "엑셀"].map((h) => mk("th", null, h)))),
       mk("tbody")
+    ),
+    mk(
+      "p",
+      { id: "rule-set-row", hidden: RULE_SETS.length < 2 },
+      mk(
+        "label",
+        null,
+        "전처리 규칙 ",
+        mk("select", { id: "rule-set" }, RULE_SETS.map((set) => mk("option", { value: set.id }, set.label)))
+      ),
+      mk("span", { class: "hint" }, " 1차(복구)는 1차 이관 파일을 다시 적재해 List 를 1차 상태로 되돌릴 때만 고릅니다.")
     ),
     mk(
       "p",

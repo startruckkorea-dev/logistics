@@ -4,10 +4,10 @@
 import { mk } from "../lib/dom.js";
 import { ENV, ENV_NAME } from "../lib/config.js";
 import {
-  listLists, listColumns, createList, addListColumn, readListItems, writeListItems,
+  listLists, listColumns, createList, addListColumn, readListItems, writeListItems, deleteListItems,
 } from "../lib/splist.js";
 import { LISTS, APP_LISTS, listForTable } from "./lists.js";
-import { planLoad, compareColumns } from "./load-plan.js";
+import { planLoad, planPrune, compareColumns } from "./load-plan.js";
 import { readModelLock } from "./model-lock.js";
 
 // 운영에서 쓰기 전에 입력해야 하는 확인 문구
@@ -182,7 +182,9 @@ function keepEmptyKeysOf(result, def) {
   return keys;
 }
 
-async function buildPlans(result) {
+// baseline: 1차 이관 파일을 다시 적재해 List 를 1차 상태로 되돌리는 경우.
+//   모델 고정 목록과 "빈 값으로 지우지 않음"을 적용하지 않고 결과 표 그대로 쓴다
+async function buildPlans(result, baseline) {
   const existing = await listLists();
   const plans = [];
   for (const table of result.tables) {
@@ -203,6 +205,10 @@ async function buildPlans(result) {
     }
     const items = await readListItems(found.id, def.columns.map((c) => c.name));
     // 모델 고정 목록을 쓰는 List 면 목록을 읽어 넘긴다. 목록 파일이 없으면 고정 없이 비교한다
+    if (baseline) {
+      plans.push({ table, def, listId: found.id, plan: planLoad(table, { ...def, lock: undefined }, items), note: "" });
+      continue;
+    }
     const lock = def.lock ? await readModelLock() : null;
     const keepEmptyKeys = keepEmptyKeysOf(result, def);
     plans.push({
@@ -304,12 +310,127 @@ function exemptNote(plans) {
   return lines.length ? mk("p", { class: "hint" }, "모델 유지 — ", lines.join(" / ")) : null;
 }
 
+// ---- 1차 복구 정리 ----
+
+// 지울 것을 List 별로 모은다. 1차 결과 표에 없는 행(차량·모델·색상)과, 앱에서만 생기는 List 의 모든 항목
+async function buildPrunePlans(result) {
+  const existing = await listLists();
+  const idOf = (def) => existing.find((l) => l.displayName === def.listName)?.id ?? null;
+  const plans = [];
+  for (const def of LISTS.filter((d) => d.pruneOnRestore)) {
+    const table = result.tables.find((t) => t.name === def.table);
+    const listId = idOf(def);
+    if (!table || !listId) {
+      plans.push({ def, listId, ids: [], kept: null, note: table ? "List 가 없음" : "결과 표가 없어 정리하지 않음" });
+      continue;
+    }
+    const plan = planPrune(table, def, await readListItems(listId, [def.key]));
+    plans.push({ def, listId, ids: plan.ids, kept: plan.kept, note: plan.problem || "1차 결과 표에 없는 행" });
+  }
+  for (const def of APP_LISTS.filter((d) => d.clearOnRestore)) {
+    const listId = idOf(def);
+    if (!listId) {
+      plans.push({ def, listId, ids: [], kept: null, note: "List 가 없음" });
+      continue;
+    }
+    const items = await readListItems(listId, [def.columns[0].name]);
+    plans.push({ def, listId, ids: items.map((item) => item.id), kept: 0, note: "전부 비움" });
+  }
+  return plans;
+}
+
+// 1차 복구 정리 영역. 운영에서는 만들지 않는다
+function pruneSection(result, setStatus) {
+  const body = mk("div");
+  const planButton = mk("button", { type: "button" }, "정리 계획 보기");
+
+  planButton.addEventListener("click", async () => {
+    planButton.disabled = true;
+    setStatus("List 의 현재 내용을 읽어 지울 항목을 세는 중...");
+    try {
+      showPlans(await buildPrunePlans(result));
+    } catch (err) {
+      console.error(err);
+      setStatus(`정리 계획 실패: ${describeError(err)}`, true);
+    } finally {
+      planButton.disabled = false;
+    }
+  });
+
+  function showPlans(plans) {
+    const total = plans.reduce((n, p) => n + p.ids.length, 0);
+    body.replaceChildren(
+      grid(
+        ["대상 List", "지움", "남김", "내용"],
+        plans.map((p) => cells(p.def.listName, p.ids.length, p.kept ?? "-", p.note))
+      )
+    );
+    if (!total) {
+      body.append(mk("p", { class: "hint" }, "지울 항목이 없습니다."));
+      setStatus("정리할 항목이 없습니다.");
+      return;
+    }
+    const runButton = mk("button", { type: "button" }, `삭제 실행 (${total}건)`);
+    runButton.addEventListener("click", async () => {
+      runButton.disabled = true;
+      planButton.disabled = true;
+      const rows = [];
+      try {
+        for (const { def, listId, ids } of plans) {
+          if (!ids.length) continue;
+          const outcome = await deleteListItems(listId, ids, (done, all) =>
+            setStatus(`${def.listName} 에서 지우는 중... ${done}/${all}`)
+          );
+          const codes = [...new Set(outcome.failed.map((f) => `${f.status} ${f.code}`))];
+          rows.push(cells(def.listName, ids.length, outcome.ok, outcome.failed.length, codes.join(", ") || "-"));
+        }
+        body.append(
+          mk("h4", null, "정리 결과"),
+          grid(["대상 List", "시도", "성공", "실패", "실패 코드"], rows),
+          mk("p", { class: "hint" }, "\"정리 계획 보기\"를 다시 누르면 남은 항목을 확인할 수 있습니다.")
+        );
+        setStatus("정리를 마쳤습니다.");
+      } catch (err) {
+        console.error(err);
+        setStatus(`정리 실패: ${describeError(err)}`, true);
+      } finally {
+        planButton.disabled = false;
+      }
+    });
+    body.append(
+      mk(
+        "p",
+        { class: "error" },
+        `대상(${ENV.label}): ${plans.filter((p) => p.ids.length).map((p) => p.def.listName).join(", ")}. ` +
+          "항목을 지웁니다. 지운 항목은 SharePoint 사이트의 휴지통에서만 되살릴 수 있습니다."
+      ),
+      runButton
+    );
+    setStatus(`정리 계획: ${total}건 삭제`);
+  }
+
+  return mk(
+    "section",
+    { class: "sheet" },
+    mk("h3", null, `1차에 없는 항목 정리 — ${ENV.label}`),
+    mk(
+      "p",
+      { class: "hint" },
+      "1차 결과 표에 없는 차량·모델·색상 행을 지우고, 변경 이력과 선박 정보를 비웁니다. 먼저 List 별 건수를 보여주고, 확인한 뒤에만 지웁니다."
+    ),
+    planButton,
+    body
+  );
+}
+
 /**
  * 전처리 결과 화면 아래에 붙는 적재 영역.
  * @param {object} result runRules 의 결과
  * @param {(text: string, isError?: boolean) => void} setStatus
+ * @param {{baseline?: boolean}} [options] baseline: 1차 이관 파일용 규칙으로 만든 결과(List 를 1차 상태로 되돌린다)
  */
-export function loadSection(result, setStatus) {
+export function loadSection(result, setStatus, options = {}) {
+  const baseline = options.baseline === true;
   const body = mk("div");
   const planButton = mk("button", { type: "button" }, "적재 계획 보기");
 
@@ -317,7 +438,7 @@ export function loadSection(result, setStatus) {
     planButton.disabled = true;
     setStatus("List 의 현재 내용을 읽어 비교하는 중...");
     try {
-      const plans = await buildPlans(result);
+      const plans = await buildPlans(result, baseline);
       showPlans(plans);
     } catch (err) {
       console.error(err);
@@ -388,7 +509,8 @@ export function loadSection(result, setStatus) {
         { class: "hint" },
         `대상(${ENV.label}): ${plans.map((p) => p.def.listName).join(", ")}. ` +
           "추가와 변경만 씁니다. List 에만 있는 행은 지우지 않습니다. " +
-          "변경은 List 의 현재 값을 전처리 결과로 바꿉니다."
+          "변경은 List 의 현재 값을 전처리 결과로 바꿉니다." +
+          (baseline ? " 1차(복구): 모델 고정 목록과 \"빈 값으로 지우지 않음\"을 적용하지 않습니다." : "")
       ),
       confirm.node ?? "",
       runButton
@@ -396,10 +518,10 @@ export function loadSection(result, setStatus) {
     setStatus(`적재 계획: ${total}건`);
   }
 
-  return mk(
+  const section = mk(
     "section",
     { class: "sheet" },
-    mk("h3", null, `List 에 적재 — ${ENV.label}`),
+    mk("h3", null, `List 에 적재 — ${ENV.label}${baseline ? " · 1차(복구)" : ""}`),
     mk(
       "p",
       { class: "hint" },
@@ -408,4 +530,9 @@ export function loadSection(result, setStatus) {
     planButton,
     body
   );
+  // 1차 복구일 때만, 운영이 아닐 때만 정리 영역을 붙인다
+  if (!baseline || ENV_NAME === "prod") return section;
+  const wrap = document.createDocumentFragment();
+  wrap.append(section, pruneSection(result, setStatus));
+  return wrap;
 }

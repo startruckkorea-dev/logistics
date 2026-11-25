@@ -39,6 +39,9 @@ const ENVIRONMENTS = {
       readDownload: "02._kufri_UAT/Internal/R-Download",
     },
     rulesFile: "02._kufri_UAT/Internal/Modify/preprocess-rules.uat.json",
+    // 1차 이관 파일용 규칙 파일(고정). 1차 파일을 다시 적재해 List 를 1차 상태로 되돌릴 때 쓴다.
+    // 관리 화면에서 rulesFile(수시로 올리는 파일용)과 골라 쓴다. null 이면 고르는 칸이 없다.
+    baselineRulesFile: "02._kufri_UAT/Internal/Modify/preprocess-rules.uat.phase1.json",
     // 모델 고정 목록: 1차 이관 때 이미 모델이 확정된 차량. 적재가 이 차량의 모델 관련 열을 바꾸지 않는다.
     //   lockRulesFile: 1차 파일에서 대상 차량을 고르는 규칙 파일(형식은 전처리 규칙 파일과 같다)
     //   modelLockFile: 만들어진 목록. 관리 화면에서 만든다
@@ -67,6 +70,7 @@ const ENVIRONMENTS = {
       readDownload: "01._kufri/Internal/R-Download",
     },
     rulesFile: "01._kufri/Internal/Modify/preprocess-rules.prod.json",
+    baselineRulesFile: null,
     lockRulesFile: "01._kufri/Internal/Modify/model-lock-rules.prod.json",
     modelLockFile: "01._kufri/Internal/Modify/model-lock.prod.json",
     afabRulesFile: "01._kufri/Internal/Modify/afab-rules.prod.json",
@@ -95,6 +99,7 @@ export const SHAREPOINT = {
   sitePath: "/sites/STK-Kufri",
   folders: ENV.folders,
   rulesFile: ENV.rulesFile,
+  baselineRulesFile: ENV.baselineRulesFile,
   lockRulesFile: ENV.lockRulesFile,
   modelLockFile: ENV.modelLockFile,
   afabRulesFile: ENV.afabRulesFile,

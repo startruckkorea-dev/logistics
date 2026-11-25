@@ -29,6 +29,7 @@ const KEEP_EMPTY = {
 // indexed: 인덱스만 거는 열
 // keepEmptyWhen: 적재할 때 그 표(table)에서 any 중 하나에 해당하는(열이 values 인) 키는 빈 값으로 List 값을 지우지 않는다
 // marks  : 결과 표에 둘 수 있는 표시 열. List 에는 넣지 않는다(없어도 된다)
+// pruneOnRestore: 1차 복구 정리(load-plan.js 의 planPrune)에서 1차 결과 표에 없는 행을 지우는 List
 // lock   : 적재할 때 고정 목록에 있는 키의 행은 columns 의 열을 바꾸지 않는다(이미 있는 항목만 해당).
 //          목록에 없는 행은 required 열이 비어 있으면 적재를 막는다.
 //          exempt 의 열이 그 값인 행은 막지 않고 columns 의 열을 그대로 둔다
@@ -43,6 +44,7 @@ const DEFINITIONS = [
     id: "modelMaster",
     table: "model_master",
     key: "moma_no",
+    pruneOnRestore: true,
     columns: [
       ...text("moma_no", "my", "bm", "gen", "vehicle", "model", "type", "axle", "cab", "cab_gen", "pto"),
       ...number("wheelbase"),
@@ -57,6 +59,7 @@ const DEFINITIONS = [
     id: "colorMaster",
     table: "color_master",
     key: "color_code",
+    pruneOnRestore: true,
     columns: [...number("no"), ...text("color_code", "color_name_mb", "color_name_molit")],
   },
   {
@@ -64,6 +67,7 @@ const DEFINITIONS = [
     table: "logistics_afab",
     key: "commission_no",
     keepEmptyWhen: KEEP_EMPTY,
+    pruneOnRestore: true,
     columns: text(
       "commission_no", "vin_no", "changeability_date", "pm", "tdd_calc",
       "dispatch", "shipping", "invoice", "planned_arrival", "vessel", "color_code",
@@ -76,6 +80,7 @@ const DEFINITIONS = [
     key: "commission_no",
     indexed: ["moma_no"],
     keepEmptyWhen: KEEP_EMPTY,
+    pruneOnRestore: true,
     marks: [KEEP_MARK],
     // 모델 고정 목록(model-lock.js)에 있는 차량은 모델 연결과 모델 속성을 바꾸지 않는다.
     // 목록에 없는 차량은 전처리 결과에 모델(moma_no)이 있어야 적재한다.
@@ -105,6 +110,7 @@ const DEFINITIONS = [
 ];
 
 // 앱이 쓰면서 채우는 List. 전처리 결과를 적재하는 대상이 아니다.
+// clearOnRestore: 1차 복구 정리에서 전부 비우는 List(1차 파일에 없는, 앱에서만 생기는 내용)
 const APP_DEFINITIONS = [
   {
     // 변경 이력: 저장 1회 × 차량 1대 = 1행. 변경자와 시각은 SharePoint 의 만든 사람·만든 날짜를 쓴다.
@@ -112,6 +118,7 @@ const APP_DEFINITIONS = [
     //   source  : 변경 경로(입력 등)
     //   changes : [{ field, old, new }] 를 JSON 으로
     id: "vehicleHistory",
+    clearOnRestore: true,
     indexed: ["commission_no", "batch_id"],
     columns: [...text("commission_no", "batch_id", "source"), ...note("changes")],
   },
@@ -121,6 +128,7 @@ const APP_DEFINITIONS = [
     //   gw         : 총중량(kg)
     //   tsc_planned: TSC 입고일 예정("YYYY-MM-DD"). 확정하면 차량의 tsc_arrival_date 에 들어간다
     id: "voyages",
+    clearOnRestore: true,
     key: "voyage_key",
     columns: [...text("voyage_key", "vessel", "shipping"), ...number("gw"), ...text("tsc_planned")],
   },

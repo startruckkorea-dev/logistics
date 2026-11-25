@@ -1,6 +1,6 @@
 // SharePoint List 호출 — 조회, 생성, 열 추가, 항목 읽기·쓰기.
-// 삭제 기능은 두지 않는다.
-import { GRAPH, SHAREPOINT } from "./config.js";
+// 항목 삭제는 운영이 아닌 환경에서만 된다(deleteListItems). List·열을 지우는 기능은 두지 않는다.
+import { GRAPH, SHAREPOINT, ENV_NAME } from "./config.js";
 import { gfetch, gfetchAll, gbatch, runPool, chunk } from "./graph.js";
 
 let siteIdPromise;
@@ -211,6 +211,26 @@ export async function writeListItems(listId, ops, onProgress) {
         ? { method: "POST", url: base, body: { fields: op.fields } }
         : { method: "PATCH", url: `${base}/${op.id}/fields`, body: op.fields }
     ),
+    onProgress
+  );
+  const failed = responses
+    .filter((r) => !isOk(r.status))
+    .map((r) => ({ status: r.status, code: r.code }));
+  return { ok: responses.length - failed.length, failed };
+}
+
+/**
+ * 항목을 지운다. 지운 항목은 SharePoint 사이트의 휴지통으로 간다.
+ * 운영에서는 실행하지 않는다(이관 중 List 를 1차 상태로 되돌리는 용도).
+ * @param {string} listId
+ * @param {string[]} ids 항목 id
+ * @returns {Promise<{ok: number, failed: Array<{status: number, code: string}>}>}
+ */
+export async function deleteListItems(listId, ids, onProgress) {
+  if (ENV_NAME === "prod") throw new Error("운영에서는 항목을 지울 수 없습니다.");
+  const base = `${await sitePath()}/lists/${listId}/items`;
+  const responses = await sendBatched(
+    ids.map((id) => ({ method: "DELETE", url: `${base}/${id}` })),
     onProgress
   );
   const failed = responses

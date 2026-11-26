@@ -5,7 +5,7 @@ import { openDrawer, closeDrawer, openModal, closeModal, toast } from "../app/ui
 import { STATUS } from "../domain/status.js";
 import { monthOf } from "../domain/dates.js";
 import { COLUMNS, GROUPS, sourceBadge, stageClass } from "../data/columns.js";
-import { INPUT_FIELDS, changedFields, saveVehicleInputs, loadVehicleHistory } from "../data/store.js";
+import { INPUT_FIELDS, changedFields, saveVehicleInputs, loadVehicleHistory, inputBlock } from "../data/store.js";
 import { createInput, labelOf, invalidMessage } from "./input-controls.js";
 
 const isEmpty = (v) => v == null || v === "";
@@ -99,12 +99,17 @@ function groupColumns(group) {
 }
 
 // 입력 열의 입력칸. data-field 로 열 이름을 달아 두고 저장할 때 모아 읽는다.
-function inputControl(column, value) {
+// blocked: 그 차량의 상태로는 입력할 수 없는 까닭(store.js 의 inputBlock). 있으면 칸을 잠그고 까닭을 풍선말로 보여준다
+function inputControl(column, value, blocked) {
   const node = createInput(column.key, isEmpty(value) ? "" : String(value));
   node.dataset.field = column.key;
+  if (blocked) {
+    node.disabled = true;
+    node.title = invalidMessage(column.key, blocked).detail;
+  }
   if (node.type !== "date" && node.type !== "month") return node;
   // 날짜·월 선택 칸은 한 번에 지우는 버튼을 옆에 둔다
-  const clear = mk("button", { class: "btn sm", type: "button", title: tx("값 지우기") }, "×");
+  const clear = mk("button", { class: "btn sm", type: "button", title: tx("값 지우기"), disabled: Boolean(blocked) }, "×");
   clear.addEventListener("click", () => {
     node.value = "";
     node.focus();
@@ -118,7 +123,7 @@ function field(column, v) {
   const badge = sourceBadge(column.src);
   let content;
   if (column.key === "current_status") content = mk("span", { class: `pill ${stageClass(value)}` }, value);
-  else if (INPUT_FIELDS.includes(column.key)) content = inputControl(column, value);
+  else if (INPUT_FIELDS.includes(column.key)) content = inputControl(column, value, inputBlock(v, column.key));
   else content = isEmpty(value) ? dash() : mk("span", null, String(value));
   return mk(
     "div",

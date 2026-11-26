@@ -115,3 +115,19 @@ export async function writeJsonFile(filePath, data, etag) {
   });
   return { etag: item?.eTag ?? "" };
 }
+
+/**
+ * 파일을 내용 그대로 쓴다(없으면 만들고, 있으면 덮어쓴다). 엑셀처럼 JSON 이 아닌 파일에 쓴다. 4MB 이하.
+ * @param {string} filePath 기본 문서 라이브러리 기준 경로
+ * @param {ArrayBuffer|Blob} bytes
+ * @param {string} contentType
+ * @returns {Promise<void>}
+ */
+export async function writeBinaryFile(filePath, bytes, contentType) {
+  await gfetch(`${await filePathOf(filePath)}:/content`, {
+    method: "PUT",
+    raw: bytes,
+    headers: { "Content-Type": contentType },
+    name: "writeBinaryFile",
+  });
+}

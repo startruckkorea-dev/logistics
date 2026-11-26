@@ -58,6 +58,29 @@ export const AFAB_DERIVED_FIELDS = ["shipping_calc", "eta_from_tdd", "color_name
 const AFAB_UPLOAD_FIELDS = [...AFAB_FIELDS, ...AFAB_DERIVED_FIELDS, "current_status"];
 // 상태 자동 갱신과 상태 정리는 상태 열만 바꾼다
 const STATUS_FIELDS = ["current_status"];
+// Sales Month 를 입력할 수 있는 상태: OH Stock(넣으면 Sold 가 된다)과 Sold(달을 고치거나 지운다)
+const SALES_STATUSES = [STATUS.OH_STOCK, STATUS.SOLD];
+
+/**
+ * 그 차량의 그 열에 입력할 수 없는 까닭. 입력할 수 있으면 null.
+ * Sales Month 는 OH Stock · Sold 차량에만 입력한다(그 밖의 상태는 저장도 받지 않는다).
+ * @returns {null | "sales_status"}
+ */
+export function inputBlock(vehicle, field) {
+  if (field !== "sales_month") return null;
+  return SALES_STATUSES.includes(vehicle.current_status) ? null : "sales_status";
+}
+
+// Sales Month 입력에 따라 같이 바뀌는 Current Status. 바뀌지 않으면 null.
+//   OH Stock 차량에 Sales Month 를 넣으면 Sold, Sold 차량의 Sales Month 를 지우면 OH Stock
+function saleStatus(vehicle, inputs) {
+  if (inputs.sales_month === undefined) return null;
+  const next = normalizeInput(inputs.sales_month);
+  if (next === normalizeInput(vehicle.sales_month)) return null;
+  if (next && vehicle.current_status === STATUS.OH_STOCK) return STATUS.SOLD;
+  if (!next && vehicle.current_status === STATUS.SOLD) return STATUS.OH_STOCK;
+  return null;
+}
 const DATE_FIELDS = ["b1_factory_order", "eta_from_eukor_pirt", "ata", "tsc_arrival_date", "customs_clearance_date"];
 
 /** 편집 모드에서 저장 대기에 오를 수 있는 열 전체(입력 열 + 오더 변경 열) */
@@ -260,6 +283,8 @@ async function saveSlot(slot, def, jobs, onProgress) {
  * 여러 차량의 입력 열을 저장한다. 차량 행은 저장 결과에 맞게 이 함수가 고친다.
  * @param {Array<{vehicle: object, inputs: Record<string, string>, source?: string, order?: boolean}>} edits
  *   vehicle 은 loadVehicles 가 돌려준 차량 행, inputs 는 { 열 이름: 값 }(INPUT_FIELDS 밖의 열은 무시),
+ *   입력 열의 Sales Month 를 넣거나 지우면 Current Status 도 같이 바꾼다(saleStatus. 이력에도 남는다).
+ *   OH Stock · Sold 가 아닌 차량의 Sales Month 는 받지 않고 invalid(reason "sales_status")로 돌려준다,
  *   source 는 그 차량만의 변경 경로(없으면 아래 source),
  *   order 가 참이면 오더 변경이다: 모델·Original PM·상태 열도 받고, 이력에는 Original PM·Spec·MY·BM 만 남긴다.
  *   voyage 가 참이면 선적·입항의 선박 단위 입력이다: B/L·ETA 선사·ATA·TSC 입고일·상태 열을 받는다
@@ -272,7 +297,7 @@ async function saveSlot(slot, def, jobs, onProgress) {
  * @param {(done: number, total: number) => void} [onProgress]
  * @returns {Promise<{
  *   saved: Array<{vehicle, changes: Array<{field, old, new}>}>,
- *   invalid: Array<{vehicle, field: string, reason: string}>,   // 형식 오류. 저장하지 않았다
+ *   invalid: Array<{vehicle, field: string, reason: string}>,   // 형식 오류나 입력할 수 없는 상태. 저장하지 않았다
  *   conflicts: Array<{vehicle, fields: Array<{field, mine, theirs}>}>,  // 차량 행은 서버 값으로 바뀌어 있다
  *   denied: object[],                                            // 권한 없음(403)인 차량
  *   failed: Array<{vehicle, code: string}>,
@@ -287,10 +312,16 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
   const jobs = [];
   for (const edit of edits) {
     const {
-      vehicle, inputs, source: own,
+      vehicle, source: own,
       order = false, voyage = false, master = false, customs = false, afab = false, status = false,
     } = edit;
-    const allowed = order
+    // 사람이 입력 열을 고치는 저장(편집 · 일괄 입력 · 드로어)에서만 Sales Month 에 따른 상태 전환을 한다
+    const typed = !(order || voyage || master || customs || afab || status);
+    const sale = typed ? saleStatus(vehicle, edit.inputs) : null;
+    const inputs = sale ? { ...edit.inputs, current_status: sale } : edit.inputs;
+    const allowed = sale
+      ? [...INPUT_FIELDS, "current_status"]
+      : order
       ? EDIT_FIELDS
       : status
         ? STATUS_FIELDS
@@ -305,7 +336,9 @@ export async function saveVehicles(edits, source = "입력", onProgress) {
               : INPUT_FIELDS;
     const changes = changedFields(vehicle, inputs, allowed);
     if (!changes.length) continue;
-    const bad = changes.map((c) => [c, checkInput(c.field, c.new)]).find(([, reason]) => reason);
+    const bad = changes
+      .map((c) => [c, (typed ? inputBlock(vehicle, c.field) : null) ?? checkInput(c.field, c.new)])
+      .find(([, reason]) => reason);
     if (bad) out.invalid.push({ vehicle, field: bad[0].field, reason: bad[1] });
     else {
       jobs.push({

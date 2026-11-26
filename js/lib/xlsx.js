@@ -133,15 +133,8 @@ const isoToSerial = (iso) => {
   return m ? Math.round((Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) - Date.UTC(1899, 11, 30)) / 86400000) : null;
 };
 
-/**
- * 표 하나를 엑셀 파일로 내려받는다. 열 너비는 머리글과 값이 잘리지 않게 맞춘다.
- * @param {string} fileName ".xlsx" 로 끝나는 이름
- * @param {string} sheetName
- * @param {any[][]} rows 첫 줄이 머리글. 글자로 넘긴 값은 글자 칸이 된다(앞자리 0 이 지워지지 않는다)
- * @param {{dateColumns?: number[]}} [options] dateColumns: "YYYY-MM-DD" 값을 엑셀 날짜 칸으로 넣을 열(0부터)
- */
-export async function downloadXlsx(fileName, sheetName, rows, options = {}) {
-  const XLSX = await loadLibrary();
+// 표 하나가 든 통합 문서. 열 너비는 머리글과 값이 잘리지 않게 맞춘다
+function makeBook(XLSX, sheetName, rows, options) {
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   for (const c of options.dateColumns ?? []) {
     for (let r = 1; r < rows.length; r++) {
@@ -155,5 +148,29 @@ export async function downloadXlsx(fileName, sheetName, rows, options = {}) {
   }));
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, sheetName);
-  XLSX.writeFile(book, fileName, { bookType: "xlsx" });
+  return book;
+}
+
+/**
+ * 표 하나를 엑셀 파일로 내려받는다. 열 너비는 머리글과 값이 잘리지 않게 맞춘다.
+ * @param {string} fileName ".xlsx" 로 끝나는 이름
+ * @param {string} sheetName
+ * @param {any[][]} rows 첫 줄이 머리글. 글자로 넘긴 값은 글자 칸이 된다(앞자리 0 이 지워지지 않는다)
+ * @param {{dateColumns?: number[]}} [options] dateColumns: "YYYY-MM-DD" 값을 엑셀 날짜 칸으로 넣을 열(0부터)
+ */
+export async function downloadXlsx(fileName, sheetName, rows, options = {}) {
+  const XLSX = await loadLibrary();
+  XLSX.writeFile(makeBook(XLSX, sheetName, rows, options), fileName, { bookType: "xlsx" });
+}
+
+/** 엑셀 파일의 MIME 형식 */
+export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/**
+ * 표 하나를 엑셀 파일의 내용(바이트)으로 만든다. downloadXlsx 와 같은 파일이 된다.
+ * @returns {Promise<ArrayBuffer>}
+ */
+export async function buildXlsx(sheetName, rows, options = {}) {
+  const XLSX = await loadLibrary();
+  return XLSX.write(makeBook(XLSX, sheetName, rows, options), { type: "array", bookType: "xlsx" });
 }

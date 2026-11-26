@@ -1,15 +1,17 @@
-// 재고현황 — 월말 마감 재고(센터 재고)와 현재·미래 재고(Ordered(Fixed) ~ OH Stock).
-// 모든 수치는 차량 목록에서 계산한다.
+// 재고현황 — TSC 재고(센터 재고), 현재·미래 재고(Ordered(Fixed) ~ OH Stock), 월말 마감.
+// 앞의 두 탭은 지금의 차량 목록에서 계산한다. 월말 마감 탭은 마감할 때 저장해 둔 파일을 읽어 그린다
+// (마감은 Logistics 차량 마스터에서 한다. 마감한 뒤 차량 값이 바뀌어도 마감 숫자는 변하지 않는다).
 import { mk, mkSvg } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
-import { addMonths, monthEnd, monthOf } from "../domain/dates.js";
 import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
+import { listClosings, loadClosing, downloadClosing } from "../data/closing-store.js";
+import { toast } from "../app/ui.js";
 import { stageClass } from "../data/columns.js";
 import { STAGES, STAGE_COLOR, MY_KEYS, MY_OTHER, MY_COLORS, LOCATIONS, PORTS } from "../data/stages.js";
 import {
-  countBy, modelYearKey, mySegments, modelOptionTag, vehicleTypes, closingStock, modelGroups,
+  countBy, modelYearKey, mySegments, modelOptionTag, vehicleTypes, currentStock, modelGroups,
 } from "../data/derive.js";
 import {
   num, pct, hbarEl, miniStackEl, picIconEl, locBandEl, locationTip, portsRowEl, vlinesEl,
@@ -17,12 +19,13 @@ import {
 } from "../app/charts.js";
 
 // 화면 상태
-//   month: "current" 또는 "YYYY-MM"(월말 마감)
-//   scope: "stock" = 센터 재고, "pipe" = 현재 및 미래 재고현황
-const view = { month: "current", scope: "stock" };
+//   scope: "stock" = 센터 재고, "pipe" = 현재 및 미래 재고현황, "closing" = 월말 마감
+//   month: 월말 마감 탭에서 보는 달 "YYYY-MM". 비어 있거나 마감하지 않은 달이면 가장 최근에 마감한 달
+const view = { month: "", scope: "stock" };
 
-const SCOPES = [["stock", "TSC 재고"], ["pipe", "현재 및 미래 재고현황"]];
+const SCOPES = [["stock", "TSC 재고"], ["pipe", "현재 및 미래 재고현황"], ["closing", "월말 마감"]];
 const PIPE_STAGES = STAGES.slice(3, 9); // Ordered(Fixed) ~ OH Stock
+const CLOSING_STAGES = [STATUS.BONDED_STOCK, STATUS.OH_STOCK]; // 월말 마감이 다루는 상태
 // 현재 및 미래 재고현황의 5구역. Factory Stock = In Production + Shipment scheduled
 const ZONES = [
   { name: "Ordered(Fixed)", stages: [STATUS.ORDERED_FIXED], color: STAGE_COLOR[STATUS.ORDERED_FIXED] },
@@ -171,11 +174,12 @@ function matrixCard(list) {
 }
 
 // ---- 상태 × 연식 히트맵: 열 = 장소 > Current Status > 연식 + Total, 모델 행의 칸은 상태 색 농도 ----
-function heatmapCard(list) {
+// stages: 열로 둘 상태(월말 마감은 Bonded Stock · OH Stock 만 넘긴다)
+function heatmapCard(list, stages = PIPE_STAGES) {
   const yearKeys = [...MY_KEYS, MY_OTHER];
   // 상태마다 대수가 있는 연식만 열로 둔다(Total 열은 항상)
   const columns = Object.fromEntries(
-    PIPE_STAGES.map((s) => [s, yearKeys.filter((k) => list.some((v) => v.current_status === s && modelYearKey(v) === k))])
+    stages.map((s) => [s, yearKeys.filter((k) => list.some((v) => v.current_status === s && modelYearKey(v) === k))])
   );
   const span = (s) => columns[s].length + 1;
   const keyOf = (v) => `${v.current_status}|${modelYearKey(v)}`;
@@ -183,38 +187,41 @@ function heatmapCard(list) {
   const groups = modelGroups(list);
   const modelRows = groups.flatMap((g) => g.vehicles.flatMap((t) => t.rows));
   const maxCell = Math.max(1, ...modelRows.flatMap((r) => Object.values(counts(r.vs))));
+  // 장소 묶음. 열로 두지 않는 상태는 빼고, 상태가 하나도 남지 않는 장소는 두지 않는다
   const locationColumns = [
     ["factory", PIPE_STAGES.slice(0, 3)],
     ["sea", [STATUS.IN_TRANSIT]],
     ["center", [STATUS.BONDED_STOCK, STATUS.OH_STOCK]],
-  ];
+  ]
+    .map(([key, group]) => [key, group.filter((s) => stages.includes(s))])
+    .filter(([, group]) => group.length);
   const stageTip = (s) => `${s} (${tx(LOCATIONS[locationOf(s)].name)})`;
 
   const head1 = mk(
     "tr",
     null,
     mk("th", { rowspan: 3 }, "Model"),
-    locationColumns.map(([key, stages]) => {
-      const n = list.filter((v) => stages.includes(v.current_status)).length;
+    locationColumns.map(([key, group]) => {
+      const n = list.filter((v) => group.includes(v.current_status)).length;
       return mk(
         "th",
-        { class: "loc", colspan: stages.reduce((sum, s) => sum + span(s), 0), "data-tip": locationTip(LOCATIONS[key], stages.join(" · "), n) },
+        { class: "loc", colspan: group.reduce((sum, s) => sum + span(s), 0), "data-tip": locationTip(LOCATIONS[key], group.join(" · "), n) },
         mk("span", { class: "lh" }, picIconEl(LOCATIONS[key].icon), mk("span", null, tx(LOCATIONS[key].name)), mk("b", { class: "num" }, num(n)))
       );
     }),
     mk("th", { class: "num gt", rowspan: 3 }, "Grand Total")
   );
-  const head2 = mk("tr", null, PIPE_STAGES.map((s) => mk("th", { class: "st", colspan: span(s) }, mk("span", { class: `pill ${stageClass(s)}` }, s))));
+  const head2 = mk("tr", null, stages.map((s) => mk("th", { class: "st", colspan: span(s) }, mk("span", { class: `pill ${stageClass(s)}` }, s))));
   const head3 = mk(
     "tr",
     null,
-    PIPE_STAGES.flatMap((s) => [...columns[s].map((k) => mk("th", { class: "num my" }, tx(k))), mk("th", { class: "num tot" }, "Total")])
+    stages.flatMap((s) => [...columns[s].map((k) => mk("th", { class: "num my" }, tx(k))), mk("th", { class: "num tot" }, "Total")])
   );
   // 0 은 빈 칸. heat: 모델 행만 상태 색 농도(대수/최대)를 준다
   const cells = (by, label, heat) => {
     const out = [];
     let grand = 0;
-    for (const s of PIPE_STAGES) {
+    for (const s of stages) {
       let stageTotal = 0;
       for (const k of columns[s]) {
         const n = by[`${s}|${k}`] ?? 0;
@@ -265,7 +272,7 @@ function summaryCards(items) {
   return mk(
     "div",
     { class: "grid4", style: `grid-template-columns:1.3fr repeat(${MY_KEYS.length},1fr)` },
-    kpi("Total Stock", total, tx("보세(Bonded) {b} · 통관(OH) {c} · 보세/통관 = Customs Clearance DATE ≤ 월말", { b: num(total - cleared), c: num(cleared) })),
+    kpi("Total Stock", total, tx("보세(Bonded) {b} · 통관(OH) {c} · 보세/통관 = Customs Clearance Date 유무", { b: num(total - cleared), c: num(cleared) })),
     MY_KEYS.map((k) => kpi([swatch(MY_COLORS[k], 10), k], byYear[k] ?? 0, pct(byYear[k] ?? 0, total)))
   );
 }
@@ -316,36 +323,93 @@ function byVehicleCards(list) {
 
 function build(root, vehicles) {
   const today = baseDate();
-  const baseMonth = monthOf(today);
-  const months = [5, 4, 3, 2, 1].map((i) => addMonths(baseMonth, -i)); // 최근 5개월 월말 마감
   const body = mk("div");
+  // 월말 마감 탭의 머리줄: 마감 월 선택 · 마감한 날 · 파일 내려받기
+  const closingHead = mk("div", { class: "card-h", hidden: true });
+  let turn = 0; // 그릴 때마다 올린다. 늦게 도착한 마감 읽기 결과를 버리는 데 쓴다
 
-  const draw = () => {
-    if (view.scope === "pipe") view.month = "current"; // 확장 뷰는 현재 기준만(지난 시점의 주문 단계는 되살릴 수 없다)
-    const items = closingStock(vehicles, view.month, view.scope);
+  const note = (text) => mk("div", { class: "muted small", style: "margin:-4px 0 10px" }, text);
+  const say = (text, isError) => body.replaceChildren(mk("p", { class: isError ? "error" : "muted" }, text));
+
+  // TSC 재고 · 현재 및 미래 재고현황: 지금의 차량 목록에서 계산한다
+  const drawCurrent = () => {
+    const items = currentStock(vehicles, view.scope);
     const list = items.map((x) => x.v);
     const label =
       view.scope === "pipe"
         ? tx("현재 ({d}, 상태 Ordered(Fixed) ~ OH Stock 기준)", { d: today })
-        : view.month === "current"
-          ? tx("현재 ({d}, 상태 Bonded Stock·OH Stock 기준)", { d: today })
-          : tx("{m} 월말 마감 ({d})", { m: view.month, d: monthEnd(view.month) });
-    const basis =
-      view.scope === "pipe"
-        ? tx("확장 뷰는 현재 기준만 지원 (월말 마감 없음)")
-        : tx("월말 마감 판정 = Cancelled 제외 · 입고일(ATA) ≤ 월 말일 · Sales Month 공란 또는 해당 월 이후(미판매)");
-
+        : tx("현재 ({d}, 상태 Bonded Stock·OH Stock 기준)", { d: today });
     body.replaceChildren(
-      mk("div", { class: "muted small", style: "margin:-4px 0 10px" }, `${label} · ${basis}`),
+      note(label),
       ...(view.scope === "pipe"
         ? [journeyCard(list, body.clientWidth || 1200), yearLegend(), matrixCard(list), heatmapCard(list)]
         : [summaryCards(items), yearLegend()]),
       ...byVehicleCards(list)
     );
-    for (const tab of tabs.children) tab.classList.toggle("active", tab.dataset.scope === view.scope);
+  };
+
+  // 월말 마감: 마감할 때 저장해 둔 파일을 읽어 그린다
+  const drawClosing = async (mine) => {
+    const stale = () => mine !== turn || !root.isConnected;
+    say(tx("마감 내역을 불러오는 중..."));
+    let months;
+    let closing;
+    try {
+      months = await listClosings();
+      if (stale()) return;
+      if (!months.length) {
+        say(tx("아직 마감한 달이 없습니다. Logistics 차량 마스터의 '월말 마감'에서 마감하면 여기에 나옵니다."));
+        return;
+      }
+      if (!months.includes(view.month)) view.month = months[0];
+      closing = await loadClosing(view.month);
+      if (stale()) return;
+    } catch (err) {
+      console.error(err);
+      if (!stale()) say(`${tx("마감 내역을 불러오지 못했습니다.")} ${err.status ?? ""}`.trim(), true);
+      return;
+    }
+
+    const select = mk("select", { id: "stockSel" }, months.map((m) => mk("option", { value: m }, tx("{m} 월말 마감", { m }))));
     select.value = view.month;
-    select.disabled = view.scope === "pipe";
-    select.title = view.scope === "pipe" ? tx("확장 뷰는 현재 기준만 지원 (월말 마감 없음)") : "";
+    select.addEventListener("change", () => {
+      view.month = select.value;
+      draw();
+    });
+    const download = mk("button", { class: "btn sm", type: "button", disabled: !closing }, tx("파일 내려받기"));
+    download.addEventListener("click", () =>
+      downloadClosing(closing).catch((err) => {
+        console.error(err);
+        toast(tx("파일 내려받기"), tx("파일을 만들지 못했습니다. 다시 시도하세요."));
+      })
+    );
+    closingHead.replaceChildren(
+      mk("h2", null, tx("마감 월")),
+      select,
+      closing?.closedAt ? mk("span", { class: "muted small" }, tx("마감한 날 {d}", { d: closing.closedAt })) : null,
+      download
+    );
+    closingHead.hidden = false;
+    if (!closing) {
+      say(tx("마감 파일을 읽을 수 없습니다."), true);
+      return;
+    }
+    const list = closing.items.map((x) => x.v);
+    body.replaceChildren(
+      note(tx("{m} 월말 마감 · 마감 시점의 Bonded Stock · OH Stock", { m: closing.month })),
+      summaryCards(closing.items),
+      yearLegend(),
+      heatmapCard(list, CLOSING_STAGES),
+      ...byVehicleCards(list)
+    );
+  };
+
+  const draw = () => {
+    turn++;
+    for (const tab of tabs.children) tab.classList.toggle("active", tab.dataset.scope === view.scope);
+    closingHead.hidden = true;
+    if (view.scope === "closing") drawClosing(turn);
+    else drawCurrent();
   };
 
   const tabs = mk(
@@ -367,19 +431,8 @@ function build(root, vehicles) {
       )
     )
   );
-  const select = mk(
-    "select",
-    { id: "stockSel" },
-    months.map((m) => mk("option", { value: m }, tx("{m} 월말 마감", { m }))),
-    mk("option", { value: "current" }, tx("현재 ({d})", { d: today }))
-  );
-  select.addEventListener("change", () => {
-    view.month = select.value;
-    draw();
-  });
-  if (view.month !== "current" && !months.includes(view.month)) view.month = "current";
 
-  root.replaceChildren(mk("div", { class: "card" }, tabs, mk("div", { class: "card-h" }, mk("h2", null, tx("기준월")), select), body));
+  root.replaceChildren(mk("div", { class: "card" }, tabs, closingHead, body));
   draw(); // 화면에 붙은 뒤에 그려야 여정 지도가 카드 폭을 잴 수 있다
 }
 
@@ -409,9 +462,9 @@ async function load(root, refresh) {
 
 export const stockPage = {
   render(root, params) {
-    // 주소로 뷰와 기준월을 정할 수 있다: ?view=pipe, ?m=YYYY-MM
-    view.scope = params.get("view") === "pipe" ? "pipe" : "stock";
-    view.month = params.get("m") || "current";
+    // 주소로 탭과 마감 월을 정할 수 있다: ?view=pipe, ?view=closing&m=YYYY-MM
+    view.scope = SCOPES.some(([scope]) => scope === params.get("view")) ? params.get("view") : "stock";
+    view.month = params.get("m") || "";
     const box = mk("div");
     root.append(box);
     load(box, false);

@@ -15,11 +15,15 @@ const INVALID_MESSAGES = {
   date: "YYYY-MM-DD 형식으로 입력하세요 (예: 2026-11-09).",
   month: "YYYY-MM 형식으로 입력하세요 (예: 2026-11).",
   too_long: "255자를 넘을 수 없습니다.",
+  // 형식이 아니라 차량의 상태 때문에 받지 않는 입력(store.js 의 inputBlock)
+  sales_status: "Sales Month 는 OH Stock 차량에만 입력할 수 있습니다 (입력하면 Sold 가 됩니다).",
 };
+// 형식 오류가 아닌 까닭: 제목을 "입력 불가"로 적는다
+const BLOCK_REASONS = ["sales_status"];
 
-/** 형식 오류 알림의 제목과 내용 */
+/** 입력을 받지 않은 까닭을 알리는 제목과 내용(형식 오류, 입력할 수 없는 상태) */
 export const invalidMessage = (key, reason) => ({
-  title: `${tx(labelOf(key))} ${tx("형식 오류")}`,
+  title: `${tx(labelOf(key))} ${tx(BLOCK_REASONS.includes(reason) ? "입력 불가" : "형식 오류")}`,
   detail: tx(INVALID_MESSAGES[reason]),
 });
 

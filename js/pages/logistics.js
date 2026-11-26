@@ -8,6 +8,8 @@ import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
 import { changeabilityDday } from "../data/derive.js";
 import { toast } from "../app/ui.js";
+import { inputBlock } from "../data/store.js";
+import { invalidMessage } from "./input-controls.js";
 import { filterIcon } from "../app/column-filter.js";
 import { openVehicle } from "./vehicle-drawer.js";
 import {
@@ -17,6 +19,7 @@ import {
 import { openBulkInput } from "./logistics-bulk.js";
 import { openOrderCreate, openOrderChange } from "./logistics-order.js";
 import { openStatusUpdate, statusUpdateCount } from "./logistics-status.js";
+import { openClosing } from "./logistics-closing.js";
 import { renderAfabTab } from "./logistics-afab.js";
 import { renderCustomsTab } from "./logistics-customs.js";
 import { renderInsuranceTab } from "./logistics-insurance.js";
@@ -218,7 +221,7 @@ function cellClass(column, v) {
     column.key === "commission_no" ? "sticky" : "",
     column.memo ? "memo" : "",
     column.key === "type" || column.key === "changeability_date" ? "dotcell" : "",
-    v && isEditableCell(column.key) ? "keyin" : "",
+    v && isEditableCell(column.key) && !inputBlock(v, column.key) ? "keyin" : "",
     v && isPending(v, column.key) ? "pend" : "",
   ]
     .filter(Boolean)
@@ -389,7 +392,7 @@ function fillCell(td, column, v, terms, today) {
   const shown = shownRow(v);
   const value = shown[column.key];
   td.className = cellClass(column, v) ?? "";
-  td.title = isEditableCell(column.key)
+  td.title = isEditableCell(column.key) && !inputBlock(v, column.key)
     ? tx("클릭하여 입력 · 편집 종료 시 저장")
     : edit.on && column.key === "commission_no"
       ? tx("클릭하여 행 선택 (일괄 입력 대상)")
@@ -419,7 +422,7 @@ function syncSelectAll() {
 
 // 편집 모드 표시줄과 편집 버튼
 function renderEditState() {
-  const { editButton, createButton, statusButton, reloadButton, editbar } = els;
+  const { editButton, createButton, statusButton, closingButton, reloadButton, editbar } = els;
   // 오더 생성은 편집 모드 밖에서 한다(편집 중에는 저장 대기와 섞이지 않게)
   createButton.disabled = edit.on;
   // 상태 업데이트: 바꿀 차량이 있으면 강조한다. 바로 저장하므로 편집 모드 밖에서 한다
@@ -430,6 +433,8 @@ function renderEditState() {
   editButton.textContent = edit.saving ? tx("저장 중...") : edit.on ? tx("편집 종료") : tx("편집");
   editButton.classList.toggle("primary", edit.on);
   editButton.disabled = edit.saving;
+  // 월말 마감은 편집을 끝낸 뒤에 한다(저장하지 않은 Sales Month 가 마감에서 빠지지 않게)
+  closingButton.disabled = edit.on || closingButton.dataset.busy === "1";
   editButton.title = edit.on ? tx("변경 내용을 저장하고 편집을 종료합니다") : tx("입력 열을 셀에서 바로 고칩니다");
   // 편집 중에 다시 불러오면 저장 대기와 화면이 어긋난다
   reloadButton.disabled = edit.on;
@@ -939,10 +944,27 @@ function buildScreen(root, meta) {
   });
   statusButton.addEventListener("click", () => openStatusUpdate(vehicles, { render: renderGrid }));
 
+  // 월말 마감: 지금의 재고(Bonded Stock · OH Stock)를 그 달의 마감으로 저장한다. 편집 모드 밖에서 한다
+  const closingButton = mk(
+    "button",
+    { class: "btn sm", type: "button", title: tx("지금의 Bonded Stock · OH Stock 을 그 달의 마감으로 저장합니다") },
+    tx("월말 마감")
+  );
+  closingButton.addEventListener("click", () =>
+    openClosing(vehicles, {
+      busy: (on) => {
+        closingButton.dataset.busy = on ? "1" : "";
+        closingButton.textContent = on ? tx("저장 중...") : tx("월말 마감");
+        closingButton.disabled = on || edit.on;
+      },
+    })
+  );
+
   els = {
     editButton,
     createButton,
     statusButton,
+    closingButton,
     columnsButton,
     reloadButton: reload,
     editbar: mk("div", { class: "editbar", hidden: true }),
@@ -1023,6 +1045,13 @@ function buildScreen(root, meta) {
       const td = event.target.closest("td[data-key]");
       const column = td && COLUMNS.find((c) => c.key === td.dataset.key);
       if (!column || !isEditableCell(column.key) || edit.saving) return;
+      // 그 차량의 상태로는 입력할 수 없는 칸(Sales Month 는 OH Stock · Sold 만)
+      const blocked = inputBlock(vehicle, column.key);
+      if (blocked) {
+        const message = invalidMessage(column.key, blocked);
+        toast(message.title, message.detail);
+        return;
+      }
       // 입력이 끝나면 그 칸과 표시줄만 다시 그린다(표 전체를 다시 그리면 다음 칸 클릭이 끊긴다)
       const repaint = () => {
         fillCell(td, column, vehicle, searchTerms(), baseDate());
@@ -1083,7 +1112,7 @@ function buildScreen(root, meta) {
         "div",
         { class: "card-h" },
         mk("h2", null, tx("Logistics 차량 마스터")),
-        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, columnsButton, editButton, createButton, statusButton, reload, els.count)
+        mk("div", { class: "filters" }, mk("label", null, tx("검색"), " ", search), reset, columnsButton, editButton, createButton, statusButton, closingButton, reload, els.count)
       ),
       mismatch,
       els.editbar,

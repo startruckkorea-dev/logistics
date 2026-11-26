@@ -1,6 +1,6 @@
 // 차량 목록에서 만드는 집계 — 화면 전용 계산값. List 에 저장하지 않는다.
 import { tx } from "../app/i18n.js";
-import { addMonths, diffDays, monthEnd } from "../domain/dates.js";
+import { addMonths, diffDays } from "../domain/dates.js";
 import { STATUS } from "../domain/status.js";
 import { MY_KEYS, MY_OTHER, MY_COLORS, STAGES } from "./stages.js";
 import { VEHICLE_ORDER } from "./columns.js";
@@ -295,23 +295,17 @@ export function arrivalSchedule(vehicles, baseMonth, options = {}) {
 // ---- 재고 ----
 
 /**
- * 재고 대상 차량.
+ * 지금의 재고 대상 차량(Current Status 기준).
+ * 월말 마감은 여기서 계산하지 않는다. 마감할 때 저장해 둔 파일에서 읽는다(js/data/closing-store.js).
  * @param {object[]} vehicles
- * @param {string} month "current" 또는 "YYYY-MM"(그 달 말일 마감)
- * @param {"stock"|"pipe"} scope stock = 센터 재고(Bonded + OH), pipe = Ordered(Fixed) ~ OH Stock(현재 기준만)
- * @returns {Array<{v: object, cleared: boolean}>} cleared = 통관 완료 여부(월말 마감이면 그 달 말일까지)
+ * @param {"stock"|"pipe"} scope stock = 센터 재고(Bonded + OH), pipe = Ordered(Fixed) ~ OH Stock
+ * @returns {Array<{v: object, cleared: boolean}>} cleared = 통관 완료 여부(Customs Clearance Date 가 있다)
  */
-export function closingStock(vehicles, month, scope) {
-  const cleared = (v) => Boolean(v.customs_clearance_date);
-  if (month === "current") {
-    const stages = scope === "pipe" ? STAGES.slice(3, 9) : [STATUS.BONDED_STOCK, STATUS.OH_STOCK];
-    return vehicles.filter((v) => stages.includes(v.current_status)).map((v) => ({ v, cleared: cleared(v) }));
-  }
-  // 월말 마감: Cancelled 제외, 입고일(ATA)이 그 달 말일 이전이고 아직 팔리지 않은 차량
-  const end = monthEnd(month);
+export function currentStock(vehicles, scope) {
+  const stages = scope === "pipe" ? STAGES.slice(3, 9) : [STATUS.BONDED_STOCK, STATUS.OH_STOCK];
   return vehicles
-    .filter((v) => v.current_status !== STATUS.CANCELLED && v.ata && v.ata <= end && (!v.sales_month || v.sales_month > month))
-    .map((v) => ({ v, cleared: cleared(v) && v.customs_clearance_date <= end }));
+    .filter((v) => stages.includes(v.current_status))
+    .map((v) => ({ v, cleared: Boolean(v.customs_clearance_date) }));
 }
 
 /**

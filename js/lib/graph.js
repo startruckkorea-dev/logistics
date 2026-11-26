@@ -31,12 +31,14 @@ const RETRY_STATUS = [429, 503, 504];
 /**
  * Graph 단일 호출.
  * @param {string} path '/sites/...' 같은 상대 경로 또는 절대 URL(nextLink)
- * @param {{method?: string, body?: object, headers?: object, name?: string}} opts
+ * @param {{method?: string, body?: object, raw?: Blob|ArrayBuffer, headers?: object, name?: string}} opts
+ *   body 는 JSON 으로 보낸다. raw 는 파일 내용처럼 그대로 보낼 본문이다(Content-Type 은 headers 로 준다)
  */
 export async function gfetch(path, opts = {}) {
   const {
     method = "GET",
     body,
+    raw,
     headers = {},
     name = `${method} ${path.split("?")[0]}`,
   } = opts;
@@ -53,7 +55,7 @@ export async function gfetch(path, opts = {}) {
         ...(body ? { "Content-Type": "application/json" } : {}),
         ...headers,
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: raw ?? (body ? JSON.stringify(body) : undefined),
     });
     const ms = performance.now() - startedAt;
 

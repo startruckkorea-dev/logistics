@@ -4,7 +4,7 @@ import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { openModal, closeModal, toast } from "../app/ui.js";
 import { COLUMNS } from "../data/columns.js";
-import { INPUT_FIELDS, checkInput, normalizeInput } from "../data/store.js";
+import { INPUT_FIELDS, checkInput, normalizeInput, inputBlock } from "../data/store.js";
 import { createInput, labelOf, invalidMessage } from "./input-controls.js";
 import { shownRow, stageValue } from "./logistics-edit.js";
 
@@ -56,8 +56,13 @@ const endsWithText = (current, text) => current === text || current.endsWith(`\n
  * @returns fill·change 는 { v, value }(그 차량에 들어갈 값)의 목록
  */
 function planField(targets, key, next, mode, onlyEmpty) {
-  const plan = { key, next, mode, fill: [], change: [], same: 0, skipped: 0, oldValues: new Map() };
+  const plan = { key, next, mode, fill: [], change: [], same: 0, skipped: 0, blocked: 0, oldValues: new Map() };
   for (const v of targets) {
+    // 그 차량의 상태로는 입력할 수 없는 열(Sales Month 는 OH Stock · Sold 만)은 건드리지 않는다
+    if (inputBlock(v, key)) {
+      plan.blocked++;
+      continue;
+    }
     const current = normalizeInput(shownRow(v)[key]);
     if (mode === "append" ? current !== "" && endsWithText(current, next) : current === next) plan.same++;
     else if (current === "") plan.fill.push({ v, value: next });
@@ -99,6 +104,7 @@ function previewBlock(plan) {
           plan.change.length ? oldText : ""
         ),
         plan.skipped ? line(tx("값이 있어 건드리지 않음"), plan.skipped, oldText) : null,
+        plan.blocked ? line(tx("입력할 수 없는 상태라 건드리지 않음"), plan.blocked, tx("Sales Month 는 OH Stock 차량에만 입력할 수 있습니다 (입력하면 Sold 가 됩니다).")) : null,
         line(append ? tx("이미 같은 글로 끝남") : tx("이미 같은 값"), plan.same)
       )
     ),

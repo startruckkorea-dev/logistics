@@ -70,6 +70,30 @@ export async function listFolder(folderPath) {
   return items;
 }
 
+/**
+ * 폴더가 없으면 만든다. 있으면 그대로 둔다.
+ * @param {string} parentPath 이미 있는 폴더의 경로(기본 문서 라이브러리 기준)
+ * @param {string} name 그 아래에 둘 폴더 이름
+ * @returns {Promise<void>}
+ */
+export async function ensureFolder(parentPath, name) {
+  try {
+    await gfetch(`${await folderPathOf(`${parentPath}/${name}`)}?$select=id`, { name: "ensureFolder.find" });
+    return;
+  } catch (err) {
+    if (err.status !== 404) throw err;
+  }
+  try {
+    await gfetch(`${await folderPathOf(parentPath)}/children`, {
+      method: "POST",
+      body: { name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" },
+      name: "ensureFolder.create",
+    });
+  } catch (err) {
+    if (err.status !== 409) throw err; // 409: 그사이 다른 사람이 만들었다
+  }
+}
+
 // ---- JSON 파일 읽기·쓰기 (공지처럼 List 로 두지 않는 작은 값) ----
 
 const filePathOf = async (filePath) =>

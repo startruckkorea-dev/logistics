@@ -151,20 +151,89 @@ function makeBook(XLSX, sheetName, rows, options) {
   return book;
 }
 
+// 머리글 줄의 음영 색(ARGB)
+const HEADER_FILL = "FFD9D9D9";
+
+// 머리글 줄(1행)에 음영을 넣는다. SheetJS 는 칸의 채우기를 쓰지 못해, 만든 파일(zip) 안의
+// 서식 목록에 채우기 하나와 그것을 쓰는 칸 서식 하나를 더하고 1행의 칸에 그 서식을 붙인다.
+// 파일의 모양이 예상과 다르면 손대지 않고 그대로 돌려준다(음영만 빠진다).
+function shadeHeader(XLSX, bytes) {
+  try {
+    const zip = XLSX.CFB.read(new Uint8Array(bytes), { type: "array" });
+    const styles = XLSX.CFB.find(zip, "/xl/styles.xml");
+    const sheet = XLSX.CFB.find(zip, "/xl/worksheets/sheet1.xml");
+    if (!styles?.content || !sheet?.content) return bytes;
+    const read = (file) => new TextDecoder().decode(Uint8Array.from(file.content));
+
+    let fillId = -1;
+    let styleId = -1;
+    const stylesXml = read(styles)
+      .replace(/<fills count="(\d+)">([\s\S]*?)<\/fills>/, (_, count, body) => {
+        fillId = Number(count);
+        const fill = `<fill><patternFill patternType="solid"><fgColor rgb="${HEADER_FILL}"/><bgColor indexed="64"/></patternFill></fill>`;
+        return `<fills count="${fillId + 1}">${body}${fill}</fills>`;
+      })
+      .replace(/<cellXfs count="(\d+)">([\s\S]*?)<\/cellXfs>/, (_, count, body) => {
+        styleId = Number(count);
+        const xf = `<xf numFmtId="0" fontId="0" fillId="${fillId}" borderId="0" xfId="0" applyFill="1"/>`;
+        return `<cellXfs count="${styleId + 1}">${body}${xf}</cellXfs>`;
+      });
+    if (fillId < 0 || styleId < 0) return bytes;
+
+    let shaded = 0;
+    const sheetXml = read(sheet).replace(/<row r="1"[^>]*>[\s\S]*?<\/row>/, (row) =>
+      row.replace(/<c r="[A-Z]+1"(?![^>]* s=)/g, (cell) => {
+        shaded++;
+        return `${cell} s="${styleId}"`;
+      })
+    );
+    if (!shaded) return bytes;
+
+    const put = (file, xml) => {
+      file.content = new TextEncoder().encode(xml);
+      file.size = file.content.length;
+    };
+    put(styles, stylesXml);
+    put(sheet, sheetXml);
+    const out = XLSX.CFB.write(zip, { fileType: "zip", type: "array" });
+    return out instanceof ArrayBuffer ? out : Uint8Array.from(out).buffer;
+  } catch (err) {
+    console.error(err);
+    return bytes;
+  }
+}
+
+// 통합 문서를 파일의 내용(바이트)으로 쓴다
+function writeBook(XLSX, book, options) {
+  const bytes = XLSX.write(book, { type: "array", bookType: "xlsx" });
+  return options.headerFill ? shadeHeader(XLSX, bytes) : bytes;
+}
+
+/** 엑셀 파일의 MIME 형식 */
+export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 /**
  * 표 하나를 엑셀 파일로 내려받는다. 열 너비는 머리글과 값이 잘리지 않게 맞춘다.
  * @param {string} fileName ".xlsx" 로 끝나는 이름
  * @param {string} sheetName
  * @param {any[][]} rows 첫 줄이 머리글. 글자로 넘긴 값은 글자 칸이 된다(앞자리 0 이 지워지지 않는다)
- * @param {{dateColumns?: number[]}} [options] dateColumns: "YYYY-MM-DD" 값을 엑셀 날짜 칸으로 넣을 열(0부터)
+ * @param {{dateColumns?: number[], headerFill?: boolean}} [options]
+ *   dateColumns: "YYYY-MM-DD" 값을 엑셀 날짜 칸으로 넣을 열(0부터). headerFill: 머리글 줄에 음영을 넣는다
  */
 export async function downloadXlsx(fileName, sheetName, rows, options = {}) {
   const XLSX = await loadLibrary();
-  XLSX.writeFile(makeBook(XLSX, sheetName, rows, options), fileName, { bookType: "xlsx" });
+  const book = makeBook(XLSX, sheetName, rows, options);
+  if (!options.headerFill) {
+    XLSX.writeFile(book, fileName, { bookType: "xlsx" });
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([writeBook(XLSX, book, options)], { type: XLSX_MIME }));
+  const link = mk("a", { href: url, download: fileName });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
-
-/** 엑셀 파일의 MIME 형식 */
-export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 /**
  * 표 하나를 엑셀 파일의 내용(바이트)으로 만든다. downloadXlsx 와 같은 파일이 된다.
@@ -172,5 +241,5 @@ export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsh
  */
 export async function buildXlsx(sheetName, rows, options = {}) {
   const XLSX = await loadLibrary();
-  return XLSX.write(makeBook(XLSX, sheetName, rows, options), { type: "array", bookType: "xlsx" });
+  return writeBook(XLSX, makeBook(XLSX, sheetName, rows, options), options);
 }

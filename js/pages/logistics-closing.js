@@ -34,7 +34,6 @@ export function openClosing(vehicles, hooks) {
   );
   const targets = closingTargets(vehicles);
   const cleared = targets.filter((x) => x.cleared).length;
-  const [modify, readDownload] = closingFolders();
 
   // 고른 달에 따라 바뀌는 안내: 이미 마감한 달인지, 쓰는 파일 이름
   const about = mk("div");
@@ -42,7 +41,12 @@ export function openClosing(vehicles, hooks) {
   const describe = async () => {
     const mine = ++turn;
     const month = select.value;
-    const files = mk("p", { class: "muted small" }, `${tx("마감 파일")}(${ENV.label}): ${closingFileNames(month).join(", ")}`);
+    const files = mk(
+      "div",
+      null,
+      mk("p", { class: "muted small" }, `${tx("마감 파일")}(${ENV.label}): ${closingFileNames(month).join(", ")}`),
+      mk("p", { class: "muted small" }, `${tx("저장 폴더")}: ${closingFolders(month).join(" → ")}`)
+    );
     about.replaceChildren(files);
     let before = null;
     let unknown = false;
@@ -88,7 +92,6 @@ export function openClosing(vehicles, hooks) {
         tx("지금 Current Status 가 Bonded Stock · OH Stock 인 차량을 이 달의 마감으로 저장합니다. 판매된 차량은 먼저 Sales Month 를 입력해 두세요(입력하면 Sold 로 바뀝니다).")
       ),
       about,
-      mk("p", { class: "muted small" }, `${tx("저장 폴더")}: ${modify} → ${readDownload}`),
     ],
     [
       mk("button", { class: "btn", type: "button", onclick: closeModal }, tx("취소")),

@@ -60,8 +60,8 @@ export const COLUMNS = [
 // 월말 마감 Excel(경영진 공지용 차량 목록)에 넣는 열. 차량 그리드의 순서대로 넣는다.
 // 메모 그룹(Ref Commission No · Option Note · Order Note · C/O)은 실무진용이라 넣지 않고, 아래 열도 뺀다.
 const CLOSING_EXPORT_SKIP = [
-  "original_pm", "shipping_calc", "eta_from_tdd", "eta_from_eukor_pirt", "model_classification", "spec",
-  "afab_editable", "baumuster",
+  "original_pm", "shipping_calc", "eta_from_tdd", "eta_from_eukor_pirt", "order_update_date", "sales_month",
+  "model_classification", "spec", "afab_editable", "baumuster",
 ];
 export const CLOSING_EXPORT_COLUMNS = COLUMNS.filter(
   (c) => c.group !== "메모" && !CLOSING_EXPORT_SKIP.includes(c.key)

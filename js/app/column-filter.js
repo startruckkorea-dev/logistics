@@ -1,11 +1,20 @@
-// 열 필터 창 — 머리글의 ▼ 버튼 아래에 그 열의 값 목록을 띄우고 체크로 고른다.
+// 열 필터 창 — 머리글의 필터 버튼(깔때기) 아래에 그 열의 값 목록을 띄우고 체크로 고른다.
 // 차량 그리드의 열 필터와 같은 모양(.colfilter)을 쓴다. 값 목록만 다루고, 연·월 묶음은 다루지 않는다.
-import { cssZoom, mk } from "../lib/dom.js";
+import { cssZoom, mk, mkSvg } from "../lib/dom.js";
 import { tx } from "./i18n.js";
 
 const POPUP_WIDTH = 296; // 창 너비(px) + 여유. 화면 오른쪽을 넘지 않게 할 때 쓴다
 
 const num = (n) => Number(n).toLocaleString("ko-KR");
+
+/** 머리글 필터 버튼에 넣는 깔때기 그림. 정렬 버튼의 ▼(내림차순)와 헷갈리지 않게 글자 대신 쓴다 */
+export function filterIcon() {
+  return mkSvg(
+    "svg",
+    { class: "cf-ic", viewBox: "0 0 10 10", "aria-hidden": "true" },
+    mkSvg("path", { d: "M0.5 1h9L6.2 5v3.4L3.8 9.5V5z", fill: "currentColor" })
+  );
+}
 
 export function closeValueFilter() {
   document.getElementById("colfilter")?.remove();
@@ -20,7 +29,7 @@ function closeOnOutside(event) {
 window.addEventListener("hashchange", closeValueFilter);
 
 /**
- * @param {HTMLElement} button 누른 ▼ 버튼(이 바로 아래에 띄운다)
+ * @param {HTMLElement} button 누른 필터 버튼(이 바로 아래에 띄운다)
  * @param {object} options
  * @param {string} options.title 창 제목
  * @param {Array<{value: string, text: string, count: number}>} options.values 고를 수 있는 값(나열할 순서대로)

@@ -8,6 +8,7 @@ import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
 import { changeabilityDday } from "../data/derive.js";
 import { toast } from "../app/ui.js";
+import { filterIcon } from "../app/column-filter.js";
 import { openVehicle } from "./vehicle-drawer.js";
 import {
   edit, isEditableCell, isPending, shownRow, pendingCount, startCellEdit, openNoteEditor, closeNoteEditor,
@@ -44,7 +45,9 @@ const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"
 //   col     : 열 필터 { 열 key: Set(선택한 값) }. 없는 열은 전체
 //   delayed : Shipping Calc 경과 배지가 있는 행만
 //   hidden  : 숨긴 열의 key. Commission No 는 숨길 수 없다
-const view = { q: "", col: {}, delayed: false, sort: "commission_no", dir: -1, page: 1, hidden: new Set() };
+// 기본 순서. 정렬을 풀면 이 순서로 돌아간다
+const DEFAULT_SORT = { sort: "commission_no", dir: -1 };
+const view = { q: "", col: {}, delayed: false, ...DEFAULT_SORT, page: 1, hidden: new Set() };
 let vehicles = [];
 let els = {};
 let columnWidths = []; // 열마다 고정한 너비(px). 페이지·검색·필터가 바뀌어도 그대로다
@@ -248,6 +251,7 @@ function headerRows(forMeasure = false) {
     return mk("span", { class: `src-dot ${b.cls}`, title: `${tx(src)} · ${b.tip}` });
   };
   // 정렬은 이 버튼으로만 한다. 열 이름을 눌러도 순서가 바뀌지 않는다.
+  // 누를 때마다 오름차순(▲) → 내림차순(▼) → 풀림(⇅, 기본 순서) 으로 돈다.
   const sortButton = (column) =>
     mk(
       "button",
@@ -269,7 +273,7 @@ function headerRows(forMeasure = false) {
             "data-filter": column.key,
             title: tx("{c} 열 필터", { c: tx(column.label) }),
           },
-          "▼"
+          filterIcon()
         )
       : null;
   // 편집 모드: 현재 페이지의 행을 모두 선택하는 체크박스
@@ -557,7 +561,7 @@ function scrollToMatch() {
   wrap.scrollLeft = Math.max(0, td.offsetLeft - stickyWidth - 8);
 }
 
-// ---- 열 필터: 머리글 ▼ → 값 목록에서 체크로 고른다(값 검색 가능). 날짜 열은 연 → 월 묶음 ----
+// ---- 열 필터: 머리글의 필터 버튼(깔때기) → 값 목록에서 체크로 고른다(값 검색 가능). 날짜 열은 연 → 월 묶음 ----
 
 function closeColumnFilter() {
   document.getElementById("colfilter")?.remove();
@@ -964,7 +968,7 @@ function buildScreen(root, meta) {
     setRange(drag.anchor, comm);
   });
 
-  // 머리글 클릭: ▼ 는 열 필터, 그 외는 정렬
+  // 머리글 클릭: 필터 버튼은 열 필터, 정렬 버튼은 정렬
   els.grid.addEventListener("click", (event) => {
     // 끌기를 끝내는 클릭은 범위 선택으로 끝낸다(차량 상세를 열지 않는다)
     if (drag.moved) {
@@ -1031,8 +1035,11 @@ function buildScreen(root, meta) {
     // 정렬은 머리글의 정렬 버튼으로만. 열 이름은 눌러도 바뀌지 않는다.
     const key = event.target.closest("button.sortbtn")?.closest("th[data-sort]")?.dataset.sort;
     if (!key) return;
-    if (view.sort === key) view.dir *= -1;
-    else Object.assign(view, { sort: key, dir: 1 });
+    // 오름차순 → 내림차순 → 풀림(기본 순서). 기본 순서의 열(Commission No)은 풀림이 곧 내림차순이라 두 방향만 오간다
+    if (view.sort !== key) Object.assign(view, { sort: key, dir: 1 });
+    else if (key === DEFAULT_SORT.sort) view.dir *= -1;
+    else if (view.dir > 0) view.dir = -1;
+    else Object.assign(view, DEFAULT_SORT);
     renderGrid();
   });
   els.pager.addEventListener("click", (event) => {

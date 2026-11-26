@@ -7,7 +7,7 @@ import { stageClass, VEHICLE_ORDER } from "../data/columns.js";
 import { countBy } from "../data/derive.js";
 import { num } from "../app/charts.js";
 import { specOf } from "../data/master-store.js";
-import { openValueFilter, closeValueFilter } from "../app/column-filter.js";
+import { openValueFilter, closeValueFilter, filterIcon } from "../app/column-filter.js";
 import { edit, editControl, editToolbar, shownValue } from "./settings-edit.js";
 
 const TABS = [
@@ -178,7 +178,7 @@ function masterGrid({ kind, keyField, columns, rows, state, searchKeys, defaultS
                     "data-filter": column.key,
                     title: tx("{c} 열 필터", { c: column.label }),
                   },
-                  "▼"
+                  filterIcon()
                 )
           )
         )
@@ -267,8 +267,10 @@ function masterGrid({ kind, keyField, columns, rows, state, searchKeys, defaultS
     }
     const sortKey = event.target.closest("button.sortbtn")?.closest("th[data-sort]")?.dataset.sort;
     if (sortKey) {
-      if (state.sort === sortKey) state.dir *= -1;
-      else Object.assign(state, { sort: sortKey, dir: 1 });
+      // 오름차순 → 내림차순 → 풀림(기본 순서)
+      if (state.sort !== sortKey) Object.assign(state, { sort: sortKey, dir: 1 });
+      else if (state.dir > 0) state.dir = -1;
+      else Object.assign(state, { sort: null, dir: 1 });
       draw();
       return;
     }
@@ -358,7 +360,7 @@ function modelTab(body, data, rebuild) {
       toolbar.nodes
     ),
     grid.box,
-    mk("div", { class: "muted small", style: "margin-top:6px" }, tx("차량 수 = 이 모델(moma_no)로 연결된 Logistics 차량 수. 머리글의 ⇅ 는 정렬, ▼ 는 열 필터입니다.")),
+    mk("div", { class: "muted small", style: "margin-top:6px" }, tx("차량 수 = 이 모델(moma_no)로 연결된 Logistics 차량 수. 머리글의 ⇅ 는 정렬(누를 때마다 오름차순 · 내림차순 · 풀림), 깔때기 모양 버튼은 열 필터입니다.")),
     mk(
       "div",
       { class: "muted small", style: "margin-top:4px" },
@@ -411,7 +413,7 @@ function colorTab(body, data, redraw) {
       "div",
       { class: "muted small", style: "margin-top:6px" },
       tx("차량 수 = 이 Color Code 를 가진 Logistics 차량 수."),
-      ` ${tx("머리글의 ⇅ 는 정렬, ▼ 는 열 필터입니다.")}`,
+      ` ${tx("머리글의 ⇅ 는 정렬(누를 때마다 오름차순 · 내림차순 · 풀림), 깔때기 모양 버튼은 열 필터입니다.")}`,
       ` ${tx("편집: 칸을 눌러 고칩니다.")}`,
       ` ${tx("Color Name (MB) 을 고치면 그 Color Code 차량의 Color Name 에도 반영합니다.")}`,
       unknown ? ` ${tx("색상 마스터에 없는 Color Code 를 가진 차량 {n}대.", { n: num(unknown) })}` : ""

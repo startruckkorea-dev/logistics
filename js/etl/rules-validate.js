@@ -123,6 +123,7 @@ const RULE_TYPES = {
       columns: [check.columns, true],
       formats: [check.formats],
       precision: [check.oneOf("day", "month")],
+      zeroDay: [check.oneOf("first")],
       onInvalid: [check.oneOf(...ON_INVALID)],
     },
   },

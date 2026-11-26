@@ -92,6 +92,32 @@ body {
   justify-content: center;
   gap: 4px;
 }
+/* 차량 그리드의 머리글은 두 줄: 첫 줄 = 출처 색 점 · 열 이름(길면 두 줄), 둘째 줄 = 정렬 버튼 · 필터 버튼.
+   버튼을 아래로 내려 열 너비가 이름과 값에만 맞춰지게 한다 */
+.grid.fixed thead tr.fld th,
+.grid.measure thead tr.fld th {
+  height: 54px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+.grid th .th-in.stack {
+  flex-direction: column;
+  gap: 1px;
+}
+/* 이름이 한 줄인 열도 두 줄 높이를 잡아 버튼 줄의 높이를 맞춘다 */
+.grid th .th-top {
+  display: flex;
+  min-height: 29px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.grid th .th-btns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
 .grid th .th-name {
   line-height: 1.25;
   text-align: center;
@@ -530,6 +556,17 @@ input[type="checkbox"].pend {
 .af-errors {
   margin: 4px 0 0;
   padding-left: 18px;
+}
+/* 열별 변경 대수: 열 이름 + 대수를 한 줄에 늘어놓는다(넘치면 줄바꿈) */
+.af-colcounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.af-colcounts > span {
+  white-space: nowrap;
 }
 /* 파일에 없는 차량 */
 .af-absent {

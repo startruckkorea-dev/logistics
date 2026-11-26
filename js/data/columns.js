@@ -11,6 +11,7 @@ export const COLUMNS = [
   { key: "model_year", label: "MY", group: "기본", src: "MODEL_MASTER" },
   { key: "bm", label: "BM", group: "기본", src: "MODEL_MASTER" },
   { key: "vin_no", label: "Vin No", group: "기본", src: "AFAB" },
+  { key: "bl_no", label: "B/L No", group: "선적", src: "선적·입항", drawerAfter: "invoice" },
   { key: "vehicle", label: "Vehicle", group: "기본", src: "MODEL_MASTER" },
   { key: "model", label: "Model", group: "기본", src: "MODEL_MASTER" },
   { key: "type", label: "Type", group: "기본", src: "MODEL_MASTER" },
@@ -33,7 +34,6 @@ export const COLUMNS = [
   { key: "eta_from_eukor_pirt", label: "ETA From EUKOR/PIRT", group: "일정", src: "선적·입항" },
   { key: "ata", label: "ATA", group: "일정", src: "선적·입항" },
   { key: "tsc_arrival_date", label: "TSC Arrival", group: "일정", src: "선적·입항" },
-  { key: "bl_no", label: "B/L No", group: "선적", src: "선적·입항" },
   { key: "vessel", label: "Vessel", group: "선적", src: "AFAB" },
   { key: "customs_clearance_date", label: "Customs Clearance Date", group: "통관", src: "통관" },
   { key: "color_code", label: "Color Code", group: "사양", src: "AFAB" },
@@ -61,7 +61,7 @@ export const COLUMNS = [
 export const GROUPS = ["기본", "메모", "일정", "선적", "통관", "사양"];
 
 // 그리드 위 바로가기 버튼이 이동하는 열
-export const GRID_JUMPS = ["current_status", "tdd_calc", "bl_no", "option_note"];
+export const GRID_JUMPS = ["current_status", "tdd_calc", "vessel", "option_note"];
 
 // 날짜·월 열. 열 필터에서 연·월 단위로 고르고, 검색 대상에서는 뺀다.
 export const DATE_FILTER_COLUMNS = [

@@ -226,30 +226,37 @@ function parseMonthYear(text, full) {
   return toIsoDate(year, month, 1);
 }
 
+// day 는 읽은 일(日)을 넘겨받아 쓸 일을 돌려준다(규칙의 zeroDay 옵션. 월·연만 있는 표기에는 쓰지 않는다)
 const DATE_PARSERS = {
-  yyyyMMdd: (s) => {
+  yyyyMMdd: (s, day) => {
     const m = /^(\d{4})(\d{2})(\d{2})$/.exec(s);
-    return m ? toIsoDate(+m[1], +m[2], +m[3]) : null;
+    return m ? toIsoDate(+m[1], +m[2], day(+m[3])) : null;
   },
-  "yyyy-MM-dd": (s) => {
+  "yyyy-MM-dd": (s, day) => {
     const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
-    return m ? toIsoDate(+m[1], +m[2], +m[3]) : null;
+    return m ? toIsoDate(+m[1], +m[2], day(+m[3])) : null;
   },
-  "dd.MM.yyyy": (s) => {
+  "dd.MM.yyyy": (s, day) => {
     const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s);
-    return m ? toIsoDate(+m[3], +m[2], +m[1]) : null;
+    return m ? toIsoDate(+m[3], +m[2], day(+m[1])) : null;
   },
   "MMMM-yy": (s) => parseMonthYear(s, true),
   "MMM-yy": (s) => parseMonthYear(s, false),
 };
 
+const sameDay = (d) => d;
+// 일이 0 으로 적힌 날짜는 그 달 1일로 읽는다
+const zeroDayAsFirst = (d) => (d === 0 ? 1 : d);
+
 // 칸을 "YYYY-MM-DD" 로 읽는다. 읽을 수 없으면 null.
-function parseDate(row, c, formats) {
+// zeroDay 가 "first" 면 일이 0 인 날짜(예: 일이 정해지지 않아 00 으로 적힌 값)를 그 달 1일로 읽는다.
+function parseDate(row, c, formats, zeroDay) {
   const known = dateOf(row, c);
   if (known) return known;
   const text = str(row, c).trim();
+  const day = zeroDay === "first" ? zeroDayAsFirst : sameDay;
   for (const format of formats) {
-    const iso = DATE_PARSERS[format](text);
+    const iso = DATE_PARSERS[format](text, day);
     if (iso) return iso;
   }
   return null;
@@ -409,7 +416,7 @@ const RULES = {
     const formats = rule.formats ?? [];
     const month = rule.precision === "month";
     return convertCells(ctx, rule, (row, c) => {
-      const iso = parseDate(row, c, formats);
+      const iso = parseDate(row, c, formats, rule.zeroDay);
       if (!iso) return null;
       return month ? { value: monthOf(iso), kind: "month" } : { value: iso, kind: "date" };
     });

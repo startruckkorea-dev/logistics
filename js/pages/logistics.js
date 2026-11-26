@@ -31,7 +31,7 @@ const KEYIN_MIN_WIDTH = 150;
 const CHECK_WIDTH = 24; // 편집 모드에서 Commission No 열에 더하는 너비(px). 행 선택 체크박스 자리 // 셀 안에서 입력하는 열의 최소 너비(px). 날짜·월 선택 칸이 들어갈 만큼
 // 잰 열 너비의 조정. SCALE 은 줄이는 비율(머리글이 들어가는 너비보다 좁아지지는 않는다), PAD 는 더하는 여백(px)
 const WIDTH_SCALE = { engine_no: 0.6, co: 0.6, sales_month: 0.9, model_in_afab: 0.9, b1_factory_order: 0.9 };
-const WIDTH_PAD = { vin_no: 12, bm: 12 };
+const WIDTH_PAD = { vin_no: 12, bm: 12, changeability_date: 24 }; // Changeability Date: D-day 배지가 아랫줄로 밀리지 않게
 const DELAY_BADGE_ROOM = "D+888"; // Shipping Calc 열 너비를 잴 때 넣어 보는 가장 긴 경과 배지
 const DDAY_WITHIN = 30; // Changeability Date 가 이 일수 안으로 다가오면 D-day 배지를 붙인다
 const SEARCH_HINT = "전체 열 검색 (여러 개는 쉼표 구분) · Current Status · 날짜 열 제외";
@@ -240,7 +240,7 @@ function nameLines(column) {
   return [label.slice(0, cut), label.slice(cut + 1)];
 }
 
-// 머리글은 한 줄이다: 출처 색 점 · 열 이름 · 정렬 버튼 · 필터 버튼.
+// 머리글은 두 줄이다: 첫 줄 = 출처 색 점 · 열 이름, 둘째 줄 = 정렬 버튼 · 필터 버튼(버튼이 열 너비를 넓히지 않게).
 // forMeasure: 너비를 잴 때는 편집 모드의 전체 선택 체크박스를 넣지 않는다(그 자리는 CHECK_WIDTH 로 더한다).
 function headerRows(forMeasure = false) {
   const sourceDot = (src) => {
@@ -283,12 +283,15 @@ function headerRows(forMeasure = false) {
       { class: column.key === "commission_no" ? "sticky" : null, "data-sort": column.key, title: column.key },
       mk(
         "div",
-        { class: "th-in" },
-        selectAll(column),
-        sourceDot(column.src),
-        mk("span", { class: "th-name" }, nameLines(column).map((line) => mk("span", null, line))),
-        sortButton(column),
-        filterButton(column)
+        { class: "th-in stack" },
+        mk(
+          "div",
+          { class: "th-top" },
+          selectAll(column),
+          sourceDot(column.src),
+          mk("span", { class: "th-name" }, nameLines(column).map((line) => mk("span", null, line)))
+        ),
+        mk("div", { class: "th-btns" }, sortButton(column), filterButton(column))
       )
     );
   // 너비는 숨긴 열까지 모두 잰다(다시 켰을 때 바로 쓴다)
@@ -350,7 +353,7 @@ function measureColumnWidths() {
     const inner = th.querySelector(".th-in");
     const style = getComputedStyle(th);
     const head =
-      (inner.lastElementChild.getBoundingClientRect().right - inner.firstElementChild.getBoundingClientRect().left) / scale +
+      Math.max(...[...inner.children].map((line) => line.getBoundingClientRect().width)) / scale +
       parseFloat(style.paddingLeft) +
       parseFloat(style.paddingRight);
     return Math.max(Math.round(base * WIDTH_SCALE[key]), Math.ceil(head) + 2);

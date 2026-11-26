@@ -1,6 +1,7 @@
 // Logistics · AFAB 업로드 탭 — AFAB 엑셀을 올려 차량의 AFAB 열에 반영한다.
 // 파일 선택 → 규칙 파일로 가공 → 미리보기(차량 1행, 바뀌는 열마다 1칸) → 반영하지 않을 행은 체크를 품 → 확인 창 → 저장 → 결과 표시.
 // Current Status 는 Rejected · Shipment scheduled 만 바꾼다. 파일에 없는 차량과 차량 마스터에 없는 Commission 은 보여주기만 한다.
+// 올린 파일의 검토 상태(판정 · 체크 · 결과)는 다른 화면에 다녀와도 남는다. "다른 파일"을 누르거나 브라우저를 새로 고치면 사라진다.
 import { mk } from "../lib/dom.js";
 import { ENV } from "../lib/config.js";
 import { readXlsxWorkbook, XLSX_MAX_BYTES } from "../lib/xlsx.js";
@@ -46,11 +47,41 @@ const RESULT_PILL = {
   invalid: ["danger", "형식 오류"],
 };
 
+// 화면 상태. 다른 화면에 다녀와도 유지한다(파일 내용은 이 브라우저의 메모리에만 있다).
+//   file: 파일 이름, table: 규칙을 적용한 AFAB 표, plan: 판정 결과,
+//   off: 체크를 푼 행의 엑셀 행 번호(반영하지 않는다),
+//   results: 저장 결과(item → 결과). 있으면 반영이 끝난 상태다. problem: 파일·규칙 오류 안내(노드 목록)
+const state = {
+  busy: "", problem: null, file: "", table: null, plan: null, off: new Set(), results: null, saving: false,
+};
+// 지금 화면에 붙어 있는 탭을 다시 그린다. 파일 읽기·저장이 끝났을 때, 그사이 화면을 옮겼다 돌아왔어도 새 화면에 그려지게 한다
+let redraw = () => {};
+
+// 열별 변경 대수: 그 열의 값이 바뀌는 차량 수(Current Status 포함). 차량 그리드의 열 순서
+function columnCounts(items) {
+  const counts = new Map();
+  const add = (field) => counts.set(field, (counts.get(field) ?? 0) + 1);
+  for (const item of items) {
+    if (item.status) add("current_status");
+    for (const change of [...item.changes, ...item.derived]) add(change.field);
+  }
+  return COLUMNS.map((c) => c.key).filter((key) => counts.has(key)).map((key) => [key, counts.get(key)]);
+}
+
+function columnCountsEl(title, items) {
+  const counts = columnCounts(items);
+  return mk(
+    "p",
+    { class: "af-colcounts" },
+    mk("b", null, title),
+    counts.length
+      ? counts.map(([field, n]) => mk("span", null, `${labelOf(field)} `, mk("b", { class: "num" }, num(n))))
+      : mk("span", { class: "muted" }, "·")
+  );
+}
+
 /** AFAB 업로드 탭을 root 에 그린다. */
 export function renderAfabTab(root) {
-  // file: 파일 이름, plan: 판정 결과, off: 체크를 푼 행(반영하지 않는다),
-  // results: 저장 결과(item → 결과). 있으면 반영이 끝난 상태다. problem: 파일·규칙 오류 안내(노드 목록)
-  const state = { busy: "", problem: null, file: "", plan: null, off: new Set(), results: null, saving: false };
   const body = mk("div");
 
   root.replaceChildren(
@@ -69,7 +100,7 @@ export function renderAfabTab(root) {
 
   // 반영할 수 있는 행(차량이 있고 바뀌는 값이 있다)과, 그중 체크되어 있는 행
   const canApply = (item) => item.kind === "ok" || item.kind === "review";
-  const isOn = (item) => canApply(item) && !state.off.has(item);
+  const isOn = (item) => canApply(item) && !state.off.has(item.line);
   const picked = () => state.plan.items.filter(isOn);
 
   // 오류 → 화면에 보여줄 안내. 규칙에 적힌 값과 데이터 값은 넣지 않는다
@@ -101,7 +132,7 @@ export function renderAfabTab(root) {
 
   async function choose(file) {
     if (!file || state.busy) return;
-    Object.assign(state, { busy: tx("파일을 읽는 중..."), problem: null, file: "", plan: null, results: null });
+    Object.assign(state, { busy: tx("파일을 읽는 중..."), problem: null, file: "", table: null, plan: null, results: null });
     state.off.clear();
     draw();
     try {
@@ -111,13 +142,27 @@ export function renderAfabTab(root) {
       if (!table.rows.length) throw new Error("no_rows");
       const [{ vehicles }, colors] = await Promise.all([loadVehicles(), loadColorMaster()]);
       state.plan = planAfab(table, vehicles, colors);
+      state.table = table;
       state.file = file.name;
     } catch (err) {
       state.problem =
         err?.message === "no_rows" ? [mk("p", { class: "error" }, tx("머리글 아래에 내용이 없습니다."))] : problemOf(err);
     } finally {
       state.busy = "";
-      if (root.isConnected) draw();
+      redraw();
+    }
+  }
+
+  // 다른 화면에 다녀온 뒤: 그사이 차량이 바뀌었을 수 있으므로(편집 · 상태 업데이트 · 새로 고침) 같은 파일을 지금의 차량과 다시 맞춘다.
+  // 체크를 푼 행은 엑셀 행 번호로 기억하므로 그대로 남는다. 차량을 다시 읽지 못하면 앞서 판정한 내용을 그대로 둔다
+  async function replan() {
+    try {
+      const [{ vehicles }, colors] = await Promise.all([loadVehicles(), loadColorMaster()]);
+      if (!state.table || state.results || state.saving || state.busy) return;
+      state.plan = planAfab(state.table, vehicles, colors);
+      redraw();
+    } catch (err) {
+      console.error(err);
     }
   }
 
@@ -221,8 +266,8 @@ export function renderAfabTab(root) {
       mk("td", null, noteCell(item))
     );
     box?.addEventListener("change", () => {
-      if (box.checked) state.off.delete(item);
-      else state.off.add(item);
+      if (box.checked) state.off.delete(item.line);
+      else state.off.add(item.line);
       // 그 행만 다시 그린다(표의 스크롤 위치가 유지된다)
       tr.replaceWith(previewRow(item, fields, onChange));
       onChange();
@@ -247,7 +292,7 @@ export function renderAfabTab(root) {
     };
     all?.addEventListener("change", () => {
       if (all.checked) state.off.clear();
-      else for (const item of appliable) state.off.add(item);
+      else for (const item of appliable) state.off.add(item.line);
       draw();
     });
     sync();
@@ -354,6 +399,7 @@ export function renderAfabTab(root) {
             s: count((item) => statusKind(item) === "scheduled"),
           })
         ),
+        columnCountsEl(tx("열별 변경 대수"), picks),
         mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${afabListNames().join(", ")}`),
       ],
       [
@@ -380,7 +426,7 @@ export function renderAfabTab(root) {
     try {
       const out = await applyAfab(picks, (done, total) => {
         state.busy = `${tx("저장 중...")} ${num(done)}/${num(total)}`;
-        draw();
+        redraw();
       });
       state.results = out.results;
       const troubled = [...out.results.values()].filter((r) => r !== "saved" && r !== "unchanged").length;
@@ -401,7 +447,7 @@ export function renderAfabTab(root) {
     } finally {
       state.saving = false;
       state.busy = "";
-      if (root.isConnected) draw();
+      redraw();
     }
   }
 
@@ -413,6 +459,8 @@ export function renderAfabTab(root) {
     const applyButton = mk("button", { class: "btn primary", type: "button" });
     applyButton.addEventListener("click", confirmApply);
     const summary = mk("span", { class: "sub" });
+    // 열별 변경 대수: 반영 전에는 체크한 행, 반영 뒤에는 저장된 행을 센다
+    const columnBox = mk("div");
     let table;
     // 체크가 바뀔 때마다: 요약, 머리글 체크박스, 반영 버튼
     const sync = () => {
@@ -427,6 +475,11 @@ export function renderAfabTab(root) {
         .join(" · ");
       applyButton.textContent = state.saving ? state.busy || tx("저장 중...") : tx("반영 ({n}건)", { n: num(n) });
       applyButton.disabled = !n || state.saving;
+      columnBox.replaceChildren(
+        done
+          ? columnCountsEl(tx("열별 변경 대수 (반영된 행)"), items.filter((item) => state.results.get(item) === "saved"))
+          : columnCountsEl(tx("열별 변경 대수 (선택한 행)"), picked())
+      );
       table?.sync();
     };
     table = previewTable(sync);
@@ -434,7 +487,7 @@ export function renderAfabTab(root) {
 
     const other = mk("button", { class: "btn", type: "button", disabled: state.saving }, tx("다른 파일"));
     other.addEventListener("click", () => {
-      Object.assign(state, { file: "", plan: null, results: null, problem: null });
+      Object.assign(state, { file: "", table: null, plan: null, results: null, problem: null });
       state.off.clear();
       draw();
     });
@@ -458,6 +511,7 @@ export function renderAfabTab(root) {
             tx("⚠ 표시가 있는 행은 날짜 열에 날짜가 아닌 값이 들어갑니다. 반영하지 않을 행은 체크를 푸세요.")
           )
         : null,
+      columnBox,
       table.node,
       mk("div", { class: "btn-group cu-actions" }, other, done ? null : applyButton),
       absentSection(),
@@ -474,5 +528,7 @@ export function renderAfabTab(root) {
     );
   }
 
+  redraw = draw;
   draw();
+  if (state.plan && !state.results && !state.saving) replan();
 }

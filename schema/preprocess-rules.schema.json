@@ -275,6 +275,7 @@
           "items": { "enum": ["yyyyMMdd", "yyyy-MM-dd", "dd.MM.yyyy", "MMMM-yy", "MMM-yy"] }
         },
         "precision": { "enum": ["day", "month"], "default": "day" },
+        "zeroDay": { "enum": ["first"], "description": "일이 0 으로 적힌 날짜를 그 달 1일로 읽는다. 없으면 날짜로 보지 않는다(onInvalid 에 따른다)." },
         "onInvalid": { "$ref": "#/$defs/onInvalid", "default": "keep" }
       },
       "unevaluatedProperties": false

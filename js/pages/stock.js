@@ -324,8 +324,9 @@ function byVehicleCards(list) {
 function build(root, vehicles) {
   const today = baseDate();
   const body = mk("div");
-  // 월말 마감 탭의 머리줄: 마감 월 선택 · 마감한 날 · 파일 내려받기
-  const closingHead = mk("div", { class: "card-h", hidden: true });
+  // 월말 마감 탭의 머리줄: 마감 월 선택 · 마감한 날 · 파일 내려받기.
+  // 월말 마감 탭을 그릴 때만 탭 줄 아래에 넣고, 다른 탭으로 가면 화면에서 뺀다
+  const closingHead = mk("div", { class: "card-h" });
   let turn = 0; // 그릴 때마다 올린다. 늦게 도착한 마감 읽기 결과를 버리는 데 쓴다
 
   const note = (text) => mk("div", { class: "muted small", style: "margin:-4px 0 10px" }, text);
@@ -389,7 +390,7 @@ function build(root, vehicles) {
       closing?.closedAt ? mk("span", { class: "muted small" }, tx("마감한 날 {d}", { d: closing.closedAt })) : null,
       download
     );
-    closingHead.hidden = false;
+    tabs.after(closingHead);
     if (!closing) {
       say(tx("마감 파일을 읽을 수 없습니다."), true);
       return;
@@ -407,7 +408,7 @@ function build(root, vehicles) {
   const draw = () => {
     turn++;
     for (const tab of tabs.children) tab.classList.toggle("active", tab.dataset.scope === view.scope);
-    closingHead.hidden = true;
+    closingHead.remove();
     if (view.scope === "closing") drawClosing(turn);
     else drawCurrent();
   };
@@ -432,7 +433,7 @@ function build(root, vehicles) {
     )
   );
 
-  root.replaceChildren(mk("div", { class: "card" }, tabs, closingHead, body));
+  root.replaceChildren(mk("div", { class: "card" }, tabs, body));
   draw(); // 화면에 붙은 뒤에 그려야 여정 지도가 카드 폭을 잴 수 있다
 }
 

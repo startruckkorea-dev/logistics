@@ -1,4 +1,4 @@
-// 마스터 · 설정 — 모델 마스터, 색상 마스터(편집은 settings-edit.js), 상태 규칙(읽기 전용).
+// 마스터 · 설정 — 모델 마스터, 색상 마스터(편집은 settings-edit.js), 기준값(settings-base.js), 상태 규칙(읽기 전용).
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { loadVehicles } from "../data/vehicles.js";
@@ -9,10 +9,12 @@ import { num } from "../app/charts.js";
 import { specOf } from "../data/master-store.js";
 import { openValueFilter, closeValueFilter, filterIcon } from "../app/column-filter.js";
 import { edit, editControl, editToolbar, shownValue } from "./settings-edit.js";
+import { baseTab } from "./settings-base.js";
 
 const TABS = [
   ["model", "모델 마스터"],
   ["color", "색상 마스터"],
+  ["base", "기준값"],
   ["rules", "상태 규칙"],
 ];
 
@@ -466,6 +468,7 @@ function build(root, data) {
     for (const button of side.children) button.classList.toggle("active", button.dataset.tab === view.tab);
     closeValueFilter();
     if (view.tab === "color") colorTab(body, data, draw);
+    else if (view.tab === "base") baseTab(body, data);
     else if (view.tab === "rules") rulesTab(body, data.vehicles);
     else modelTab(body, data, draw);
   };

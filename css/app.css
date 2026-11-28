@@ -480,6 +480,37 @@ input[type="checkbox"].pend {
   outline: 2px solid var(--warn);
 }
 
+/* ---- 기준값 ---- */
+.base-tbl {
+  width: auto;
+  min-width: 620px;
+}
+.base-tbl td.val {
+  width: 200px;
+}
+.base-tbl .mst-in {
+  max-width: 180px;
+}
+.base-sec {
+  margin-top: 18px;
+}
+.base-sec h3 {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.base-sec p {
+  margin-bottom: 6px;
+}
+.base-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+.base-add .base-code {
+  width: 56px;
+}
+
 /* ---- 통관 완료 처리 ----
    미리보기 표: 왼쪽 묶음은 올린 파일의 값, 오른쪽 묶음(.cu-apply, 파란 음영)은 반영한 뒤의 차량 값 */
 .cu-tbl th.cu-group {

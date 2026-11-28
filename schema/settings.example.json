@@ -1,0 +1,20 @@
+{
+  "$schema": "./settings.schema.json",
+  "schemaVersion": 1,
+  "environment": "uat",
+  "description": "형식을 보여주는 예시. 숫자와 분류표의 값은 모두 가짜다. 실제 파일은 저장소에 올리지 않는다.",
+  "coverageMin": 0.5,
+  "coverageNormal": 1.5,
+  "coverageWarn": 4,
+  "overstockLimit": 5,
+  "defaultLeadMonths": 2,
+  "salesInit": "avg3",
+  "planStart": "2000-01",
+  "planMonths": 12,
+  "optimusGroups": ["SampleGroupA", "SampleGroupB"],
+  "optimusSubcat": {
+    "01": "SampleGroupA",
+    "02": "SampleGroupA",
+    "03": "SampleGroupB"
+  }
+}

@@ -51,6 +51,8 @@ const ENVIRONMENTS = {
     afabRulesFile: "02._kufri_UAT/Internal/Modify/afab-rules.uat.json",
     // 선적·입항 공지(자유 입력 한 칸). 처음 저장할 때 만들어진다.
     noticeFile: "02._kufri_UAT/Internal/Modify/shipping-notice.uat.json",
+    // 기준값(KUFRI 생산판매계획이 쓰는 값). 마스터·설정의 "기준값" 탭에서 고친다. 파일은 사람이 올려 둔다.
+    settingsFile: "02._kufri_UAT/Internal/Modify/kufri-setting.uat.json",
     lists: {
       modelMaster: "UAT_ModelMaster",
       colorMaster: "UAT_ColorMaster",
@@ -75,6 +77,7 @@ const ENVIRONMENTS = {
     modelLockFile: "01._kufri/Internal/Modify/model-lock.prod.json",
     afabRulesFile: "01._kufri/Internal/Modify/afab-rules.prod.json",
     noticeFile: "01._kufri/Internal/Modify/shipping-notice.prod.json",
+    settingsFile: "01._kufri/Internal/Modify/kufri-setting.prod.json",
     lists: {
       modelMaster: "PRD_ModelMaster",
       colorMaster: "PRD_ColorMaster",
@@ -104,6 +107,7 @@ export const SHAREPOINT = {
   modelLockFile: ENV.modelLockFile,
   afabRulesFile: ENV.afabRulesFile,
   noticeFile: ENV.noticeFile,
+  settingsFile: ENV.settingsFile,
   // 같은 사이트를 UAT 와 운영이 같이 쓰므로 List 는 이름의 접두어로 구분한다.
   lists: ENV.lists,
 };

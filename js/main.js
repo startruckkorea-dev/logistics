@@ -12,6 +12,7 @@ import { dashboardPage } from "./pages/dashboard.js";
 import { shippingPage } from "./pages/shipping.js";
 import { stockPage } from "./pages/stock.js";
 import { settingsPage } from "./pages/settings.js";
+import { kufriPage } from "./pages/kufri.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -71,6 +72,7 @@ async function main() {
   registerPage("shipping", shippingPage);
   registerPage("stock", stockPage);
   registerPage("settings", settingsPage);
+  registerPage("kufri", kufriPage);
   registerPage("admin", adminPage);
   startRouter();
 }

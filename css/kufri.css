@@ -1,0 +1,236 @@
+/* ===== KUFRI 생산판매계획 =====
+   색 토큰은 화면 상자(.kp) 아래에만 둔다(앱의 --line 등과 이름이 겹치지 않게 kp- 접두어).
+   항목 색: tint = 행 이름 칸의 바탕, ink = 글자, dot = 표식 */
+.kp {
+  --kp-line: #dce2e8;
+  --kp-line-soft: #e8ecf1;
+  --kp-faint: #a6b1bc;
+  --kp-prod-tint: #faf2e2; --kp-prod-ink: #8a5b13; --kp-prod-dot: #c08a2a;
+  --kp-inv-tint: #f7e8e2;  --kp-inv-ink: #8e3b22;  --kp-inv-dot: #c0613f;
+  --kp-arr-tint: #e6f2ea;  --kp-arr-ink: #1f6b42;  --kp-arr-dot: #3e8f5f;
+  --kp-sal-tint: #e4edf7;  --kp-sal-ink: #215a90;  --kp-sal-dot: #3d7cb5;
+  --kp-oh-tint: #eceaf7;   --kp-oh-ink: #4c3f8c;   --kp-oh-dot: #6d5fae;
+  --kp-it-tint: #efe6ec;   --kp-it-ink: #74365f;   --kp-it-dot: #8f4f79;
+  --kp-cov-tint: #ebeef2;  --kp-cov-ink: #3f4c5a;  --kp-cov-dot: #66747f;
+  --kp-grp-tint: #e9edf2;  --kp-grp-ink: #23415c;
+}
+
+/* 도구줄 */
+.kp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.kp-tabs {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.kp-tab {
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  background: #fff;
+  padding: 4px 10px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.kp-tab:last-child {
+  border-right: 0;
+}
+.kp-tab.on {
+  background: var(--kp-grp-ink);
+  color: #fff;
+}
+.kp-foot {
+  margin-top: 8px;
+}
+
+/* 범례 */
+.kp-legend {
+  border: 1px solid var(--kp-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+}
+.kp-legend ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+.kp-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 표 */
+.kp-wrap {
+  overflow: auto;
+  max-height: 76vh;
+  border: 1px solid var(--kp-line);
+  border-radius: 8px;
+}
+.kp-tbl {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.3px;
+  min-width: 100%;
+}
+.kp-tbl th,
+.kp-tbl td {
+  padding: 3px 7px;
+  border-bottom: 1px solid var(--kp-line-soft);
+  border-right: 1px solid var(--kp-line-soft);
+  white-space: nowrap;
+  text-align: right;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.kp-tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--soft);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.kp-tbl thead tr:nth-child(2) th {
+  top: 23px;
+}
+.kp-tbl thead th.yr-h {
+  text-align: center;
+  border-left: 2px solid var(--kp-line);
+}
+.kp-tbl .lbl {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  text-align: left;
+  min-width: 230px;
+  border-right: 2px solid var(--kp-line);
+}
+.kp-tbl thead th.lbl {
+  z-index: 5;
+}
+.kp-tbl td.lbl.sub {
+  padding-left: 26px;
+  color: var(--muted);
+}
+.kp-tbl td.lbl.tog {
+  cursor: pointer;
+}
+.kp-tbl .caret {
+  display: inline-block;
+  width: 14px;
+  color: var(--muted);
+}
+.kp-tbl tr.kp-subrow td {
+  color: var(--muted);
+  font-size: 11.8px;
+}
+
+/* 열: 당월, 계획 구간의 첫 달, 1월, 연간 */
+.kp-tbl th.cur,
+.kp-tbl td.cur {
+  background: #fff8e1;
+}
+.kp-tbl th.cur {
+  color: var(--text);
+}
+.kp-tbl th.planz {
+  border-top: 2px solid var(--kp-prod-dot);
+}
+.kp-tbl th.jan,
+.kp-tbl td.jan {
+  border-left: 2px solid var(--kp-line);
+}
+.kp-tbl th.yr,
+.kp-tbl td.yr {
+  background: var(--soft);
+  font-weight: 600;
+  border-left: 1px solid var(--kp-line);
+}
+
+/* 묶음의 제목 줄 */
+.kp-tbl tr.card-row td {
+  background: var(--kp-grp-tint);
+  color: var(--kp-grp-ink);
+  cursor: pointer;
+  border-top: 2px solid var(--kp-line);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.kp-tbl tr.card-row.total td {
+  background: #dfe6ee;
+}
+.kp-tbl tr.card-row .meta {
+  margin-left: 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* 행 이름 칸: 그 행의 바탕색과 글자색 */
+.kp-prod { background: var(--kp-prod-tint) !important; color: var(--kp-prod-ink); }
+.kp-inv { background: var(--kp-inv-tint) !important; color: var(--kp-inv-ink); }
+.kp-arr { background: var(--kp-arr-tint) !important; color: var(--kp-arr-ink); }
+.kp-sal { background: var(--kp-sal-tint) !important; color: var(--kp-sal-ink); }
+.kp-oh { background: var(--kp-oh-tint) !important; color: var(--kp-oh-ink); }
+.kp-it { background: var(--kp-it-tint) !important; color: var(--kp-it-ink); }
+.kp-cov { background: var(--kp-cov-tint) !important; color: var(--kp-cov-ink); }
+.kp-tbl td.lbl[class*="kp-"] {
+  font-weight: 600;
+}
+
+/* 값 칸 */
+.kp-tbl .faint {
+  color: var(--kp-faint);
+}
+.kp-tbl td.neg {
+  color: var(--danger);
+  font-weight: 600;
+}
+.kp-tbl td.drill {
+  cursor: pointer;
+}
+.kp-tbl td.drill:hover {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+/* 계획 값이 들어가는 칸: 그 행의 글자색 */
+.kp-tbl tr.kp-r-sal td.plan {
+  color: var(--kp-sal-ink);
+  font-weight: 600;
+}
+.kp-tbl tr.kp-subrow td.plan {
+  color: var(--kp-prod-ink);
+}
+/* 참고로만 보여 주는 칸 */
+.kp-tbl td.ref {
+  font-style: italic;
+  color: var(--kp-faint);
+}
+
+/* 재고월수 등급 */
+.kp-cov.good,
+.kp-cov.warn,
+.kp-cov.crit {
+  display: inline-block;
+  min-width: 30px;
+  padding: 0 5px;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 600;
+}
+.kp-cov.good { background: var(--ok-soft) !important; color: var(--ok); }
+.kp-cov.warn { background: var(--warn-soft) !important; color: var(--warn); }
+.kp-cov.crit { background: var(--danger-soft) !important; color: var(--danger); }

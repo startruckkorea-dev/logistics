@@ -10,12 +10,12 @@ import { loadSettings, checkSettings, settingsFileName } from "../data/settings-
 import { buildKufri, cellVehicles } from "../data/kufri-source.js";
 import { stageClass } from "../data/columns.js";
 import { num } from "../app/charts.js";
-import { matrixTable, ROWS } from "./kufri-matrix.js";
+import { matrixTable, modelBody, itemBody, ROWS, EXPANDABLE } from "./kufri-matrix.js";
 
 // 화면 상태. 다른 화면에 다녀와도 유지한다.
-//   year: 보여 줄 첫 해(그 해와 다음 해), vehicle: 차종 필터("" = 전체), q: 모델 검색,
-//   inactive: 표의 기간에 움직임이 없는 모델도 보인다, open: 펼친 행, collapsed: 접은 묶음
-const view = { year: "", vehicle: "", q: "", inactive: false, open: { prod: false, arr: false, it: false }, collapsed: new Set() };
+//   layout: 보기(model = 모델별, item = 항목별), year: 보여 줄 첫 해(그 해와 다음 해), vehicle: 차종 필터("" = 전체), q: 모델 검색,
+//   inactive: 보이는 기간에 생산·판매가 없는 모델도 보인다, open: 펼친 세부 행(두 보기가 같이 쓴다), collapsed: 접은 묶음
+const view = { layout: "model", year: "", vehicle: "", q: "", inactive: false, open: { prod: false, arr: false, it: false }, collapsed: new Set() };
 
 const TOTAL_KEY = "__total";
 const sectionKey = (vehicle) => `__vehicle|${vehicle}`;
@@ -164,16 +164,25 @@ function build(root, data) {
   const box = mk("div", { class: "kp" });
   let showLegend = false;
 
-  const draw = () => {
+  // 다시 그려도 표와 화면의 스크롤 위치를 그대로 둔다. toTop = 보기 · 연도 · 차종을 바꿔 표의 내용이 달라질 때는 표를 맨 위로
+  const draw = (toTop) => {
+    const before = box.querySelector(".kp-wrap");
+    const keep = { top: toTop ? 0 : before?.scrollTop ?? 0, left: before?.scrollLeft ?? 0, x: window.scrollX, y: window.scrollY };
     const nextYear = String(Number(view.year) + 1);
     const months = model.months.filter((month) => month.startsWith(view.year) || month.startsWith(nextYear));
     const term = view.q.trim().toLowerCase();
-    const match = (group) => (view.inactive || group.active) && (!term || `${group.label} ${group.gen}`.toLowerCase().includes(term));
+    // 보이는 기간(고른 두 해)에 Production 과 Sales 가 모두 0 인 모델은 숨긴다. 합계에는 숨긴 모델도 들어 있다
+    const shownIndexes = months.map((month) => model.months.indexOf(month));
+    const live = (group) => group.active && shownIndexes.some((i) => group.result.prod[i] || group.result.sales[i]);
+    const found = (group) => !term || `${group.label} ${group.gen}`.toLowerCase().includes(term);
+    const match = (group) => (view.inactive || live(group)) && found(group);
+    let hiddenModels = 0;
     const cards = [{ key: TOTAL_KEY, title: tx("전체 합계"), meta: tx("모델 {n}개", { n: num(model.groups.length) }), result: model.total, drill: false }];
     let shownModels = 0;
     for (const section of model.sections) {
       if (view.vehicle && section.vehicle !== view.vehicle) continue;
       const own = section.groups.filter(match);
+      hiddenModels += section.groups.filter((group) => found(group) && !live(group)).length;
       cards.push({
         key: sectionKey(section.vehicle),
         title: tx("{v} 합계", { v: section.vehicle || tx("(차종 없음)") }),
@@ -195,7 +204,42 @@ function build(root, data) {
       }
     }
 
+    // 묶음: 모델별 보기는 합계 · 모델마다, 항목별 보기는 행(Production 등)마다
+    const bodies =
+      view.layout === "item"
+        ? ROWS.map((row) =>
+            itemBody(
+              row,
+              cards.map((card) => ({ label: card.title, result: card.result, group: card.drill ? card.key : undefined, strong: !card.drill })),
+              view.open
+            )
+          )
+        : cards.map((card) => modelBody(card, view.open));
+    const setCollapsed = (on) => {
+      for (const body of bodies) {
+        if (on) view.collapsed.add(body.key);
+        else view.collapsed.delete(body.key);
+      }
+      draw();
+    };
+    const setOpen = (on) => {
+      for (const id of EXPANDABLE) view.open[id] = on;
+      draw();
+    };
+    // 항목별 보기의 바로 가기: 그 행의 묶음이 표의 맨 위에 오게 한다
+    const jump = (key) => {
+      if (view.collapsed.has(key)) {
+        view.collapsed.delete(key);
+        draw();
+      }
+      const wrap = box.querySelector(".kp-wrap");
+      const target = [...wrap.querySelectorAll("tr.card-row")].find((tr) => tr.dataset.card === key);
+      if (target) wrap.scrollTop = target.offsetTop - wrap.querySelector("thead").offsetHeight;
+    };
+
     const tab = (label, active, onclick) => mk("button", { class: `kp-tab${active ? " on" : ""}`, type: "button", onclick }, label);
+    const pair = (label, onOpen, onClose) =>
+      mk("span", { class: "kp-pair" }, mk("span", { class: "muted small" }, label), mk("span", { class: "kp-tabs" }, tab(tx("모두 펼치기"), false, onOpen), tab(tx("모두 접기"), false, onClose)));
     const search = mk("input", { class: "st-search", placeholder: tx("모델 검색"), value: view.q });
     search.addEventListener("input", () => {
       view.q = search.value;
@@ -242,18 +286,45 @@ function build(root, data) {
         mk(
           "div",
           { class: "kp-bar" },
-          mk("span", { class: "kp-tabs" }, years.map((year) => tab(`${year} ~ ${Number(year) + 1}`, year === view.year, () => { view.year = year; draw(); }))),
           mk(
             "span",
             { class: "kp-tabs" },
-            tab(tx("전체"), !view.vehicle, () => { view.vehicle = ""; draw(); }),
-            vehicles.map((vehicle) => tab(vehicle || tx("(차종 없음)"), vehicle === view.vehicle, () => { view.vehicle = vehicle; draw(); }))
+            tab(tx("모델별 보기"), view.layout === "model", () => { view.layout = "model"; draw(true); }),
+            tab(tx("항목별 보기"), view.layout === "item", () => { view.layout = "item"; draw(true); })
+          ),
+          mk("span", { class: "kp-tabs" }, years.map((year) => tab(`${year} ~ ${Number(year) + 1}`, year === view.year, () => { view.year = year; draw(true); }))),
+          mk(
+            "span",
+            { class: "kp-tabs" },
+            tab(tx("전체"), !view.vehicle, () => { view.vehicle = ""; draw(true); }),
+            vehicles.map((vehicle) => tab(vehicle || tx("(차종 없음)"), vehicle === view.vehicle, () => { view.vehicle = vehicle; draw(true); }))
           ),
           mk("label", { class: "muted small" }, tx("검색"), " ", search),
-          mk("label", { class: "muted small" }, inactive, " ", tx("움직임이 없는 모델도 보기")),
+          mk(
+            "label",
+            { class: "muted small", title: tx("보이는 기간에 Production 과 Sales 가 모두 0 인 모델입니다. 숨겨도 합계에는 들어 있습니다.") },
+            inactive,
+            " ",
+            tx("생산·판매 계획 없는 모델 표시"),
+            hiddenModels && !view.inactive ? ` ${tx("(숨김 {n})", { n: num(hiddenModels) })}` : ""
+          ),
           mk("span", { class: "muted small" }, tx("모델 {n}개 표시", { n: num(shownModels) }))
         ),
-        matrixTable(model, { months, cards, limits: data.settings, open: view.open, collapsed: view.collapsed }),
+        mk(
+          "div",
+          { class: "kp-bar" },
+          pair(tx("묶음"), () => setCollapsed(false), () => setCollapsed(true)),
+          pair(tx("세부 행"), () => setOpen(true), () => setOpen(false)),
+          view.layout === "item"
+            ? mk(
+                "span",
+                { class: "kp-pair" },
+                mk("span", { class: "muted small" }, tx("바로 가기")),
+                ROWS.map((row) => mk("button", { class: `kp-chip kp-jump kp-${row.cls}`, type: "button", onclick: () => jump(`__item|${row.id}`) }, tx(row.label).split(" (")[0]))
+              )
+            : null
+        ),
+        matrixTable(model, { months, bodies, limits: data.settings, collapsed: view.collapsed }),
         mk(
           "p",
           { class: "muted small kp-foot" },
@@ -265,6 +336,10 @@ function build(root, data) {
       ),
       rejectedCard(model)
     );
+    const wrap = box.querySelector(".kp-wrap");
+    wrap.scrollTop = keep.top;
+    wrap.scrollLeft = keep.left;
+    window.scrollTo(keep.x, keep.y);
   };
 
   box.addEventListener("click", (event) => {
@@ -281,7 +356,7 @@ function build(root, data) {
     }
     const cell = event.target.closest("td.drill");
     if (cell) {
-      const group = model.groups.find((g) => g.key === cell.closest("tbody").dataset.key);
+      const group = model.groups.find((g) => g.key === cell.closest("tr").dataset.key);
       if (group) openCell(model, group, cell.dataset.row, cell.dataset.month);
       return;
     }

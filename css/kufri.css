@@ -44,6 +44,16 @@
   background: var(--kp-grp-ink);
   color: #fff;
 }
+.kp-pair {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.kp-jump {
+  border: 0;
+  margin-right: 0;
+  cursor: pointer;
+}
 .kp-foot {
   margin-top: 8px;
 }
@@ -124,6 +134,9 @@
   padding-left: 26px;
   color: var(--muted);
 }
+.kp-tbl td.lbl.sub.deep {
+  padding-left: 46px;
+}
 .kp-tbl td.lbl.tog {
   cursor: pointer;
 }
@@ -189,6 +202,12 @@
 .kp-cov { background: var(--kp-cov-tint) !important; color: var(--kp-cov-ink); }
 .kp-tbl td.lbl[class*="kp-"] {
   font-weight: 600;
+}
+
+/* 항목별 보기의 합계 줄 */
+.kp-tbl tr.kp-row.strong td {
+  font-weight: 600;
+  background: var(--soft);
 }
 
 /* 값 칸 */

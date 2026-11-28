@@ -1,5 +1,8 @@
-// KUFRI 생산판매계획의 매트릭스 — 전체 합계 · 차종 합계 · 모델마다 한 묶음(행 9종), 열은 월.
-// 값만 그린다. 계산은 domain/kufri.js, 화면의 조건(연도 · 차종 · 검색)은 kufri.js 가 정한다.
+// KUFRI 생산판매계획의 매트릭스 — 묶음마다 제목 줄과 값 줄, 열은 월.
+//   모델별 보기: 묶음 = 전체 합계 · 차종 합계 · 모델, 줄 = 행 9종(+ 펼침 행)
+//   항목별 보기: 묶음 = 행 9종, 줄 = 전체 합계 · 차종 합계 · 모델(+ 줄마다 펼침 행)
+// 두 보기는 놓는 순서만 다르고 내용은 같다.
+// 값만 그린다. 계산은 domain/kufri.js, 화면의 조건(연도 · 차종 · 검색 · 보기)은 kufri.js 가 정한다.
 import { mk } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { coverageLevel } from "../domain/kufri.js";
@@ -22,20 +25,60 @@ export const ROWS = [
   { id: "coverAll", cls: "cov", label: "전체 재고월수", key: "coverAll", cover: true },
 ];
 
-const monthLabel = (month) => `${Number(month.slice(5))}`;
+/** 펼침 행이 있는 행의 id */
+export const EXPANDABLE = ROWS.filter((row) => row.subs).map((row) => row.id);
+
+/**
+ * 모델별 보기의 묶음 하나: 한 모델(또는 합계)의 행 9종.
+ * @param {{key, title, meta?, result, drill: boolean}} card drill = 칸을 누르면 차량 목록(모델 묶음만)
+ * @param {Record<string, boolean>} open 펼친 행
+ */
+export function modelBody(card, open) {
+  return {
+    key: card.key,
+    title: card.title,
+    meta: card.meta,
+    total: !card.drill,
+    lines: ROWS.flatMap((row) => [
+      { row, values: card.result[row.key], group: card.drill ? card.key : null, toggle: Boolean(row.subs) && { id: row.id, on: Boolean(open[row.id]) } },
+      ...(row.subs && open[row.id] ? row.subs.map(([key, label]) => ({ row, values: card.result[key], sub: key, label })) : []),
+    ]),
+  };
+}
+
+/**
+ * 항목별 보기의 묶음 하나: 한 행(Production 등)의 전체 합계 · 차종 합계 · 모델.
+ * @param {object} row ROWS 의 행
+ * @param {Array<{label: string, result: object, group?: string, strong?: boolean}>} entries group = 모델 행의 key(칸의 차량 목록용)
+ * @param {Record<string, boolean>} open 펼친 행. 펼치면 줄마다 그 아래에 펼침 행이 나온다
+ */
+export function itemBody(row, entries, open) {
+  return {
+    key: `__item|${row.id}`,
+    title: tx(row.label),
+    cls: row.cls,
+    total: true,
+    lines: entries.flatMap((entry) => [
+      {
+        row, values: entry.result[row.key], group: entry.group ?? null, label: entry.label, strong: entry.strong, plain: true,
+        toggle: Boolean(row.subs) && { id: row.id, on: Boolean(open[row.id]) },
+      },
+      ...(row.subs && open[row.id] ? row.subs.map(([key, label]) => ({ row, values: entry.result[key], sub: key, label, deep: true })) : []),
+    ]),
+  };
+}
 
 /**
  * @param {object} model buildKufri 의 결과
  * @param {object} options
  * @param {string[]} options.months 보여 줄 달(연도 탭으로 고른 두 해)
- * @param {Array<{key, title, meta?, result, drill: boolean}>} options.cards 보여 줄 묶음(위에서부터)
+ * @param {object[]} options.bodies 보여 줄 묶음(modelBody · itemBody 의 결과, 위에서부터)
  * @param {{coverageMin, coverageNormal, coverageWarn}} options.limits 재고월수 등급의 기준값
- * @param {Record<string, boolean>} options.open 펼친 행(prod · arr · it)
  * @param {Set<string>} options.collapsed 접은 묶음의 key
- * @returns {HTMLElement} 표가 든 상자
+ * @returns {HTMLElement} 표가 든 상자(.kp-wrap)
  */
 export function matrixTable(model, options) {
-  const { months, cards, limits, open, collapsed } = options;
+  const { months, bodies, limits, collapsed } = options;
   const indexOf = Object.fromEntries(model.months.map((month, i) => [month, i]));
   const years = [...new Set(months.map((month) => month.slice(0, 4)))];
   // 열: 달, 그리고 해마다 마지막 달 뒤에 연간 열
@@ -68,7 +111,7 @@ export function matrixTable(model, options) {
                 class: monthClass(column.month),
                 title: column.month === model.current ? tx("당월") : column.month === model.planFrom ? tx("Production 계획 구간이 시작하는 달") : null,
               },
-              tx("{m}월", { m: monthLabel(column.month) })
+              tx("{m}월", { m: Number(column.month.slice(5)) })
             )
           : mk("th", { class: "yr" }, tx("연간 · 연말"))
       )
@@ -79,10 +122,10 @@ export function matrixTable(model, options) {
     value == null ? mk("span", { class: "faint" }, "—") : mk("span", { class: `kp-cov ${coverageLevel(value, limits)}` }, value.toFixed(1));
   const valueNode = (value) => (value ? num(value) : mk("span", { class: "faint" }, "·"));
 
-  // 한 행. values = 표 전체 달의 배열
-  const dataRow = (row, values, card, sub) => {
-    const key = sub ? sub[0] : row.key;
-    const isPlanRow = key === "prodPlan";
+  // 값 줄 하나. line.values = 표 전체 달의 배열
+  const dataRow = (line) => {
+    const { row, values } = line;
+    const key = line.sub ?? row.key;
     const cells = columns.map((column) => {
       if (!column.month) {
         const picked = column.months.map((month) => values[indexOf[month]]);
@@ -94,10 +137,10 @@ export function matrixTable(model, options) {
       const value = values[indexOf[month]];
       if (row.cover) return mk("td", { class: monthClass(month) }, coverNode(value));
       // 계획 값이 들어가는 칸: Sales 는 당월부터, Production 의 계획 행은 계획 구간
-      const planned = (row.id === "sales" && !sub && month >= model.current) || (isPlanRow && month >= model.planFrom);
+      const planned = (row.id === "sales" && !line.sub && month >= model.current) || (key === "prodPlan" && month >= model.planFrom);
       // 참고로만 보여 주는 칸: 계획 구간의 Changeable
       const reference = key === "prodChangeable" && month >= model.planFrom;
-      const canDrill = card.drill && !sub && value && (row.drill === true || (row.drill === "past" && month < model.current));
+      const canDrill = line.group && !line.sub && value && (row.drill === true || (row.drill === "past" && month < model.current));
       return mk(
         "td",
         {
@@ -109,38 +152,38 @@ export function matrixTable(model, options) {
         valueNode(value)
       );
     });
-    const label = sub
-      ? mk("td", { class: "lbl sub" }, tx(sub[1]))
-      : mk(
-          "td",
-          { class: `lbl kp-${row.cls}${row.subs ? " tog" : ""}`, "data-tog": row.subs ? row.id : null, title: row.subs ? tx("클릭 → 펼치기 / 접기") : null },
-          row.subs ? mk("span", { class: "caret" }, open[row.id] ? "▾" : "▸") : null,
-          tx(row.label)
-        );
-    return mk("tr", { class: sub ? "kp-subrow" : `kp-row kp-r-${row.cls}` }, label, cells);
+    let label;
+    const caret = line.toggle ? mk("span", { class: "caret" }, line.toggle.on ? "▾" : "▸") : null;
+    const toggleAttrs = { "data-tog": line.toggle ? line.toggle.id : null, title: line.toggle ? tx("클릭 → 펼치기 / 접기") : null };
+    if (line.sub) label = mk("td", { class: `lbl sub${line.deep ? " deep" : ""}` }, tx(line.label));
+    else if (line.plain) label = mk("td", { class: `lbl${line.strong ? " strong" : " sub"}${line.toggle ? " tog" : ""}`, ...toggleAttrs }, caret, line.label);
+    else {
+      label = mk(
+        "td",
+        { class: `lbl kp-${row.cls}${line.toggle ? " tog" : ""}`, ...toggleAttrs },
+        caret,
+        tx(row.label)
+      );
+    }
+    const cls = line.sub ? "kp-subrow" : `kp-row kp-r-${row.cls}${line.strong ? " strong" : ""}`;
+    return mk("tr", { class: cls, "data-key": line.group }, label, cells);
   };
 
-  const bodies = cards.map((card) => {
-    const closed = collapsed.has(card.key);
+  const tbodies = bodies.map((body) => {
+    const closed = collapsed.has(body.key);
     const title = mk(
       "tr",
-      { class: `card-row${card.drill ? "" : " total"}`, "data-card": card.key },
+      { class: `card-row${body.total ? " total" : ""}`, "data-card": body.key },
       mk(
         "td",
-        { class: "lbl", colspan: columns.length + 1 },
+        { class: `lbl${body.cls ? ` kp-${body.cls}` : ""}`, colspan: columns.length + 1 },
         mk("span", { class: "caret" }, closed ? "▸" : "▾"),
-        mk("b", null, card.title),
-        card.meta ? mk("span", { class: "meta" }, card.meta) : null
+        mk("b", null, body.title),
+        body.meta ? mk("span", { class: "meta" }, body.meta) : null
       )
     );
-    const rows = closed
-      ? []
-      : ROWS.flatMap((row) => [
-          dataRow(row, card.result[row.key], card),
-          ...(row.subs && open[row.id] ? row.subs.map((sub) => dataRow(row, card.result[sub[0]], card, sub)) : []),
-        ]);
-    return mk("tbody", { "data-key": card.drill ? card.key : null }, title, rows);
+    return mk("tbody", null, title, closed ? [] : body.lines.map(dataRow));
   });
 
-  return mk("div", { class: "kp-wrap" }, mk("table", { class: "kp-tbl" }, head, bodies));
+  return mk("div", { class: "kp-wrap" }, mk("table", { class: "kp-tbl" }, head, tbodies));
 }

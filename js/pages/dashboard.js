@@ -1,4 +1,4 @@
-// 대시보드 — 차량 주문·재고 흐름 카드, 입항 예정 선박, 당월 도착 예정, 월별 추이, 차종별 파이프라인, 연식별 재고.
+// 대시보드 — 차량 주문·재고 흐름 카드, 입항 예정 선박, 당월 도착 예정·실적, 월별 추이, 차종별 파이프라인, 연식별 재고.
 // 모든 수치는 차량 목록에서 계산한다. 날짜 계산은 기준일(app/base-date.js)을 오늘로 삼는다.
 import { mk, mkSvg } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
@@ -83,7 +83,7 @@ function flowCard(vehicles, baseMonth, schedule) {
     },
     {
       label: tx("운송 중"), icon: "transit", vs: transit, color: STAGE_COLOR[STATUS.IN_TRANSIT],
-      sub: tx("당월 입항 예정({m}월) {n}대", { ...month, n: num(schedule.total) }),
+      sub: tx("당월 입항 예정({m}월) {n}대", { ...month, n: num(schedule.inTransit) }),
       href: stageLink(STATUS.IN_TRANSIT), to: "Logistics 목록 (In Transit)",
     },
     {
@@ -192,7 +192,7 @@ function shipsCard(vehicles, today) {
     null,
     cardHead(
       tx("입항 예정 선박"),
-      tx("Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환 · TSC 입고일 후 {n}일까지 표시", { n: TSC_KEEP_DAYS }),
+      tx("Pl. arrival(AFAB) → ETA(EUKOR, 평택) → ATA 순 전환 · TSC 입고일 후 {n}일까지, 당월 입항 선박은 월말까지 표시", { n: TSC_KEEP_DAYS }),
       mk("span", { class: "spacer" }),
       mk("a", { href: "#/shipping" }, tx("선적·입항 →"))
     ),
@@ -231,7 +231,7 @@ function shipsCard(vehicles, today) {
   );
 }
 
-// ---- 당월 도착 예정: 구분 > 차종 > 모델 × 당월 입항 선박 ----
+// ---- 당월 도착 예정·실적: 구분 > 차종 > 모델 × 당월 입항 선박 ----
 function arrivalCard(schedule, baseMonth) {
   const voyages = schedule.voyagesByMonth[baseMonth] ?? [];
   const cell = (n, isTotal) => mk("td", { class: isTotal ? "num tot" : "num" }, n ? num(n) : null);
@@ -257,7 +257,7 @@ function arrivalCard(schedule, baseMonth) {
   return card(
     { class: "card fillcol" },
     cardHead(
-      tx("당월 도착 예정 ({m}월)", month),
+      tx("당월 도착 예정·실적 ({m}월)", month),
       tx("구분 > 차종 > 모델 × 당월 입항 선박 · 합계 {n}대 · 선박 {v}척", { n: num(schedule.total), v: voyages.length }),
       mk("span", { class: "spacer" }),
       mk("a", { href: "#/shipping" }, tx("월별 입항 예정 →"))
@@ -278,7 +278,7 @@ function arrivalCard(schedule, baseMonth) {
               "tr",
               null,
               mk("th", null, "Model"),
-              voyages.map((y) => mk("th", { class: "num", title: `Shipping ${y.shipping || "—"}` }, y.vessel)),
+              voyages.map((y) => mk("th", { class: "num", title: `Shipping ${y.shipping || "—"} → ${y.date || "—"}${y.bl ? ` · B/L ${y.bl}` : ""}` }, y.vessel)),
               mk("th", { class: "num tot" }, "Total")
             ),
             mk("tr", { class: "total" }, mk("td", null, "Grand Total"), cells(schedule.grand))
@@ -342,7 +342,7 @@ function build(root, vehicles) {
   const schedule = arrivalSchedule(vehicles, baseMonth, { onlyMonth: baseMonth });
   const trend = trendCard(vehicles, baseMonth);
 
-  // 배치: 흐름 카드 → [입항 예정 선박 | 당월 도착 예정(2행 높이)] + 월별 추이 → [차종별 파이프라인 | 연식별 재고]
+  // 배치: 흐름 카드 → [입항 예정 선박 | 당월 도착 예정·실적(2행 높이)] + 월별 추이 → [차종별 파이프라인 | 연식별 재고]
   root.replaceChildren(
     flowCard(vehicles, baseMonth, schedule),
     mk("div", { class: "grid2 dash-top" }, shipsCard(vehicles, today), arrivalCard(schedule, baseMonth), trend),

@@ -434,6 +434,31 @@ body {
 .notice-ta.pend {
   background: #fff8e1;
 }
+/* 행 나누기 창 */
+.split-btn {
+  margin-left: 6px;
+}
+.split-list {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.split-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.split-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin-bottom: 10px;
+}
 /* 마스터 편집 */
 .mst-in {
   width: 100%;

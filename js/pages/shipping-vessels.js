@@ -2,7 +2,8 @@
 //   차량에 반영하는 값: B/L No, ETA 선사, ATA, TSC 입고일(확정)  → 그 선박의 차량 전체(Main List)
 //   선박에만 두는 값  : 총중량, TSC 입고일(예정)                 → 선박 단위 List
 //   공지(자유 입력 한 칸)                                        → JSON 파일
-// 편집 중 바꾼 값은 저장 대기에 쌓고 "편집 종료"에서 한꺼번에 저장한다. TSC 확정만 확인 창에서 바로 저장한다.
+// 편집 중 바꾼 값은 저장 대기에 쌓고 "편집 종료"에서 한꺼번에 저장한다. TSC 확정과 행 나누기는 창에서 바로 저장한다.
+// 한 행 = 선박 이름 + Shipping 날짜 + 입항일 + B/L No 가 같은 차량(derive.js 의 listVoyages).
 import { mk } from "../lib/dom.js";
 import { ENV } from "../lib/config.js";
 import { tx } from "../app/i18n.js";
@@ -19,6 +20,7 @@ import { num } from "../app/charts.js";
 
 const SOURCE = "선적·입항";
 const SOURCE_TSC = "선적·입항 (TSC 확정)";
+const SOURCE_SPLIT = "선적·입항 (행 나누기)";
 
 // 편집 상태. 다른 화면에 다녀와도 유지한다.
 //   pending : 선박 key → { bl?, eta?, ata?, tsc?, gw? } (바꾼 칸만)
@@ -53,8 +55,8 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
     if (name === "bl") return y.bls.length === 1 ? y.bls[0] : "";
     if (name === "eta") return y.eta_carrier;
     if (name === "ata") return y.eta_final;
-    if (name === "tsc") return y.confirmed ? y.tsc : String(notes.get(y.key)?.tsc_planned ?? "");
-    const gw = notes.get(y.key)?.gw;
+    if (name === "tsc") return y.confirmed ? y.tsc : String(notes.get(y.voyage)?.tsc_planned ?? "");
+    const gw = notes.get(y.voyage)?.gw;
     return gw === "" || gw == null ? "" : String(gw);
   };
   const shown = (y, name) => {
@@ -212,6 +214,100 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
         mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${targetListNames(["tsc_arrival_date"]).join(", ")}`),
       ],
       [mk("button", { class: "btn", type: "button", onclick: closeModal }, tx("취소")), confirm]
+    );
+  }
+
+  // ---- 행 나누기: 고른 차량에 다른 B/L No 를 넣어 한 행을 둘로 나눈다(환적, 같은 배에 B/L 이 다른 경우) ----
+  const splitButton = (y) =>
+    mk(
+      "button",
+      {
+        class: "btn sm split-btn",
+        type: "button",
+        disabled: edit.saving,
+        title: tx("클릭 → Commission 을 골라 행 나누기"),
+        onclick: (event) => {
+          event.stopPropagation();
+          if (edit.pending.has(y.key)) {
+            toast(tx("행 나누기"), tx("이 행에 저장 대기 중인 입력이 있습니다. 먼저 '편집 종료'로 저장하거나 변경을 취소하세요."));
+            return;
+          }
+          openSplit(y);
+        },
+      },
+      tx("나누기")
+    );
+
+  function openSplit(y) {
+    const fail = (text) => toast(tx("행 나누기"), text);
+    const items = [...y.vehicles]
+      .sort((a, b) => (String(a.commission_no) < String(b.commission_no) ? -1 : 1))
+      .map((v) => ({ v, box: mk("input", { type: "checkbox" }) }));
+    const picked = () => items.filter((item) => item.box.checked).map((item) => item.v);
+    const counter = mk("span", { class: "muted small" });
+    const drawCounter = () => {
+      counter.textContent = tx("선택 {n}대 / 전체 {m}대", { n: num(picked().length), m: num(items.length) });
+    };
+    for (const item of items) item.box.addEventListener("change", drawCounter);
+    drawCounter();
+    const blInput = mk("input", { type: "text", class: "tsc-in", maxlength: 255 });
+    const etaInput = mk("input", { type: "date", class: "tsc-in" });
+    const ataInput = mk("input", { type: "date", class: "tsc-in", max: today });
+    const apply = mk("button", { class: "btn primary", type: "button" }, tx("나누기"));
+    apply.addEventListener("click", async () => {
+      const chosen = picked();
+      const rest = items.filter((item) => !item.box.checked).map((item) => item.v);
+      const bl = blInput.value.trim();
+      const eta = etaInput.value.trim();
+      const ata = ataInput.value.trim();
+      if (!chosen.length || !rest.length) return fail(tx("나눌 차량을 고르세요. 모든 차량을 고를 수는 없습니다."));
+      if (!bl) return fail(tx("나눌 차량의 B/L No 를 입력하세요."));
+      if (rest.some((v) => String(v.bl_no ?? "") === bl)) return fail(tx("남는 차량과 같은 B/L No 로는 나눌 수 없습니다."));
+      if ((eta && !isDate(eta)) || (ata && !isDate(ata))) return fail(tx("날짜를 입력하세요."));
+      if (ata > today) {
+        return fail(tx("ATA 는 실제 입항일이라 오늘({d}) 이후 날짜는 넣을 수 없습니다. 입항 예정일은 ETA 선사에 넣으세요.", { d: today }));
+      }
+      const inputs = { bl_no: bl, ...(eta ? { eta_from_eukor_pirt: eta } : {}), ...(ata ? { ata } : {}) };
+      apply.disabled = true;
+      try {
+        const out = await saveVehicles(chosen.map((v) => ({ vehicle: v, voyage: true, inputs })), SOURCE_SPLIT);
+        closeModal();
+        report(out, tx("행 나누기 · {v}", { v: y.vessel }));
+        hooks.rerender();
+      } catch (err) {
+        console.error(err);
+        toast(tx("저장 실패"), `${err.status ?? ""} ${err.message ?? ""}`.trim());
+        apply.disabled = false;
+      }
+    });
+    openModal(
+      tx("행 나누기 — {v}", { v: y.vessel }),
+      [
+        mk("div", { class: "callout" }, tx("고른 차량에 다른 B/L No 를 넣어 이 행을 둘로 나눕니다(환적, 같은 배에 B/L 이 다른 경우). 바로 저장됩니다.")),
+        mk(
+          "div",
+          { class: "split-list" },
+          items.map(({ v, box }) =>
+            mk(
+              "label",
+              { class: "split-item" },
+              box,
+              mk("span", { class: "mono" }, v.commission_no),
+              mk("span", { class: `pill ${stageClass(v.current_status)}` }, v.current_status)
+            )
+          )
+        ),
+        mk("p", null, counter),
+        mk(
+          "div",
+          { class: "split-fields" },
+          mk("label", null, tx("나눌 차량의 B/L No"), " ", blInput),
+          mk("label", null, tx("ETA 선사 (선택)"), " ", etaInput),
+          mk("label", null, tx("ATA (선택)"), " ", ataInput)
+        ),
+        mk("p", { class: "muted small" }, `${tx("대상")}(${ENV.label}): ${targetListNames(["bl_no"]).join(", ")}`),
+      ],
+      [mk("button", { class: "btn", type: "button", onclick: closeModal }, tx("취소")), apply]
     );
   }
 
@@ -482,7 +578,7 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
               { "data-href": edit.on ? null : voyageLink(y) },
               mk("td", null, mk("b", null, y.vessel)),
               stageCell(y.vehicles),
-              mk("td", { class: "num" }, mk("b", null, y.count)),
+              mk("td", { class: "num" }, mk("b", null, y.count), edit.on && y.count > 1 ? splitButton(y) : null),
               gwCell(y),
               blCell(y),
               mk("td", { class: "mono" }, y.shipping || dash(), y.kind === "scheduled" ? [" ", mk("span", { class: "muted small" }, tx("예정"))] : null),
@@ -504,7 +600,7 @@ export function vesselsCard(vehicles, notes, notice, hooks) {
       "div",
       { class: "card-h" },
       mk("h2", null, tx("선박별 현황")),
-      mk("span", { class: "desc" }, tx("선박 = 선박 이름 + Shipping 날짜 · ATA = 실제 입항일 · TSC 입고일은 예정으로 두었다가 확정하면 차량에 반영되고 In Transit 이 Bonded Stock 으로 바뀝니다 · 확정 후 {n}일까지 표시", { n: 5 })),
+      mk("span", { class: "desc" }, tx("선박 = 선박 이름 + Shipping 날짜 · ATA = 실제 입항일 · TSC 입고일은 예정으로 두었다가 확정하면 차량에 반영되고 In Transit 이 Bonded Stock 으로 바뀝니다 · 확정 후 {n}일까지, 당월 입항 선박은 월말까지 표시", { n: 5 })),
       mk("span", { class: "spacer" }),
       bar,
       editButton,

@@ -532,7 +532,7 @@ export function loadVoyageNotes(options = {}) {
 
 /**
  * 선박 단위 값을 저장한다. 그 선박의 행이 없으면 만든다.
- * @param {{key: string, vessel: string, shipping: string}} voyage
+ * @param {{voyage: string, vessel: string, shipping: string}} voyage voyage = 선박 key(선박 이름 + Shipping 날짜). 나뉜 행도 같은 값을 쓴다
  * @param {{gw?: string, tsc_planned?: string}} patch 바꿀 값만. 빈 글은 값을 지운다
  * @returns {Promise<{ok: boolean, code: string}>}
  */
@@ -549,16 +549,16 @@ export async function saveVoyageNote(voyage, patch) {
   const apply = (note) => {
     for (const [name, value] of Object.entries(fields)) note[name] = value ?? "";
   };
-  const existing = notes.get(voyage.key);
+  const existing = notes.get(voyage.voyage);
 
   if (!existing) {
-    const row = { voyage_key: voyage.key, vessel: voyage.vessel, shipping: voyage.shipping };
+    const row = { voyage_key: voyage.voyage, vessel: voyage.vessel, shipping: voyage.shipping };
     for (const [name, value] of Object.entries(fields)) if (value != null) row[name] = value;
     const [res] = await addListItems(listId, [Object.fromEntries(Object.entries(row).filter(([, v]) => v !== ""))]);
     if (!isOk(res.status)) return { ok: false, code: `${res.status} ${res.code}` };
     const note = { gw: "", tsc_planned: "", _itemId: res.id, _etag: res.etag };
     apply(note);
-    notes.set(voyage.key, note);
+    notes.set(voyage.voyage, note);
     return { ok: true, code: "" };
   }
 

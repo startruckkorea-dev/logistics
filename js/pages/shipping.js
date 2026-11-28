@@ -6,7 +6,7 @@ import { baseDate } from "../app/base-date.js";
 import { STATUS } from "../domain/status.js";
 import { loadVehicles } from "../data/vehicles.js";
 import { loadVoyageNotes, loadShippingNotice } from "../data/store.js";
-import { expectedArrivalMonth, arrivalSchedule } from "../data/derive.js";
+import { arrivalSchedule } from "../data/derive.js";
 import { num, monthEn } from "../app/charts.js";
 import { vesselsCard } from "./shipping-vessels.js";
 
@@ -21,12 +21,15 @@ const ON_VESSEL = [STATUS.IN_TRANSIT, STATUS.SHIPMENT_SCHEDULED];
 const NOT_SHIPPED = [STATUS.ORDERED_CHANGEABLE, STATUS.ORDERED_FIXED, STATUS.IN_PRODUCTION];
 const ARRIVED = [STATUS.BONDED_STOCK, STATUS.OH_STOCK, STATUS.SOLD];
 
-// ---- 지표 3종 ----
+// ---- 지표 4종 ----
 function kpiCards(vehicles, baseMonth) {
   const moving = vehicles.filter((v) => ON_VESSEL.includes(v.current_status));
   const transit = moving.filter((v) => v.current_status === STATUS.IN_TRANSIT);
   const next = addMonths(baseMonth, 1);
-  const arriving = (month) => moving.filter((v) => expectedArrivalMonth(v) === month).length;
+  // 입항 지표는 대시보드·월별 표와 같은 집계를 쓴다(선박의 입항월: ATA → ETA 선사 → Pl. arrival, 날짜가 없으면 빠진다).
+  // 당월: 예정 = 지금 In Transit 인 차량, 완료 = 이미 입항한 차량(ATA 가 당월). 익월: 선박에 실린 운송 중·선적 예정 차량
+  const thisMonth = arrivalSchedule(vehicles, baseMonth, { onlyMonth: baseMonth });
+  const nextMonth = arrivalSchedule(vehicles, baseMonth, { onlyMonth: next });
   const kpi = (label, value, foot) =>
     mk(
       "div",
@@ -37,7 +40,7 @@ function kpiCards(vehicles, baseMonth) {
     );
   return mk(
     "div",
-    { class: "grid3" },
+    { class: "grid4" },
     kpi(
       tx("운송중 (In Transit)"),
       transit.length,
@@ -46,8 +49,9 @@ function kpiCards(vehicles, baseMonth) {
         m: num(moving.length - transit.length),
       })
     ),
-    kpi(tx("당월 입항 예정 ({m})", { m: baseMonth }), arriving(baseMonth), tx("ATA → ETA 선사 → Pl. arrival 순")),
-    kpi(tx("익월 입항 예정 ({m})", { m: next }), arriving(next), tx("Shipment scheduled 포함"))
+    kpi(tx("당월 입항 예정 ({m})", { m: baseMonth }), thisMonth.inTransit, tx("In Transit · ATA → ETA 선사 → Pl. arrival 순")),
+    kpi(tx("당월 입항 완료 ({m})", { m: baseMonth }), thisMonth.arrived, tx("ATA 기준 · Bonded·OH·Sold")),
+    kpi(tx("익월 입항 예정 ({m})", { m: next }), nextMonth.total, tx("Shipment scheduled 포함"))
   );
 }
 
@@ -183,7 +187,7 @@ function monthlyCard(vehicles, baseMonth, rerender) {
           },
           tx("미배정")
         )
-      : mk("th", { class: `num${current(month)}`, title: y.arrived ? tx("입항 실적 (ATA 기준)") : `Shipping ${y.shipping || "—"}` }, y.vessel);
+      : mk("th", { class: `num${current(month)}`, title: `${y.arrived ? `${tx("입항 실적 (ATA 기준)")} ${y.date}` : `Shipping ${y.shipping || "—"} → ${y.date || "—"}`}${y.bl ? ` · B/L ${y.bl}` : ""}` }, y.vessel);
 
   const sumBy = (rows) => {
     const by = {};
@@ -211,7 +215,7 @@ function monthlyCard(vehicles, baseMonth, rerender) {
         { class: "desc" },
         [
           tx("행: 구분 > 차종 > 모델(Model · Type · Axle · Cab · 비표준 옵션) · 열: 입항 월(ATA → ETA 선사 → Pl. arrival 순) > 선박 · 값: 모델별 선박 선적 대수 (In Transit + Shipment scheduled)"),
-          tx("당월 이전 달은 입항 실적(ATA 기준, Bonded·OH·Sold)"),
+          tx("당월까지는 입항 실적 포함(ATA 기준, Bonded·OH·Sold)"),
           tx("미배정 = Vessel 없이 ETA From TDD만 있는 오더 (ETA From TDD 월)"),
         ].join(" · ")
       ),

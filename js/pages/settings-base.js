@@ -37,6 +37,10 @@ const ITEMS = [
     key: "planMonths", label: "계획 개월 수", help: "계획 시작 월부터 보여 주는 개월 수입니다.",
     choices: PLAN_MONTHS, text: (value) => tx("{n}개월", { n: value }),
   },
+  {
+    key: "invoiceFromShippingUntil", label: "Invoice 대신 Shipping 을 쓰는 마지막 달", month: true,
+    help: "Invoice 가 없는 차량 중 Shipping 이 이 달까지인 차량은 Shipping 월을 Invoice 월로 봅니다(Invoice 행, In Transit 실적). 비우면 쓰지 않습니다.",
+  },
 ];
 const LABELS = { ...Object.fromEntries(ITEMS.map((item) => [item.key, item.label])), optimusSubcat: "Optimus 분류", optimusGroups: "Optimus 분류" };
 
@@ -145,7 +149,8 @@ function render(box, source, state, retry) {
         show();
         return;
       }
-      if (parsed.value === data[key]) delete edit.patch[key];
+      // 비워 둘 수 있는 항목은 빈 글과 "파일에 없음"을 같은 값으로 본다
+      if (parsed.value === (data[key] ?? (parsed.value === "" ? "" : undefined))) delete edit.patch[key];
       else edit.patch[key] = parsed.value;
       show();
       drawBar();

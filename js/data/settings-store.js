@@ -19,7 +19,10 @@ const SCALARS = {
   salesInit: "salesInit",
   planStart: "month",
   planMonths: "planMonths",
+  invoiceFromShippingUntil: "monthOptional",
 };
+// 비워 둘 수 있는 항목(파일에 없어도 된다)
+const OPTIONAL = ["invoiceFromShippingUntil"];
 /** 값 하나짜리 항목의 이름(화면에 놓는 순서) */
 export const SCALAR_KEYS = Object.keys(SCALARS);
 /** 표로 두는 항목(키 → 값). optimusSubcat: Sub cat 번호 → Optimus 분류(optimusGroups 의 이름). 표에 없는 번호는 미분류다 */
@@ -49,12 +52,12 @@ export const isSubcatCode = (text) => /^\d{2}$/.test(text);
  * 입력한 글을 항목의 값으로 바꾼다.
  * @param {string} key 값 하나짜리 항목의 이름
  * @param {string|number} raw
- * @returns {{value: any}|{error: "required"|"number"|"lead"|"choice"|"month"}}
+ * @returns {{value: any}|{error: "required"|"number"|"lead"|"choice"|"month"}} 비워 둘 수 있는 항목을 비우면 value 가 빈 글이다
  */
 export function parseSetting(key, raw) {
   const kind = SCALARS[key];
   const text = String(raw ?? "").trim();
-  if (!text) return { error: "required" };
+  if (!text) return OPTIONAL.includes(key) ? { value: "" } : { error: "required" };
   if (kind === "decimal") {
     const value = Number(text);
     return Number.isFinite(value) && value >= 0 && value <= MAX_DECIMAL ? { value } : { error: "number" };
@@ -82,6 +85,7 @@ export function checkSettings(data) {
   const errors = [];
   for (const key of SCALAR_KEYS) {
     const parsed = parseSetting(key, data?.[key]);
+    if (OPTIONAL.includes(key) && !parsed.error && parsed.value === "") continue;
     // 숫자 항목에 글로 적힌 숫자가 들어 있으면 형식 오류다
     const wrongType = !parsed.error && typeof parsed.value !== typeof data[key];
     if (parsed.error || wrongType) errors.push({ key, error: parsed.error ?? "number" });

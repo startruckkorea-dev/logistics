@@ -1,6 +1,6 @@
 // KUFRI 생산판매계획 — 차량 데이터에서 월별 생산 · 입항 · 판매 · 재고를 계산해 매트릭스로 보여 준다(조회).
 // 계산은 domain/kufri.js, 차량 → 모델 행은 data/kufri-source.js, 표는 kufri-matrix.js. 기준값(마스터·설정)이 있어야 연다.
-import { mk } from "../lib/dom.js";
+import { mk, cssZoom } from "../lib/dom.js";
 import { tx } from "../app/i18n.js";
 import { openModal, closeModal, toast } from "../app/ui.js";
 import { baseDate } from "../app/base-date.js";
@@ -15,7 +15,7 @@ import { matrixTable, modelBody, itemBody, ROWS, EXPANDABLE } from "./kufri-matr
 // 화면 상태. 다른 화면에 다녀와도 유지한다.
 //   layout: 보기(model = 모델별, item = 항목별), year: 보여 줄 첫 해(그 해와 다음 해), vehicle: 차종 필터("" = 전체), q: 모델 검색,
 //   inactive: 보이는 기간에 생산·판매가 없는 모델도 보인다, open: 펼친 세부 행(두 보기가 같이 쓴다), collapsed: 접은 묶음
-const view = { layout: "model", year: "", vehicle: "", q: "", inactive: false, open: { prod: false, arr: false, it: false }, collapsed: new Set() };
+const view = { layout: "model", year: "", vehicle: "", q: "", inactive: false, open: {}, collapsed: new Set() };
 
 const TOTAL_KEY = "__total";
 const sectionKey = (vehicle) => `__vehicle|${vehicle}`;
@@ -29,7 +29,7 @@ const NOTE_LABEL = {
 
 // 칸의 차량 목록 창
 function openCell(model, group, rowId, month) {
-  const items = cellVehicles(group, rowId, month, model.planFrom);
+  const items = cellVehicles(group, rowId, month, model.planFrom, model.current);
   const row = ROWS.find((r) => r.id === rowId);
   const vehicles = items.map((item) => item.v);
   const copy = mk("button", { class: "btn", type: "button" }, tx("Commission No 복사"));
@@ -148,9 +148,11 @@ function legend() {
       null,
       mk("li", null, tx("Production 은 PM 월 기준입니다. 실적 = In Production 이후 상태, 확정 = Ordered(Fixed), Changeable = Ordered(Changeable). Ordered(Dummy) · Cancelled · Rejected 와 PM 이 없는 차량은 세지 않습니다.")),
       mk("li", null, tx("Production 합계: 다음 달까지 = 실적 + 확정 + Changeable, 다다음 달부터 = 실적 + 확정 + 계획. 다다음 달부터의 Changeable 은 계획 값에 포함된 수량이라 참고로만 보여 줍니다.")),
-      mk("li", null, tx("Arrival 과 OH Stock 은 입항(ATA) 기준입니다. TSC 입고일이나 Current Status 의 OH Stock(통관 후)과 다릅니다. 입항월 = ATA → ETA 선사 → Pl. arrival, 없으면 PM + 리드타임.")),
-      mk("li", null, tx("In Transit(월말): Invoice 가 있는 차량은 Invoice 월부터, 없는 차량과 계획 수량은 생산월 다음 달부터 입항 전 달까지.")),
-      mk("li", null, tx("Sales: 전달까지 실적, 당월부터 계획(값이 없으면 기준값의 초기값). OH Stock = 전월 OH + Arrival − Sales. 재고월수 = 재고 ÷ 최근 3개월 평균 Sales."))
+      mk("li", null, tx("Arrival 과 OH Stock 은 입항(ATA) 기준입니다. TSC 입고일이나 Current Status 의 OH Stock(통관 후)과 다릅니다. 입항월 = ATA → ETA 선사 → Pl. arrival(실제 도착 정보), 없으면 ETA From TDD → PM + 리드타임(산출).")),
+      mk("li", null, tx("In Transit(월말): Invoice 가 있는 차량은 Invoice 월부터(실적), 없는 차량과 계획 수량은 생산월 다음 달부터(산출) 입항 전 달까지. Invoice 가 없는 차량은 기준값이 정한 달까지 Shipping 월을 Invoice 월로 봅니다.")),
+      mk("li", null, tx("Sales: 전달까지 실적, 당월부터 계획(값이 없으면 기준값의 초기값). OH Stock = 전월 OH + Arrival − Sales. 재고월수 = 재고 ÷ 최근 3개월 평균 Sales.")),
+      mk("li", null, tx("지난 달에는 실적만 남깁니다. Invoice 가 없는 차량의 In Transit 과, 아직 들어오지 않은 차량의 추정 입항월이 지난 달이면 당월로 넘깁니다.")),
+      mk("li", null, tx("OH Stock 의 실적 = 지난 달 말에 실제 도착 정보가 있고 판매되지 않은 차량. 지난 달의 산출에 값이 남으면 입항 정보가 없는 차량이 있다는 뜻입니다. 당월부터는 전부 산출입니다."))
     )
   );
 }
@@ -216,15 +218,17 @@ function build(root, data) {
           )
         : cards.map((card) => modelBody(card, view.open));
     const setCollapsed = (on) => {
+      const anchor = firstVisible();
       for (const body of bodies) {
         if (on) view.collapsed.add(body.key);
         else view.collapsed.delete(body.key);
       }
-      draw();
+      drawKeeping(anchor);
     };
     const setOpen = (on) => {
+      const anchor = firstVisible();
       for (const id of EXPANDABLE) view.open[id] = on;
-      draw();
+      drawKeeping(anchor);
     };
     // 항목별 보기의 바로 가기: 그 행의 묶음이 표의 맨 위에 오게 한다
     const jump = (key) => {
@@ -342,6 +346,45 @@ function build(root, data) {
     window.scrollTo(keep.x, keep.y);
   };
 
+  // ---- 펼치거나 접을 때 기준 줄을 화면의 같은 자리에 둔다 ----
+  // 위쪽 묶음의 줄 수가 달라지면 스크롤 값이 같아도 보던 줄이 밀려난다. 그래서 기준 줄(누른 줄, 버튼이면 표에서 맨 위에 보이는 줄)이
+  // 다시 그린 뒤에도 같은 높이에 오도록 표의 스크롤을 맞춘다.
+  // 줄을 가리키는 값: 묶음의 key + 그 묶음 안에서 몇 번째 값 줄인지(펼침 행은 세지 않는다. 제목 줄은 -1)
+  const describe = (tr) => {
+    const tbody = tr.closest("tbody");
+    return {
+      card: tbody.querySelector("tr.card-row").dataset.card,
+      index: [...tbody.querySelectorAll("tr.kp-row")].indexOf(tr),
+      top: tr.getBoundingClientRect().top,
+    };
+  };
+  const locate = (anchor) => {
+    const title = [...box.querySelectorAll("tr.card-row")].find((tr) => tr.dataset.card === anchor.card);
+    if (!title) return null;
+    // 묶음이 접혀 값 줄이 없으면 제목 줄을 기준으로 삼는다
+    return (anchor.index >= 0 && title.closest("tbody").querySelectorAll("tr.kp-row")[anchor.index]) || title;
+  };
+  // 표에서 머리글 바로 아래에 보이는 첫 줄
+  const firstVisible = () => {
+    const wrap = box.querySelector(".kp-wrap");
+    if (!wrap) return null;
+    const limit = wrap.getBoundingClientRect().top + wrap.querySelector("thead").offsetHeight;
+    const tr = [...wrap.querySelectorAll("tr.card-row, tr.kp-row")].find((row) => row.getBoundingClientRect().bottom > limit + 1);
+    return tr ? describe(tr) : null;
+  };
+  function drawKeeping(anchor) {
+    draw();
+    const now = anchor && locate(anchor);
+    if (!now) return;
+    const wrap = box.querySelector(".kp-wrap");
+    // 줄의 위치는 창 좌표, 스크롤 값은 배율(CSS zoom)이 걸리기 전의 값이라 배율로 나눠 맞춘다
+    const zoom = cssZoom(wrap) || 1;
+    wrap.scrollTop += (now.getBoundingClientRect().top - anchor.top) / zoom;
+    // 표의 스크롤만으로 다 맞추지 못하면(표의 맨 위나 맨 아래) 화면을 움직여 맞춘다
+    const rest = now.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(rest) > 1) window.scrollBy(0, rest);
+  }
+
   box.addEventListener("click", (event) => {
     const linked = event.target.closest("td.lnk[data-href]");
     if (linked) {
@@ -350,8 +393,9 @@ function build(root, data) {
     }
     const toggle = event.target.closest("td[data-tog]");
     if (toggle) {
+      const anchor = describe(toggle.closest("tr"));
       view.open[toggle.dataset.tog] = !view.open[toggle.dataset.tog];
-      draw();
+      drawKeeping(anchor);
       return;
     }
     const cell = event.target.closest("td.drill");
@@ -363,9 +407,10 @@ function build(root, data) {
     const card = event.target.closest("tr.card-row");
     if (card) {
       const key = card.dataset.card;
+      const anchor = describe(card);
       if (view.collapsed.has(key)) view.collapsed.delete(key);
       else view.collapsed.add(key);
-      draw();
+      drawKeeping(anchor);
     }
   });
 

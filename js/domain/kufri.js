@@ -13,10 +13,15 @@
 //   확정 구간 : 당월의 다음 달까지.  합계 = 실적 + 확정 + Changeable (계획 값은 쓰지 않는다)
 //   계획 구간 : 다다음 달부터.       합계 = 실적 + 확정 + 계획 값
 // Sales 는 전달까지 실적, 당월부터 계획(비어 있으면 초기값).
+//
+// 지난 달에는 실적만 남긴다: 선적 기록(Invoice)이 없는 차량의 In Transit 과, 아직 들어오지 않은 차량의 추정 입항은
+// 지난 달에 두지 않고 당월 이후로 넘긴다(placeVehicle).
 import { addMonths } from "./dates.js";
 import { STATUS } from "./status.js";
 
 const PRODUCED = [STATUS.IN_PRODUCTION, STATUS.SHIPMENT_SCHEDULED, STATUS.IN_TRANSIT, STATUS.BONDED_STOCK, STATUS.OH_STOCK, STATUS.SOLD];
+// 이미 들어온 차량의 상태. 이 상태가 아닌 차량의 추정 입항월은 당월보다 앞에 두지 않는다
+const ARRIVED = [STATUS.BONDED_STOCK, STATUS.OH_STOCK, STATUS.SOLD];
 
 /** 계획 구간이 시작하는 달: 당월의 다다음 달 */
 export const firstPlanMonth = (current) => addMonths(current, 2);
@@ -34,26 +39,37 @@ export function vehicleKind(status) {
 
 /**
  * 차량 한 대가 표의 어디에 들어가는지. 계산과 칸의 차량 목록이 같이 쓴다.
- * @param {{status, pm, arrival, invoice, lead}} v computeModel 의 차량
+ * @param {{status, pm, arrival, estimate, invoice, lead}} v computeModel 의 차량
  * @param {string} planFrom 계획 구간이 시작하는 달
- * @returns {null|{kind, counted: boolean, arrival: string, arrivalActual: boolean, transit: null|{from: string, includeFrom: boolean, actual: boolean}}}
+ * @param {string} current 당월
+ * @returns {null|{kind, counted: boolean, arrival: string, arrivalActual: boolean, transit: null|{from: string, includeFrom: boolean, actual: boolean, notBefore?: string}}}
  *   null = 계산에 넣지 않는 차량. counted = Arrival · In Transit · Invoice · Sales 에 넣는다(계획 구간의 Changeable 과 PM 없는 Changeable 은 넣지 않는다).
- *   arrival = 입항월(실제 도착 정보, 없으면 생산월 + 리드타임), transit = 운송 구간의 시작(Invoice 가 있으면 그 달부터, 없으면 생산월 다음 달부터)
+ *   arrival = 입항월. 실제 도착 정보가 있으면 그 달(arrivalActual), 없으면 추정한다: 추정 입항월(estimate, ETA From TDD) → 생산월 + 리드타임.
+ *     아직 들어오지 않은 차량의 추정 입항월이 당월보다 앞이면 당월로 본다(들어왔어야 할 달에 들어오지 못한 차량은 당월로 넘어온다).
+ *   transit = 운송 구간의 시작. Invoice 가 있으면 그 달부터(실적), 없으면 생산월 다음 달부터(산출) —
+ *     Invoice 가 없는 차량은 지난 달에는 세지 않고 당월부터만 센다(notBefore). 선적되지 못한 채 달이 넘어가면 당월로 넘어온다.
  */
-export function placeVehicle(v, planFrom) {
+export function placeVehicle(v, planFrom, current) {
   const kind = vehicleKind(v.status);
   if (!kind) return null;
   const counted = !(kind === "changeable" && (!v.pm || v.pm >= planFrom));
-  const arrival = counted ? v.arrival || (v.pm ? addMonths(v.pm, v.lead) : "") : "";
+  let arrival = "";
+  if (counted) {
+    arrival = v.arrival || v.estimate || (v.pm ? addMonths(v.pm, v.lead) : "");
+    if (!v.arrival && arrival && arrival < current && !ARRIVED.includes(v.status)) arrival = current;
+  }
   let transit = null;
   if (arrival && v.invoice) transit = { from: v.invoice, includeFrom: true, actual: true };
-  else if (arrival && v.pm) transit = { from: v.pm, includeFrom: false, actual: false };
+  else if (arrival && v.pm) transit = { from: v.pm, includeFrom: false, actual: false, notBefore: current };
   return { kind, counted, arrival, arrivalActual: Boolean(counted && v.arrival), transit };
 }
 
 /** 그 달 말에 운송 중인지: 시작한 뒤이고 입항월 전이다 */
 export const inTransitAt = (transit, arrival, month) =>
-  Boolean(transit) && (transit.includeFrom ? transit.from <= month : transit.from < month) && month < arrival;
+  Boolean(transit) &&
+  (transit.includeFrom ? transit.from <= month : transit.from < month) &&
+  (!transit.notBefore || month >= transit.notBefore) &&
+  month < arrival;
 
 /** 시작 월부터 n 개월의 목록 */
 export const monthList = (start, count) => Array.from({ length: count }, (_, i) => addMonths(start, i));
@@ -89,8 +105,10 @@ function coverage(stock, sales) {
  * @param {object} input
  * @param {string[]} input.months 표의 달 "YYYY-MM"(이어진 달, 오름차순)
  * @param {string} input.current 당월 "YYYY-MM"
- * @param {Array<{status: string, pm: string, arrival: string, invoice: string, sales: string, lead: number}>} input.vehicles
- *   pm · arrival · invoice · sales 는 월("YYYY-MM") 또는 빈 글. arrival = 실제 도착 정보가 있는 차량의 입항월(없으면 빈 글),
+ * @param {Array<{status: string, pm: string, arrival: string, estimate?: string, invoice: string, sales: string, lead: number}>} input.vehicles
+ *   invoice = 운송이 시작된 달(Invoice 월. 부르는 쪽이 Invoice 가 없는 차량에 Shipping 월을 대신 넣을 수 있다)
+ *   pm · arrival · estimate · invoice · sales 는 월("YYYY-MM") 또는 빈 글. arrival = 실제 도착 정보가 있는 차량의 입항월(없으면 빈 글),
+ *   estimate = 실제 도착 정보가 없을 때 먼저 쓰는 추정 입항월(ETA From TDD),
  *   lead = 그 차량의 리드타임(월, PM ~ 입항). Cancelled · Rejected 는 넣지 않는다
  * @param {number} input.planLead 계획 수량에 쓰는 리드타임(월)
  * @param {Record<string, number>} [input.prodPlan] 월 → Production 계획 값
@@ -99,7 +117,9 @@ function coverage(stock, sales) {
  * @returns {object} 월별 배열(months 와 같은 길이):
  *   prodActual · prodFixed · prodChangeable · prodPlan(계획 구간의 계획 값) · prodPlanLeft(확정 구간에 남아 있는 계획 값, 계산에 쓰지 않는다) · prod(합계),
  *   invoice, arrActual(실제 도착 정보) · arrCalc(생산월 + 리드타임 산출) · arr,
- *   salesActual · sales, oh, itActual(Invoice 실적) · itCalc(산출) · it, cover · coverIT · coverAll,
+ *   salesActual · salesPast(전달까지의 실적) · salesPlanned(당월부터의 계획) · sales,
+ *   ohActual(지난 달 말에 실제로 있던 재고: 실제 도착 정보가 있고 그 달 말까지 판매되지 않은 차량) · ohCalc(나머지) · oh,
+ *   itActual(Invoice 실적) · itCalc(산출) · it, cover · coverIT · coverAll,
  *   그리고 open(표 시작 전의 재고 = 시작 전 입항 − 시작 전 판매), salesInit, skipped{noPm, noArrival}
  */
 export function computeModel(input) {
@@ -130,7 +150,7 @@ export function computeModel(input) {
   };
 
   for (const v of vehicles) {
-    const place = placeVehicle(v, planFrom);
+    const place = placeVehicle(v, planFrom, current);
     if (!place) continue;
 
     if (v.pm && index[v.pm] != null) {
@@ -176,6 +196,10 @@ export function computeModel(input) {
   const salesInit = salesInitOf(vehicles, current, input.salesInitRule ?? "zero");
   const sales = months.map((month, i) => (month < current ? salesActual[i] : salesPlanIn[month] != null ? Number(salesPlanIn[month]) || 0 : salesInit));
 
+  // Sales 를 값의 성격으로 나눈다: 전달까지 = 실적, 당월부터 = 계획
+  const salesPast = months.map((month, i) => (month < current ? sales[i] : 0));
+  const salesPlanned = months.map((month, i) => (month < current ? 0 : sales[i]));
+
   const open = openArrival - openSales;
   const oh = [];
   let stock = open;
@@ -183,6 +207,19 @@ export function computeModel(input) {
     stock += arr[i] - sales[i];
     oh.push(stock);
   }
+
+  // OH Stock 의 실적: 지난 달 말에 실제로 있던 차량(실제 도착 정보의 입항월이 그 달까지이고, 그 달 말까지 판매되지 않았다).
+  // 당월부터는 아직 지나지 않은 월말이라 전부 산출이다. 산출 = 합계 − 실적(지난 달에 남는 값은 입항 정보가 없는 차량에서 온다)
+  const ohActual = months.map((month) => {
+    if (month >= current) return 0;
+    let count = 0;
+    for (const v of vehicles) {
+      const place = placeVehicle(v, planFrom, current);
+      if (place?.counted && place.arrivalActual && place.arrival <= month && !(v.sales && v.sales <= month)) count++;
+    }
+    return count;
+  });
+  const ohCalc = oh.map((value, i) => value - ohActual[i]);
 
   const inTransit = (actual) =>
     months.map((month) =>
@@ -194,7 +231,7 @@ export function computeModel(input) {
 
   return {
     prodActual, prodFixed, prodChangeable, prodPlan, prodPlanLeft, prod,
-    invoice, arrActual, arrCalc, arr, salesActual, sales, oh, itActual, itCalc, it,
+    invoice, arrActual, arrCalc, arr, salesActual, salesPast, salesPlanned, sales, ohActual, ohCalc, oh, itActual, itCalc, it,
     cover: coverage(oh, sales),
     coverIT: coverage(it, sales),
     coverAll: coverage(oh.map((value, i) => value + it[i]), sales),
@@ -204,7 +241,7 @@ export function computeModel(input) {
 
 const SUM_KEYS = [
   "prodActual", "prodFixed", "prodChangeable", "prodPlan", "prodPlanLeft", "prod",
-  "invoice", "arrActual", "arrCalc", "arr", "salesActual", "sales", "oh", "itActual", "itCalc", "it",
+  "invoice", "arrActual", "arrCalc", "arr", "salesActual", "salesPast", "salesPlanned", "sales", "ohActual", "ohCalc", "oh", "itActual", "itCalc", "it",
 ];
 
 /**

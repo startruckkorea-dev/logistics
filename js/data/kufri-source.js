@@ -10,14 +10,27 @@ const monthOfText = (value) => (/^\d{4}-(0[1-9]|1[0-2])/.test(String(value ?? ""
 /** 실제 도착 정보가 있는 차량의 입항월: ATA → ETA(선사) → Planned Arrival. 없으면 빈 글 */
 export const arrivalInfoMonth = (v) => monthOfText(v.ata) || monthOfText(v.eta_from_eukor_pirt) || monthOfText(v.planned_arrival);
 
+/**
+ * 운송이 시작된 달: Invoice 월. Invoice 가 없는 차량은 Shipping 월이 기준값의 달(invoiceFromShippingUntil)까지일 때 Shipping 월로 대신한다
+ * (그 달까지는 Invoice 가 채워지지 않은 차량이 있어서다). 기준값이 비어 있으면 대신하지 않는다
+ */
+export function invoiceMonth(v, shippingUntil) {
+  const invoice = monthOfText(v.invoice);
+  if (invoice || !shippingUntil) return invoice;
+  const shipping = monthOfText(v.shipping);
+  return shipping && shipping <= shippingUntil ? shipping : "";
+}
+
 // 차량 → 계산이 받는 모양. v 는 원래 차량(목록과 링크에 쓴다)
-const toInput = (v, defaultLead) => ({
+const toInput = (v, settings) => ({
   status: v.current_status,
   pm: monthOfText(v.pm),
   arrival: arrivalInfoMonth(v),
-  invoice: monthOfText(v.invoice),
+  // 선박이 정해지지 않은 차량의 추정 입항월. 선적·입항의 "미배정"과 같은 날짜를 본다
+  estimate: monthOfText(v.eta_from_tdd),
+  invoice: invoiceMonth(v, settings.invoiceFromShippingUntil),
   sales: monthOfText(v.sales_month),
-  lead: Number(v.lead_months) || defaultLead,
+  lead: Number(v.lead_months) || settings.defaultLeadMonths,
   v,
 });
 
@@ -26,7 +39,7 @@ const toInput = (v, defaultLead) => ({
  * @param {object} source
  * @param {object[]} source.vehicles 차량 목록(loadVehicles)
  * @param {object[]} source.models Model Master 행(loadModelMaster)
- * @param {object} source.settings 기준값(planStart · planMonths · defaultLeadMonths · salesInit)
+ * @param {object} source.settings 기준값(planStart · planMonths · defaultLeadMonths · salesInit · invoiceFromShippingUntil)
  * @param {string} source.today 기준일 "YYYY-MM-DD"
  * @param {{prod?: Record<string, Record<string, number>>, sales?: Record<string, Record<string, number>>}} [source.plan] 모델 행 key → 월 → 계획 값
  * @returns {{
@@ -63,7 +76,7 @@ export function buildKufri(source) {
     const group = groupOf(v);
     if (v.current_status === STATUS.REJECTED) group.rejected.push(v);
     else {
-      group.inputs.push(toInput(v, defaultLead));
+      group.inputs.push(toInput(v, settings));
       if (v.moma_no) group.momaNos.add(v.moma_no);
     }
   }
@@ -98,7 +111,7 @@ export function buildKufri(source) {
     skipped.noPm += result.skipped.noPm;
     skipped.noArrival += result.skipped.noArrival;
     const active = group.inputs.some((x) => {
-      const place = placeVehicle(x, planFrom);
+      const place = placeVehicle(x, planFrom, current);
       if (!place) return false;
       return x.status !== STATUS.SOLD || inPeriod(x.pm) || inPeriod(place.arrival) || inPeriod(x.sales);
     });
@@ -136,13 +149,14 @@ export function buildKufri(source) {
  * @param {"prod"|"invoice"|"arr"|"sales"|"it"} row
  * @param {string} month
  * @param {string} planFrom 계획 구간이 시작하는 달
+ * @param {string} current 당월
  * @returns {Array<{v: object, kind: string, pm: string, arrival: string, note: string}>}
  *   note: Production 은 구분(actual · fixed · changeable), Arrival 은 actual(실제 도착 정보) · calc(산출), In Transit 은 actual(Invoice) · calc
  */
-export function cellVehicles(group, row, month, planFrom) {
+export function cellVehicles(group, row, month, planFrom, current) {
   const out = [];
   for (const x of group.inputs) {
-    const place = placeVehicle(x, planFrom);
+    const place = placeVehicle(x, planFrom, current);
     if (!place) continue;
     const item = (note) => out.push({ v: x.v, kind: place.kind, pm: x.pm, arrival: place.arrival, note });
     if (row === "prod") {

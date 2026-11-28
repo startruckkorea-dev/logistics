@@ -67,6 +67,11 @@
       "enum": [12, 24, 36, 48],
       "description": "계획 개월 수."
     },
+    "invoiceFromShippingUntil": {
+      "type": "string",
+      "pattern": "^(\\d{4}-(0[1-9]|1[0-2]))?$",
+      "description": "Invoice 가 없는 차량 중 Shipping 이 이 달까지인 차량은 Shipping 월을 Invoice 월로 본다. 없거나 빈 글이면 쓰지 않는다."
+    },
     "optimusGroups": {
       "type": "array",
       "description": "Optimus 가 차량을 나누는 분류의 이름 목록. 화면에 이 이름과 순서대로 나온다. 차량의 Model 값과는 다른 묶음이다(여러 Model 이 한 분류에 들어갈 수 있다).",

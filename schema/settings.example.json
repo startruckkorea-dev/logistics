@@ -11,6 +11,7 @@
   "salesInit": "avg3",
   "planStart": "2000-01",
   "planMonths": 12,
+  "invoiceFromShippingUntil": "1999-12",
   "optimusGroups": ["SampleGroupA", "SampleGroupB"],
   "optimusSubcat": {
     "01": "SampleGroupA",

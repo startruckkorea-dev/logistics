@@ -9,7 +9,7 @@ import { coverageLevel } from "../domain/kufri.js";
 import { num } from "../app/charts.js";
 
 // 행 정의. key = 계산 결과의 배열 이름, cls = 행 색(css/kufri.css), flow = 연간 열에 합계를 낸다(아니면 연말 값),
-// drill = 칸을 누르면 차량 목록(past = 실적인 달만), subs = 펼침 행
+// drill = 칸을 누르면 차량 목록(past = 실적인 달만), subs = 펼침 행(값의 성격 — 실적 · 계획 · 산출 — 이 섞인 행은 모두 둔다)
 export const ROWS = [
   {
     id: "prod", cls: "prod", label: "Production", key: "prod", flow: true, drill: true,
@@ -17,8 +17,8 @@ export const ROWS = [
   },
   { id: "invoice", cls: "inv", label: "Invoice", key: "invoice", flow: true, drill: true },
   { id: "arr", cls: "arr", label: "Arrival", key: "arr", flow: true, drill: true, subs: [["arrActual", "실제 도착 정보"], ["arrCalc", "생산 + 리드타임 산출"]] },
-  { id: "sales", cls: "sal", label: "Sales", key: "sales", flow: true, drill: "past" },
-  { id: "oh", cls: "oh", label: "OH Stock (월말 · 입항일 기준)", key: "oh" },
+  { id: "sales", cls: "sal", label: "Sales", key: "sales", flow: true, drill: "past", subs: [["salesPast", "실적"], ["salesPlanned", "계획"]] },
+  { id: "oh", cls: "oh", label: "OH Stock (월말 · 입항일 기준)", key: "oh", subs: [["ohActual", "실적"], ["ohCalc", "산출"]] },
   { id: "it", cls: "it", label: "In Transit (월말)", key: "it", drill: true, subs: [["itActual", "실적 (Invoice)"], ["itCalc", "산출"]] },
   { id: "cover", cls: "cov", label: "재고월수 OH", key: "cover", cover: true },
   { id: "coverIT", cls: "cov", label: "재고월수 In Transit", key: "coverIT", cover: true },
@@ -137,7 +137,7 @@ export function matrixTable(model, options) {
       const value = values[indexOf[month]];
       if (row.cover) return mk("td", { class: monthClass(month) }, coverNode(value));
       // 계획 값이 들어가는 칸: Sales 는 당월부터, Production 의 계획 행은 계획 구간
-      const planned = (row.id === "sales" && !line.sub && month >= model.current) || (key === "prodPlan" && month >= model.planFrom);
+      const planned = (row.id === "sales" && key !== "salesPast" && month >= model.current) || (key === "prodPlan" && month >= model.planFrom);
       // 참고로만 보여 주는 칸: 계획 구간의 Changeable
       const reference = key === "prodChangeable" && month >= model.planFrom;
       const canDrill = line.group && !line.sub && value && (row.drill === true || (row.drill === "past" && month < model.current));
